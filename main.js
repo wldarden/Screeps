@@ -1,8 +1,8 @@
-var roleHarvester = require('role.harvester');
-var roleUpgrader = require('role.upgrader');
-var roleBuilder = require('role.builder');
-var roleSpawn = require('role.spawn')
-const utils = require('./utils')
+var roleHarvester = require('src/role.harvester');
+var roleUpgrader = require('src/role.upgrader');
+var roleBuilder = require('src/role.builder');
+var roleSpawn = require('src/role.spawn')
+const utils = require('./src/utils')
 
 const strategy = {
   name: 'start',
