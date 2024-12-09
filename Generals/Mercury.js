@@ -1,0 +1,4 @@
+
+class Mercury extends General {
+
+}
