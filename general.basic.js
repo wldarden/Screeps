@@ -17,10 +17,10 @@ class General {
         ]
     }
     constructor(type = 'start', resources) {
-
+        console.log('constructor for general')
     }
 
-    run () {
+    run (available) {
         console.log(`general ${this.name} running`)
         // have 2 harvesters?
         // have 1 upgraders?
@@ -45,4 +45,17 @@ class General {
         }
     }
 
+    add (type, name) {
+        switch(type) {
+            case 'creep':
+                this.creeps.push(name)
+            case 'room':
+                this.rooms.push(name)
+            case 'spawn':
+                this.spawns.push(name)
+        }
+    }
+
 }
+
+module.exports = General

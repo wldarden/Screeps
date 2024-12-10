@@ -6,7 +6,6 @@ var utils = {
         const btmLeftX = position.x - 2
         const btmLeftY = position.y - 2
         var i = 0
-        console.log('Searching! ', btmLeftX, btmLeftY, structure)
         while (searching && i < 50) {
             // [7, 8, 9]
             // [3, 4, 5]
@@ -25,12 +24,33 @@ var utils = {
             } else {
                 i++
             }
-            console.log('tried', x, y, 'res: ', res)
         }
         return !searching // (true if building, false if couldnt)
     },
     spawn: function (spawn) {
 
+    },
+    freeResources: function () {
+        const freeCreeps = []
+        const freeSpawns = []
+        for(var name in Memory.creeps) {
+            let creep = Game.creeps[name]
+            if(!creep) {
+                delete Memory.creeps[name];
+                console.log('Clearing non-existing creep memory:', name);
+            } else {
+                if (!creep.general) {
+                    freeCreeps.push(creep)
+                }
+            }
+        }
+        for(var name in Memory.spawns) {
+            let spawn = Game.spawns[name]
+            if (!spawn.general) {
+                freeSpawns.push(spawn)
+            }
+        }
+        return {freeCreeps, freeSpawns}
     }
 }
 

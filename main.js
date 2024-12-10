@@ -1,9 +1,10 @@
-var roleHarvester = require('src/role.harvester');
-var roleUpgrader = require('src/role.upgrader');
-var roleBuilder = require('src/role.builder');
-var roleSpawn = require('src/role.spawn')
-const utils = require('./src/utils')
-
+const roleHarvester = require('./role.harvester')
+const roleUpgrader = require('./role.upgrader')
+const roleBuilder = require('./role.builder')
+const General = require('./general.basic')
+const Mercury = require('./general.mercury')
+const {buildNear, freeResources} = require('./utils')
+const memoryUtils = require('./utils.memory')
 const strategy = {
   name: 'start',
   status: 'running',
@@ -14,33 +15,50 @@ const strategy = {
     {type: 'build', role: STRUCTURE_EXTENSION, count: 6, done: false, cost: 100},
   ]
 }
-
 const ROLE_MAP = {
   harvester: roleHarvester,
   upgrader: roleUpgrader,
   builder: roleBuilder
 }
 
+function init() {
+  // memoryUtils.init();
+
+  //Set up military roles
+  // var militaryMemory = Memory.military;
+  // for (let manager in unitManagers)
+  //   militaryMemory.roles[manager] = memoryUtils.createRole();
+  Memory.Generals = []
+  Memory.init = true
+}
+const FREE_RESOURCE_INTERVAL = 10
 module.exports.loop = function () {
   /**
    * INITIALIZE
    */
-    if (!Memory.Generals) {
-      Memory.Generals = [new General('start', {
 
-      })]
-    }
+  // if (!Memory.Generals) {
+  //   Memory.Generals = [new General('start', {})]
+  // }
+  //
+  // /**
+  //  * GATHER FREE RESOURCES
+  //  */
+  // let available
+  // const cleanupTime = Game.time % FREE_RESOURCE_INTERVAL
+  // if (cleanupTime === 0) {
+  //   available = freeResources()
+  // }
+  //
+  // /**
+  //  * RUN
+  //  */
+  // Memory.Generals.forEach(general => {
+  //   console.log(JSON.stringify(general))
+  //   general.run(available)
+  // })
 
-  /**
-   * RUN
-   */
-  Memory.Generals.forEach(general => {
-      general.run()
-    })
 
-  /**
-   * DISTRIBUTE FREE RESOURCES
-   */
 
     // for(var name in Memory.creeps) {
     //     if(!Game.creeps[name]) {
@@ -134,7 +152,6 @@ module.exports.loop = function () {
         }
         break
       case 'build':
-        console.log(JSON.stringify(goal))
         if (!myStructures.length) {
           for (var name in spawns) {
             var spawn = spawns[name]
@@ -150,15 +167,13 @@ module.exports.loop = function () {
           for (var name in spawns) {
             const spawn = spawns[name]
             // console.log(JSON.stringify(spawn.room.controller.level > 1, (spawn.room.energyAvailable * 3) > spawn.room.energyCapacityAvailable, spawn.room.energyCapacityAvailable < 800, spawn.room.find(FIND_MY_CONSTRUCTION_SITES).length < 1))
-            console.log(spawn.room.controller.level > 1, (spawn.room.energyAvailable * 3) > spawn.room.energyCapacityAvailable, spawn.room.energyCapacityAvailable < 800, spawn.room.find(FIND_MY_CONSTRUCTION_SITES).length < 1)
-
             if (
               spawn.room.controller.level >= 1 &&
               (spawn.room.energyAvailable * 3) > spawn.room.energyCapacityAvailable &&
               spawn.room.energyCapacityAvailable < 800 &&
               spawn.room.find(FIND_MY_CONSTRUCTION_SITES).length < 1
             ) {
-              keepChecking = !utils.buildNear(spawn.pos, STRUCTURE_EXTENSION)
+              keepChecking = !buildNear(spawn.pos, STRUCTURE_EXTENSION)
             }
           }
         } else {

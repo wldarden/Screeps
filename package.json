@@ -8,8 +8,12 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
+    "@types/screeps": "^3.3.8",
     "typescript": "^5.7.2"
+  },
+  "description": "",
+  "devDependencies": {
+    "@types/node": "^22.10.1"
   }
 }
