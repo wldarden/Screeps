@@ -1,6 +1,7 @@
 const {getUniqueName} = require('./utils.spawner')
 const {creepRunners} = require('./runners')
 const {addEnergyRequest} = require('./utils.request')
+const {fetchParentJobs, fetchTypeJobs} = require('./operation.job')
 
 function addCreep (name, role, plan, base) {
   // base.creeps.push(name)
@@ -57,15 +58,25 @@ module.exports.run = function (base, manifest) {
 
 
   let openHarvestJobs = 0
-  Object.keys(Memory.jobs['harvest']).forEach(jobId => {
-    if (!Memory.jobs['harvest'][jobId].reserved) {
-      openHarvestJobs++
+
+  let typeJobs = fetchTypeJobs(base.name, 'harvest')
+  for (let jobParent in typeJobs) {
+    if (typeJobs[jobParent]) {
+      typeJobs[jobParent].forEach(job => {
+        if (!job.reserved) {
+          openHarvestJobs++
+        }
+      })
     }
-  })
-  console.log('Open Harvest Jobs:', openHarvestJobs)
+  }
+
+
   if (room.energyAvailable > 250 && openHarvestJobs) {
     doSpawn('peon', base)
   }
+
+
+
   // if (level < 2) {
   //   // spawn some peons
   //   if (room.energyAvailable > 250 && base.roles['peon'].creeps.length < 3) {

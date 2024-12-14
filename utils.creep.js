@@ -82,6 +82,7 @@ function getOpenSource (sources) {
     }
 }
 
+
 function setCreepSrcTrg (creep, newSrcTrg) {
     if (creep.memory.srcTrg !== newSrcTrg) {
         removeCreepFromSource(creep, creep.memory.srcTrg)

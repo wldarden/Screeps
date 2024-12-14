@@ -7,17 +7,52 @@ module.exports.JOB_TYPES = {
     // transport: {}
 }
 
-// const sample_job = {
-//     type: 'string', // 'harvest' | 'build' | 'upgrade' | 'transport'
-//     id: 'string', // 'uniqueId. default ${type}_${job.base}_${job.role}',
-//     time: 0, //'??? calculated. submitted Game.time',
-//     roles: ['peon', 'builder', 'harvester', 'etc'], // 'Roles that can take this job',
-//     reserved: false, // job is being worked
-//     reserver: 'id',
-//     priority: 0-1,
-// }
 
+function fetchBaseJobs (baseName) {
+    try {
+        if (Memory.bases[baseName]) {
+            // return Memory.bases[baseName].jobs || {}
+            return Memory.bases[baseName].jobs
+        } else {
+            console.log('Couldnt find Base Jobs', JSON.stringify(job))
+        }
+        // return Memory.bases[job.base].jobs[job.type][job.parentId].find(j => j.reserver === name)
+    } catch (e) {
+        console.log('Error: could not find Base Jobs.', baseName, e.stack)
+    }
+}
+module.exports.fetchBaseJobs = fetchBaseJobs
 
+function fetchTypeJobs (baseName, type) {
+    try {
+        const jobsForBase = fetchBaseJobs(baseName)
+        // return (jobsForBase && jobsForBase[type]) ? jobsForBase[type] : {}
+        return jobsForBase[type]
+    } catch (e) {
+        console.log('Error: could not find Jobs for Type.', e.stack)
+    }
+}
+module.exports.fetchTypeJobs = fetchTypeJobs
+function fetchParentJobs (base, type, parentId) {
+    try {
+        const jobsForType = fetchTypeJobs(base, type)
+
+        return jobsForType[parentId]
+        // return (jobsForType && jobsForType[parentId]) ? jobsForType[parentId] : []
+    } catch (e) {
+        console.log('Error: could not find Jobs for Parent. ', e.stack)
+    }
+}
+module.exports.fetchParentJobs = fetchParentJobs
+function fetchJobForName (name, job) {
+    try {
+        return fetchParentJobs(job.base, job.type, job.parentId).find(pj => pj.reserver === name)
+        // return Memory.bases[job.base].jobs[job.type][job.parentId].find(j => j.reserver === name)
+    } catch (e) {
+        console.log('Error: could not find jobs creep. should we release job and amnesia creep?', e.stack)
+    }
+}
+module.exports.fetchJobForName = fetchJobForName
 /**
  *
  * Harvest Jobs: try to fill slots of source. default drop off is spawn, but can use diff strats:
@@ -29,27 +64,6 @@ module.exports.JOB_TYPES = {
 // module.exports.addRequest = function (manifest, type, request) {
 // const VALID_JOB_TYPES = ['harvest', 'build', 'upgrade', 'transport']
 module.exports.submitJob = function (job) {
-    // give type as arg!!!!!!
-    // const job = {
-    //     id: 'uniqueId. default ${type}_${job.base}_${job.role}',
-    //     time: '??? calculated. submitted Game.time',
-    //     roles: ['peon', 'builder', 'etc], // 'Roles that can take this job',
-    //     reserved: false, // job is being worked
-    //     priority: 0-1
-    // }
-    // job.id = job.id ? job.id : `${job.type}_${job.base}_${job.role}`
-
-
-
-
-    // if (!Memory.jobs[job.type].some(r => r.id === job.id)) {
-    //     console.log('Submitted ', job.type,' Request at ', Game.time,': ', JSON.stringify(job))
-    //     job.time = Game.time
-    //     job.priority = job.priority ?? .2
-    //     job.reserved = !!job.creep
-    //     Memory.jobs[job.type].push(job)
-    // }
-    //
     let newJob = job
     job.time = Game.time
     job.priority = job.priority ?? .2
@@ -66,45 +80,50 @@ module.exports.submitJob = function (job) {
             Memory.bases[job.base].jobs[job.type][job.parentId] = [newJob] // parent never submitted job. add parent and add array of submissions
         }
     }
-
-    // if (!Memory.jobs[job.type][job.id]) {
-    //     console.log('Submitted ', job.type,' Request at ', Game.time,': ', JSON.stringify(job))
-    //     job.time = Game.time
-    //     job.priority = job.priority ?? .2
-    //     job.reserved = !!job.creep
-    //     Memory.jobs[job.type][job.id] = job
-    // }
 }
 
 function saveJob (job) {
-    if (job) {
-        // if (typeof job === 'string') {
-        //
-        // } else if (job.type) {
-        Memory.jobs[job.type][job.id] = job
-        return job
-
-        // let index = Memory.jobs[job.type].findIndex(j => j.id === job.id)
-        // if (index >= 0) {
-        //     Memory.jobs[job.type][index] = job
-        //     return job
-        // } else {
-        //     console.log('failed to reserve job: ', job.id, JSON.stringify(job))
-        // }
-        // } else if (job.id) {
-        //     for (let type in Memory.jobs[job.type])
-        // }
+    if (Memory.bases[job.base]) {
+        if (Memory.bases[job.base].jobs[job.type]) {
+            if (Memory.bases[job.base].jobs[job.type][job.parentId]) {
+                let jobIndex = Memory.bases[job.base].jobs[job.type][job.parentId].findIndex( j => j.reserver === job.reserver)
+                if (jobIndex >= 0) {
+                    Memory.bases[job.base].jobs[job.type][job.parentId][jobIndex]
+                    return true
+                }
+            } else {
+                console.log('Couldnt find parent in base jobs', JSON.stringify(job))
+            }
+        } else {
+            console.log('Couldnt find job type in base', JSON.stringify(job))
+        }
+    } else {
+        console.log('Couldnt find job base', JSON.stringify(job))
     }
+    return false
 }
 function releaseJob (job) {
-    if (Memory.jobs[job.type][job.id]) {
-        Memory.jobs[job.type][job.id].reserved = false
-        Memory.jobs[job.type][job.id].reserver = null
-        return true
+    if (Memory.bases[job.base]) {
+        if (Memory.bases[job.base].jobs[job.type]) {
+            if (Memory.bases[job.base].jobs[job.type][job.parentId]) {
+                let jobIndex = Memory.bases[job.base].jobs[job.type][job.parentId].findIndex( j => j.reserver === job.reserver)
+                if (jobIndex >= 0) {
+                    job.reserved = false
+                    job.reserver = null
+                    job.opened = Game.time
+                    return true
+                }
+            } else {
+                console.log('Couldnt find parent in base jobs', JSON.stringify(job))
+            }
+        } else {
+            console.log('Couldnt find job type in base', JSON.stringify(job))
+        }
     } else {
-        return false
+        console.log('Couldnt find job base', JSON.stringify(job))
     }
 
+    // return saveJob(job)
 }
 module.exports.releaseJob = releaseJob
 
@@ -115,13 +134,9 @@ module.exports.releaseJob = releaseJob
  * @return {*}
  */
 function reserveJob (job, reserver) {
-    if (job && Memory.jobs[job.type][job.id]) {
-        Memory.jobs[job.type][job.id].reserved = true
-        Memory.jobs[job.type][job.id].reserver = reserver
-        return true
-    } else {
-        return false
-    }
+    job.reserved = true
+    job.reserver = reserver
+    return saveJob(job)
 }
 module.exports.reserveJob = reserveJob
 
@@ -130,45 +145,44 @@ module.exports.setCreepJob = function (creep, job) {
         // release old job
         releaseJob(creep.memory.job)
     }
+    if (!job.base) {
+        job.base = creep.memory.base
+    }
     reserveJob(job, creep.name)
-    creep.memory.job = job
+    creep.memory.job = {type: job.type, parentId: job.parentId, base: job.base}
 }
 
 /**
  *  for reserver id and job types, finds matching unreserved job and returns it.
  * @param creep
- * @param jobTypes
+ * @param jobTypes - the jobs you want to search
  * @return {*} // returns the reserved job
  */
 module.exports.findJob = function (creep, jobTypes) {
-    let jobs = Memory.jobs
+    let baseJobs = Memory.bases[creep.memory.base].jobs
     let newJob
     jobTypes.some(type => {
-        if (jobs[type]) {
-            return Object.keys(jobs[type]).some(jobId => {
-                let job = jobs[type][jobId]
-                if (!job.reserved) {
-                    newJob = job
-                    return true
-                }
-            })
+        const jobsForType = baseJobs[type]
+        switch (type) {
+            case 'harvest':
+                return Memory.bases[creep.memory.base].sources.some(s => {
+                    return fetchParentJobs(creep.memory.base, 'harvest', s.id).some(job => {
+                        if (!job.reserved) {
+                            newJob = job
+                            return true
+                        }
+                    })
+                })
+            default:
+                return Object.keys(jobsForType).some(parentId => { // get job in any order
+                    return jobsForType[parentId].some(job => {
+                        if (!job.reserved) {
+                            newJob = job
+                            return true
+                        }
+                    })
+                })
         }
-        // if (jobs[type] && jobs[type].length) {
-        //     newJob = jobs[type].find(j => !j.reserved)
-        //     // newJob = jobs[type].find(j => !j.reserved && jobs.roles.includes(creep.role))
-        //     if (newJob) {
-        //         // newJob = newJob // reserveJob(newJob, creep)
-        //         return true
-        //     }
-        //     // let newJobIndex = jobs[type].findIndex(j => !j.reserved)
-        //     // if (newJobIndex >= 0) {
-        //     //     Memory.jobs[type][newJobIndex].reserved = true
-        //     //     Memory.jobs[type][newJobIndex].creep = creep.name
-        //     //     newJob = Memory.jobs[type][newJobIndex]
-        //     //     // reserveJob(newJobIndex, creep)
-        //     //     return true
-        //     // }
-        // }
     })
     return newJob
 }

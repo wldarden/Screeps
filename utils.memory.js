@@ -28,6 +28,7 @@ module.exports.createSpawn = function (spawn) {
         sources: getSourcesForPos(spawn.pos, spawn.room.find(FIND_SOURCES))
     }
 }
+
 module.exports.createJob = function () {
     return {
         id: null,
@@ -98,7 +99,10 @@ module.exports.createBase = function (room) {
                 controllerLevel: 2
             },
             jobs: {
-
+                harvest: {},
+                upgrade: {},
+                build: {},
+                spawn: {}
             }
         }
 
@@ -111,36 +115,7 @@ module.exports.createBase = function (room) {
             }
         })
         let sources = room.find(FIND_SOURCES)
-        base.sources = sources.map(s => {
-            let src = createSource(s)
-            for (let i = 0; i < src.slots; i++) {
-                submitJob({
-                    type: 'harvest',
-                    id: `source_${src.id}_${i}`,
-                    base: base.name,
-                    threat: 0,
-                    params: {
-                        source: src.id
-                    },
-                    roles: ['harvester', 'peon']
-                })
-            }
-            return src
-        })
-        // if (!s.mode) {
-        //     // determine what strategy to use to mine this source
-        //     for (let i = 0; i < newSource.slots; i++) {
-        //         submitJob({
-        //             type: 'harvest',
-        //             id: `source_${source.id}_${i}`,
-        //             base: source.room.name,
-        //             params: {
-        //                 source: source.id
-        //             },
-        //             roles: ['harvester', 'peon']
-        //         })
-        //     }
-        // }
+        base.sources = sources.map(s => createSource(s))
         for (let role in creepRunners) {
             base.roles[role] = createRole()
         }

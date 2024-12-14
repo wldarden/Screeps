@@ -1,19 +1,17 @@
 const {createBase, createSpawn} = require('./utils.memory')
 const {creepRunners} = require('./runners')
 const {sortEnergyRequests} = require('./utils.request')
-const {JOB_TYPES} = require('./operation.job')
+const {JOB_TYPES, submitJob} = require('./operation.job')
 
 const baseRunners = [
   {runner: require('base.spawn'), name: 'General Spawn', ticks: 1, offset: 0},
-  {runner: require('base.controller'), name: 'General Controller', ticks: 1, offset: 0},
-  {runner: require('base.source'), name: 'General Controller', ticks: 1, offset: 0},
+  {runner: require('base.controller'), name: 'Controller General', ticks: 1, offset: 0},
+  {runner: require('base.source'), name: 'Source General', ticks: 1, offset: 0},
 ]
 
 function initMemory () {
   Memory.bases = {}
   Memory.init = true
-  Memory.jobs = {}
-  Object.keys(JOB_TYPES).forEach(k => { Memory.jobs[k] = {} })
 }
 
 module.exports.loop = function () {
@@ -63,6 +61,18 @@ function gatherGlobal () {
         if (!Memory.bases[spawn.room.name]) {
           let base = createBase(spawn.room)
           Memory.bases[spawn.room.name] = base
+          base.sources.forEach(s => {
+            for (let i = 0; i < s.slots; i++) {
+              submitJob({
+                type: 'harvest',
+                parentId: s.id,
+                base: base.name,
+                threat: 0,
+                roles: ['harvester', 'peon']
+              })
+            }
+            return s
+          })
         } else {}
         if (!Memory.spawns[name]) {
           Memory.spawns[name] = createSpawn(spawn)
@@ -104,7 +114,6 @@ function getSites (room) {
 
 function runBase(base, manifest) {
   try {
-    console.log('Info: Running Base: ', base.name)
     baseRunners.forEach(general => {
       try {
         general.runner.run(base, manifest)

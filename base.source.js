@@ -1,5 +1,5 @@
 const {getSourcesForPos} = require('./utils.cartographer')
-const {submitJob} = require('./operation.job')
+const {submitJob, fetchParentJobs} = require('./operation.job')
 
 
 module.exports.addTrgSources = function (base, trgId) {
@@ -25,35 +25,11 @@ function init (base, manifest) {
 module.exports.run = function (base, manifest) {
   // manage jobs
 
-  base.sources.forEach(s => {
-    init(base,manifest)
-    // if (!s.mode) {
-    //   // determine what strategy to use to mine this source
-    //   for (let i = 0; i < newSource.slots; i++) {
-    //     submitJob({
-    //       type: 'harvest',
-    //       id: `source_${source.id}_${i}`,
-    //       base: source.room.name,
-    //       params: {
-    //         source: source.id
-    //       },
-    //       roles: ['harvester', 'peon']
-    //     })
-    //   }
-    // }
-  })
-
-
-  // base.sources.some(s => {
-  //   if (s.active.length < s.slots) {
-  //     submitJob(
-  //       {
-  //         id: `${base.name}_${s.id}`,
-  //         base: base.name,
-  //         roles: ['peon', 'harvester'],
-  //         type: 'harvest'
-  //     })
-  //   }
+  // base.sources.forEach(s => {
+  //   init(base,manifest)
+  //   fetchParentJobs(base.name, 'harvest', s.id).some(job => {
+  //
+  //   })
   // })
 
 

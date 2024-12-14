@@ -23,7 +23,6 @@ module.exports.getSlotsAround = function (pos) {
                 if (x !== 0 || y !== 0) {
                     const checkX = x + pos.x
                     const checkY = y + pos.y
-                    console.log('Checking ', pos.x, pos.y, '||', checkX, checkY)
                     if (terrain.get(checkX, checkY) !== 1) {
                         res++
                     }

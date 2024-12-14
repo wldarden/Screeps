@@ -154,7 +154,6 @@ function upgradeController (creep, trgObj) {
 }
 
 function doDropOff (creep, trgObj, resource = RESOURCE_ENERGY) {
-  console.log(trgObj?.structureType, JSON.stringify(trgObj), 'trgObj logggg')
   switch (trgObj.structureType) {
     case STRUCTURE_EXTENSION:
     case STRUCTURE_SPAWN:

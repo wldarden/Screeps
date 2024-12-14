@@ -44,10 +44,21 @@
 
 const {setCreepSrcTrg, getBaseResourceTarget, validatePriorityTarget} = require('./utils.creep')
 const {harvest, doDropOff} = require('./actions')
+const {fetchJobForName} = require('./operation.job')
 
 module.exports.run = function (creep) {
   try {
-    let job = Memory.jobs[creep.memory.job.type][creep.memory.job.id]
+    let creepJob = creep.memory.job
+    let job = fetchJobForName(creep.name, creepJob)
+
+    // function getCreepJob (base, type, parentId) {
+    //   try {
+    //     job = Memory.bases[creepJob.base].jobs[creepJob.type][creepJob.parentId].find(j => j.reserver === creep.name)
+    //   } catch (e) {
+    //     console.log('Error: could not find job. should we release job and amnesia creep?', e.stack)
+    //   }
+    // }
+
     // we are harvesting.
     // refill
     // dropoff
@@ -61,11 +72,11 @@ module.exports.run = function (creep) {
         // go to source
         creep.travelling = true
         creep.memory.action = 'refill'
-        setCreepSrcTrg(creep, job.target)
+        setCreepSrcTrg(creep, job.parentId)
       }
     } else if (creep.memory.action === 'refill') {
       // go to source or harvest
-      let source = Game.getObjectById(job.params.source)
+      let source = Game.getObjectById(job.parentId)
       if (creep.memory.travelling) {
         creep.moveTo(source)
       }

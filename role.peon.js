@@ -20,20 +20,6 @@ module.exports.buildCreep = function (maxEnergy) {
   return CORE_PARTS
 }
 
-// const jobRunners = {
-//   harvest: {runner: require('job.harvest')}
-// }
-// function runJob (creep, job) {
-//   let job = Memory.jobs[job.type][job.id
-//   jobRunners[job.type].run(job, creep)
-//   // run job.
-//   switch (creep.memory.action) {
-//     case 'harvest':
-//     // go to job target
-//
-//   }
-// }
-
 
 const JOB_PROFICIENCIES = ['harvest', 'upgrade', 'build']
 
@@ -45,8 +31,8 @@ module.exports.run = function (creep, manifest) {
 
     if (!creep.memory.job) {
       let newJob = findJob(creep, JOB_PROFICIENCIES)
-      if (reserveJob(newJob, creep.name)) {
-        setCreepJob(creep, {type: newJob.type, id: newJob.id})
+      if (newJob) {
+        setCreepJob(creep, newJob)
       }
     }
 
