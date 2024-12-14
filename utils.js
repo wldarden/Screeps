@@ -10,8 +10,8 @@ var utils = {
             // [7, 8, 9]
             // [3, 4, 5]
             // [1, 2, 3]
-            const x = btmLeftX + (i % 3)
-            const y = btmLeftY + (Math.floor(i / 3))
+            const x = btmLeftX + ((i % 3) * 2)
+            const y = btmLeftY + (Math.floor(i / 3) * 2)
             var res = room.createConstructionSite(x, y, structure);
             // OK	                  0 The operation has been scheduled successfully.
             // ERR_NOT_OWNER	     -1 The room is claimed or reserved by a hostile player.
@@ -51,6 +51,22 @@ var utils = {
             }
         }
         return {freeCreeps, freeSpawns}
+    },
+    getMiningSlots: function (source, terrain) {
+        if (!terrain) {
+            terrain = source.room.getTerrain()
+        }
+        let slots = 0
+        for (let x = -1; x <= 1; x++) {
+            for (let y = -1; y <= 1; y++) {
+                if (x !== 0 && y !== 0) {
+                    if (terrain.get(x + source.pos.x,y + source.pos.y) !== 1) {
+                        slots++
+                    }
+                }
+            }
+        }
+        return slots
     }
 }
 

@@ -1,266 +1,361 @@
 const roleHarvester = require('./role.harvester')
 const roleUpgrader = require('./role.upgrader')
 const roleBuilder = require('./role.builder')
-const General = require('./general.basic')
-const Mercury = require('./general.mercury')
-const {buildNear, freeResources} = require('./utils')
+const {initBase} = require('./utils.memory')
 const memoryUtils = require('./utils.memory')
-const strategy = {
-  name: 'start',
-  status: 'running',
-  goals: [
-    {type: 'spawnCreep', role: 'harvester', count: 2, buildPlan: [WORK,CARRY,MOVE], done: false, cost: 200},
-    {type: 'spawnCreep', role: 'upgrader', count: 1, buildPlan: [WORK,CARRY,MOVE], done: false, cost: 200},
-    {type: 'spawnCreep', role: 'builder', count: 1, buildPlan: [WORK,CARRY,MOVE], done: false, cost: 200},
-    {type: 'build', role: STRUCTURE_EXTENSION, count: 6, done: false, cost: 100},
-  ]
-}
-const ROLE_MAP = {
-  harvester: roleHarvester,
-  upgrader: roleUpgrader,
-  builder: roleBuilder
-}
+const actions = require('./actions')
 
-function init() {
-  // memoryUtils.init();
+const militaryGenerals = [
+  { general: require('military.creeps'), offset: 0, interval: 1 }, //Checks for destroyed creeps
+  // { general: require('military.flags'), offset: 0, interval: 1 }, //Checks for destroyed flags
+  //
+  { general: require('military.intel'), offset: 1, interval: 2 }, //Updates power levels in each room
+  // { general: require('military.rally'), offset: 1, interval: 2 }, //Processes new rally flags
+  //
+  // //Managers that request units (must be the same tick as base.spawns)
+  { general: require('military.claims'), offset: 1, interval: 2 }, //Processes claim flags, requests remote builders
+  // { general: require('military.reservations'), offset: 1, interval: 2 }, //Requests reservers
+  // { general: require('military.defense'), offset: 1, interval: 2 }, //Requests defenders
+  // { general: require('military.squads'), offset: 1, interval: 2 } //Processes attack squads
+]
+const baseGenerals = [
+  { general: require('base.creeps'), offset: 0, interval: 1 }, //Checks for destroyed creeps
+  { general: require('base.storage'), offset: 0, interval: 1 }, //Updates storages/resources needing pickup, and nonfull dropoffs
+  //
+  // //Managers that request structures (must be the same tick as base.construction)
+  { general: require('base.structures'), offset: 0, interval: 2 }, //Requests structures
+  { general: require('base.construction'), offset: 0, interval: 2 }, //Checks construction sites, destroyed structures, creates structures
+  //
+  // //Managers that request units (must be the same tick as base.spawns)
+  { general: require('base.harvesters'), offset: 1, interval: 2 }, //Requests harvesters and miners
+  { general: require('base.builders'), offset: 1, interval: 2 }, //Requests builders/repairers and assigns targets
+  { general: require('base.transporters'), offset: 1, interval: 2 }, //Requests collectors/rechargers/scavengers and assigns targets
+  { general: require('base.upgraders'), offset: 1, interval: 2 }, //Requests upgraders/maintainers
+  { general: require('base.territory'), offset: 1, interval: 2 }, //Requests scouts, claims bases/rooms
+  { general: require('base.spawns'), offset: 1, interval: 2 }, //Spawns creeps
+  //
+  // //Must be last:
+  { manager: require('base.declump'), offset: 0, interval: 2 }, //Moves creeps away from spawns
+]
+const unitGenerals = {
+  // builder_remote: require('unit.builder_remote'),
+  // claimer: require('unit.claimer'),
+  // healer: require('unit.healer'),
+  // reserver: require('unit.reserver'),
+  // scout: require('unit.scout'),
+  // melee: require('unit.melee'),
+  // ranged: require('unit.ranged'),
+  // hybrid: require('unit.hybrid')
+}
+const creepGenerals = {
+  builder_defense: require('role.builder_defense'),
+  builder_road: require('role.builder_road'),
+  builder_structure: require('role.builder_structure'),
+  collector: require('role.collector'),
+  harvester: require('role.harvester'),
+  peon: require('role.peon'),
+  // healer: require('role.healer'),
+  // maintainer: require('role.maintainer'),
+  miner: require('role.miner'),
+  // recharger: require('role.recharger'),
+  // recharger_core: require('role.recharger_core'),
+  // repairer: require('role.repairer'),
+  scavenger: require('role.scavenger'),
+  upgrader: require('role.upgrader')
+}
+var towerGeneral = require('structure.tower');
+function initMemory () {
 
-  //Set up military roles
-  // var militaryMemory = Memory.military;
-  // for (let manager in unitManagers)
-  //   militaryMemory.roles[manager] = memoryUtils.createRole();
-  Memory.Generals = []
+  memoryUtils.init();
   Memory.init = true
 }
-const FREE_RESOURCE_INTERVAL = 10
+
 module.exports.loop = function () {
-  /**
-   * INITIALIZE
-   */
-
-  // if (!Memory.Generals) {
-  //   Memory.Generals = [new General('start', {})]
-  // }
-  //
-  // /**
-  //  * GATHER FREE RESOURCES
-  //  */
-  // let available
-  // const cleanupTime = Game.time % FREE_RESOURCE_INTERVAL
-  // if (cleanupTime === 0) {
-  //   available = freeResources()
-  // }
-  //
-  // /**
-  //  * RUN
-  //  */
-  // Memory.Generals.forEach(general => {
-  //   console.log(JSON.stringify(general))
-  //   general.run(available)
-  // })
-
-
-
-    // for(var name in Memory.creeps) {
-    //     if(!Game.creeps[name]) {
-    //         delete Memory.creeps[name];
-    //         console.log('Clearing non-existing creep memory:', name);
-    //     }
-    // }
-    // var harvesters = _.filter(Game.creeps, (creep) => creep.memory.role == 'harvester');
-    // console.log('Harvesters: ' + harvesters.length)
-    // if(harvesters.length < 2) {
-    //     var newName = 'Harvester' + Game.time;
-    //     console.log('Spawning new harvester: ' + newName);
-    //     Game.spawns['Spawn1'].spawnCreep([WORK,CARRY,MOVE], newName,
-    //         {memory: {role: 'harvester'}});
-    // }
-
-    // if(Game.spawns['Spawn1'].spawning) {
-    //     var spawningCreep = Game.creeps[Game.spawns['Spawn1'].spawning.name];
-    //     Game.spawns['Spawn1'].room.visual.text(
-    //         '🛠️' + spawningCreep.memory.role,
-    //         Game.spawns['Spawn1'].pos.x + 1,
-    //         Game.spawns['Spawn1'].pos.y,
-    //         {align: 'left', opacity: 0.8});
-    // }
-
-
-  // if (!Memory.init) {
-  //   if (!Game.spawns.length) {
-  //     console.log('Place Spawn!')
-  //   } else {
-  //     Memory.goals = [{
-  //       strategy: 'start',
-  //       room: Game.spawns[0].
-  //     }]
-  //     Memory.init = true
-  //   }
-  //
-  // }
-  var spawns = Game.spawns
-  var creeps = Game.creeps
-  // var availableEnergy = 0
-  // for (var name in spawns) {
-  //   var spawn = spawns[name]
-  //   if (!spawn.memory.init) {
-  //     roleSpawn.init(spawn)
-  //   } else {
-  //     roleSpawn.run(spawn)
-  //     availableEnergy = availableEnergy + spawn.room.energyAvailable
-  //   }
-  // }
-  let creepCounts = {}
-  for(var name in creeps) {
-    if(!creeps[name]) {
-         delete Memory.creeps[name];
-         console.log('Clearing non-existing creep memory:', name);
-    }
-    var creep = creeps[name];
-    var runner = ROLE_MAP[creep.memory.role]
-    creepCounts[creep.memory.role] = creepCounts[creep.memory.role] ?  creepCounts[creep.memory.role] + 1 : 1
-    runner.run(creep)
+  if (!Memory.init) {
+    initMemory()
   }
-  let myStructures = []
-  let myStructuresCounts = {}
-  strategy.goals.some(goal => {
-    let keepChecking = false
-    switch (goal.type) {
-      case 'spawnCreep':
-        if (!creepCounts[goal.role] || creepCounts[goal.role] < goal.count) {
-          goal.done = false
-          // do a spawn
-          const res = Object.keys(spawns).some(name => {
-            var spawn = spawns[name]
-            if (!spawn.spawning && spawn.room.energyAvailable > goal.cost) {
-              const res = spawn.spawnCreep(goal.buildPlan, `${goal.role}_${creepCounts[goal.role] ?? '0'}`, { memory: { role: goal.role }});
-              if(spawn.spawning) { spawn.room.visual.text('🛠️' + Game.creeps[spawn.spawning.name].memory.role, spawn.pos.x + 1, spawn.pos.y, {align: 'left', opacity: 0.8});}
-              if (res === 0) {
-                return true
-              } else {
-                // didnt work
-                console.log('Tried to spawn ', goal.role, 'but failed because ', res)
-              }
-            } else {
-              return false
-            }
-          })
-          if (res) {
-            keepChecking = true
-          }
-        } else {
-          goal.done = true
-        }
-        break
-      case 'build':
-        if (!myStructures.length) {
-          for (var name in spawns) {
-            var spawn = spawns[name]
-            myStructures = myStructures.concat(spawn.room.find(FIND_MY_STRUCTURES))
-          }
-          myStructures.forEach(s => {
-            // myStructuresCounts  structureType
-            myStructuresCounts[s.structureType] = myStructuresCounts[s.structureType] ? 1 : myStructuresCounts[s.structureType] + 1
-          })
-        }
-        if (!myStructuresCounts[goal.role] || myStructuresCounts[goal.role] < goal.count) {
-          // try to build
-          for (var name in spawns) {
-            const spawn = spawns[name]
-            // console.log(JSON.stringify(spawn.room.controller.level > 1, (spawn.room.energyAvailable * 3) > spawn.room.energyCapacityAvailable, spawn.room.energyCapacityAvailable < 800, spawn.room.find(FIND_MY_CONSTRUCTION_SITES).length < 1))
-            if (
-              spawn.room.controller.level >= 1 &&
-              (spawn.room.energyAvailable * 3) > spawn.room.energyCapacityAvailable &&
-              spawn.room.energyCapacityAvailable < 800 &&
-              spawn.room.find(FIND_MY_CONSTRUCTION_SITES).length < 1
-            ) {
-              keepChecking = !buildNear(spawn.pos, STRUCTURE_EXTENSION)
-            }
-          }
-        } else {
-          goal.done = true
-        }
-        break
-      default:
-        console.log('Unhandled Goal! ', JSON.stringify(goal))
-    }
-    return keepChecking
-  })
-  Object.keys(creepCounts).forEach(role => {
 
-  })
+  gatherGlobal()
+  for (let name in Memory.bases)
+    runBase(name);
+  for(var name in Game.creeps)
+    runCreep(Game.creeps[name]);
+
+
+  // var spawns = Game.spawns
+  // var creeps = Game.creeps
+  //
+  // /**
+  //  * Define Goals
+  //  */
+  //
+  // // given...
+  //
+  // let creepCounts = {}
+  // let myStructures = []
+  // let myStructuresCounts = {}
+  // for(var name in creeps) {
+  //   if(!creeps[name]) {
+  //        delete Memory.creeps[name];
+  //        delete Game.creeps[name];
+  //        console.log('Clearing non-existing creep memory:', name);
+  //   }
+  //   var creep = creeps[name];
+  //   var runner = ROLE_MAP[creep.memory.role]
+  //   creepCounts[creep.memory.role] = creepCounts[creep.memory.role] ?  creepCounts[creep.memory.role] + 1 : 1
+  //   runner.run(creep)
+  // }
+  //
+  //
+  // strategy.goals.some(goal => {
+  //   let keepChecking = false
+  //   switch (goal.type) {
+  //     case 'spawnCreep':
+  //       if (!creepCounts[goal.role] || creepCounts[goal.role] < goal.count) {
+  //         goal.done = false
+  //         // do a spawn
+  //         const res = Object.keys(spawns).some(name => {
+  //           var spawn = spawns[name]
+  //           if (!spawn.spawning && spawn.room.energyAvailable > goal.cost) {
+  //             let lowestName = `${goal.role}_0`
+  //             if (creepCounts[goal.role]) {
+  //               let i = 0
+  //               let found = false
+  //               while(!found && i <= creepCounts[goal.role]) {
+  //                 const testName =`${goal.role}_${i}`
+  //                 if (!Game.creeps[testName]) {
+  //                   lowestName = testName
+  //                   found = true
+  //                 }
+  //                 i++
+  //               }
+  //             }
+  //
+  //             const res = spawn.spawnCreep(goal.buildPlan, lowestName, { memory: { role: goal.role }});
+  //             if(spawn.spawning) { spawn.room.visual.text('🛠️' + Game.creeps[spawn.spawning.name].memory.role, spawn.pos.x + 1, spawn.pos.y, {align: 'left', opacity: 0.8});}
+  //             if (res === 0) {
+  //               return true
+  //             } else {
+  //               // didnt work
+  //               console.log('Tried to spawn ', goal.role, 'but failed because ', res, lowestName, creepCounts[creep.memory.role])
+  //             }
+  //           } else {
+  //             return false
+  //           }
+  //         })
+  //         if (res) {
+  //           keepChecking = true
+  //         }
+  //       } else {
+  //         goal.done = true
+  //       }
+  //       break
+  //     case 'build':
+  //       if (!myStructures.length) {
+  //         for (var name in spawns) {
+  //           var spawn = spawns[name]
+  //           myStructures = myStructures.concat(spawn.room.find(FIND_MY_STRUCTURES))
+  //         }
+  //         myStructures.forEach(s => {
+  //           // myStructuresCounts  structureType
+  //           myStructuresCounts[s.structureType] = myStructuresCounts[s.structureType] ? 1 : myStructuresCounts[s.structureType] + 1
+  //         })
+  //       }
+  //       if (!myStructuresCounts[goal.role] || myStructuresCounts[goal.role] < goal.count) {
+  //         // try to build
+  //         for (var name in spawns) {
+  //           const spawn = spawns[name]
+  //           // console.log(JSON.stringify(spawn.room.controller.level > 1, (spawn.room.energyAvailable * 3) > spawn.room.energyCapacityAvailable, spawn.room.energyCapacityAvailable < 800, spawn.room.find(FIND_MY_CONSTRUCTION_SITES).length < 1))
+  //           if (
+  //             spawn.room.controller.level >= 1 &&
+  //             (spawn.room.energyAvailable * 3) > spawn.room.energyCapacityAvailable &&
+  //             spawn.room.energyCapacityAvailable < 800 &&
+  //             spawn.room.find(FIND_MY_CONSTRUCTION_SITES).length < 1
+  //           ) {
+  //             keepChecking = !buildNear(spawn.pos, STRUCTURE_EXTENSION)
+  //           }
+  //         }
+  //       } else {
+  //         goal.done = true
+  //       }
+  //       break
+  //     default:
+  //       console.log('Unhandled Goal! ', JSON.stringify(goal))
+  //   }
+  //   return keepChecking
+  // })
 }
+
 /**
- * Tactics:
- * - build extension: {}
- *
- * General => Strategy
- * Captain => Tactic
- *
- * at start:
- * - start a strategy
- *    - Pioneer
- *      - build harvester
- *      - build builder
- *      - make extention
- *      - build miner
- *      - build logistic
- *
- *
- * - Creep Types:
- *  - Harvester - walk move carry. starter.
- *  -
+ * After this, all rooms with spawns will have a room in memory
  */
+function gatherGlobal () {
+  try {
+    Game.creepGenerals = creepGenerals;
+    Game.unitGenerals = unitGenerals;
+    for (let spawnName in Game.spawns) {
+      var spawn = Game.spawns[spawnName];
+      if (!Memory.bases[spawn.room.name]) {
+        createBase(spawn.room);
+        Memory.structures[spawn.id] = {};
+      }
+    }
+    for (let i = 0; i < baseGenerals.length; i++) {
+      var gen = baseGenerals[i];
+      gen.general.updateGlobal(actions);
+    }
+    // if (runManagers) {
+    //   for (let i = 0; i < militaryManagers.length; i++) {
+    //     var manager = militaryManagers[i];
+    //     if (hasElapsed(manager.offset, manager.interval))
+    //       manager.manager.updateGlobal(actions);
+    //   }
+    //   for (let i = 0; i < baseManagers.length; i++) {
+    //     var manager = baseManagers[i];
+    //     if (hasElapsed(manager.offset, manager.interval))
+    //       manager.manager.updateGlobal(actions);
+    //   }
+    // }
+
+  } catch (e) {
+    console.log("[!] gatherGlobal Error: " + e.stack);
+  }
+}
+
+function runBase (name) {
+  var base = {
+    name: name,
+    memory: Memory.bases[name],
+    dropoffs: [],
+    pickups: []
+  };
+
+  try
+  {
+    try {
+      if (!Game.bases) {
+        Game.bases = {}
+      }
+      Game.bases[name] = base;
+    } catch (e) {
+      console.log('failed to set base', name, e.stack)
+    }
+
+    try {
+      if (!Game.rooms[name]) {
+        destroyBase(base);
+        return;
+      }
+    } catch (e) {
+      console.log('failed to destroy base')
+    }
 
 
+    var creepRequests = [];
+    var structureRequests = [];
+    var defenseRequests = [];
 
-//Game.rooms.sim.createConstructionSite(10, 15, STRUCTURE_ROAD);
-
-
-//Game.spawns['Spawn1'].spawnCreep( [WORK, WORK, WORK, WORK, WORK, MOVE], 'Harvester1' )
-
-// Game.spawns['Spawn1'].spawnCreep( [WORK, CARRY, MOVE], 'Harvester1' )
-// Game.spawns['Spawn1'].spawnCreep( [WORK, CARRY, MOVE], 'Upgrader1' );
-// Game.spawns['Spawn1'].spawnCreep( [WORK, CARRY, MOVE], 'Builder1',
-//   { memory: { role: 'builder' } } );
-
-
-
-// var creep = Game.creeps['Harvester1'];
-// var sources = creep.room.find(FIND_SOURCES);
-// if(creep.harvest(sources[0]) == ERR_NOT_IN_RANGE) {
-//   creep.moveTo(sources[0]);
-// }
-
-// var creep = Game.creeps['Harvester1'];
-//
-// if(creep.store.getFreeCapacity() > 0) {
-//   var sources = creep.room.find(FIND_SOURCES);
-//   if(creep.harvest(sources[0]) == ERR_NOT_IN_RANGE) {
-//     creep.moveTo(sources[0]);
-//   }
-// }
-// else {
-//   if( creep.transfer(Game.spawns['Spawn1'], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE ) {
-//     creep.moveTo(Game.spawns['Spawn1']);
-//   }
-// }
-
-// for(var name in Game.creeps) {
-//   var creep = Game.creeps[name];
-//
-//   if(creep.store.getFreeCapacity() > 0) {
-//     var sources = creep.room.find(FIND_SOURCES);
-//     if(creep.harvest(sources[0]) == ERR_NOT_IN_RANGE) {
-//       creep.moveTo(sources[0]);
-//     }
-//   }
-//   else {
-//     if(creep.transfer(Game.spawns['Spawn1'], RESOURCE_ENERGY) == ERR_NOT_IN_RANGE) {
-//       creep.moveTo(Game.spawns['Spawn1']);
-//     }
-//   }
-// }
+    try {
+      for (let i = 0; i < militaryGenerals.length; i++) {
+        var gen = militaryGenerals[i];
+        try {
+          gen.general.updateBase(base, actions, creepRequests, structureRequests, defenseRequests);
+        } catch (e) {
+          console.log('Failed to run Military General: ', gen)
+        }
+      }
+      for (let i = 0; i < baseGenerals.length; i++) {
+        var gen = baseGenerals[i];
+        try {
+          gen.general.updateBase(base, actions, creepRequests, structureRequests, defenseRequests);
+        } catch (e) {
+          console.log('Failed to run Base General: ', i, e.stack)
+        }
+      }
+    } catch (e) {
+      console.log('failed to run base',name,  e.stack)
+    }
 
 
-// Game.creeps['Harvester1'].memory.role = 'harvester';
-// Game.creeps['Upgrader1'].memory.role = 'upgrader';
+    //Update structures
+    var towers = base.memory.structures[STRUCTURE_TOWER];
+    for(var i = 0; i < towers.length; i++)
+      towerGeneral.updateTower(Game.structures[towers[i]], actions);
+
+  } catch (e) {
+    if (base.memory && !base.memory.error)
+      base.memory.error = e.stack;
+    console.log("[!] Base Error (" + name + "): " + e.stack);
+  }
+}
+
+function runCreep(creep) {
+  try {
+    if (creep.spawning)
+      return;
+
+    if (!actions.hasAnyAction(creep)) {
+      if (creep.pos.x === 0 || creep.pos.y === 0 ||
+        creep.pos.x === 49 || creep.pos.y === 49)
+        actions.flee(creep, creep, 1);
+    }
+    if (actions.continueAction(creep) !== true) {
+      if (creep.memory.military) {
+        unitGenerals[creep.memory.role].run(creep, creep.memory, actions);
+      } else {
+        creepGenerals[creep.memory.role].run(creep, creep.memory, actions);
+      }
+    }
+
+  } catch (error) {
+    console.log("[!] Creep Error (" + creep.name + "): " + error.stack);
+  }
+}
+
+
+function createBase (room) {
+  try {
+    var baseMemory = memoryUtils.createBaseMemory();
+    var base = {
+      name: room.name,
+      memory: baseMemory
+    };
+    Memory.bases[room.name] = baseMemory;
+    Game.bases[room.name] = base;
+
+    baseMemory.structures[STRUCTURE_CONTROLLER] = [];
+    for (let structureType in CONSTRUCTION_COST) {
+      if (structureType !== STRUCTURE_RAMPART &&
+        structureType !== STRUCTURE_WALL &&
+        structureType !== STRUCTURE_ROAD &&
+        structureType !== STRUCTURE_CONTAINER)
+        baseMemory.structures[structureType] = [];
+    }
+
+    var structures = room.find(FIND_MY_STRUCTURES);
+    for (let i = 0; i < structures.length; i++) {
+      var structure = structures[i];
+      var list = baseMemory.structures[structure.structureType];
+      if (list) {
+        list.push(structure.id)
+      }
+      if (structure.structureType === STRUCTURE_SPAWN) {
+        baseMemory.spawns.push(structure.name)
+      }
+    }
+    for (let general in creepGenerals)
+      baseMemory.roles[general] = memoryUtils.createRoll()
+
+    console.log(base.name + ': Created');
+  } catch (e) {
+    console.log("[!] Create Base Error (" + room.name + "): " + e.stack);
+  }
+
+}
+
+function destroyBase(base) {
+  delete Memory.bases[base.name];
+  delete Game.bases[base.name];
+
+  console.log(base.name + ': Destroyed');
+}
