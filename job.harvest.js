@@ -41,78 +41,39 @@
 // There are no WORK body parts in this creep’s body.
 //
 
-
-const {setCreepSrcTrg, getBaseResourceTarget, validatePriorityTarget} = require('./utils.creep')
-const {harvest, doDropOff} = require('./actions')
-const {fetchJobForName} = require('./operation.job')
-
 module.exports.run = function (creep) {
   try {
-    let creepJob = creep.memory.job
-    let job = fetchJobForName(creep.name, creepJob)
+    // console.log('running creep[harvest]', creep.name)
+    let base = Memory.bases[creep.memory.base]
+    let job = base.jobs[creep.memory.jobId]
+    let step = job.steps[creep.memory.step]
 
-    // function getCreepJob (base, type, parentId) {
-    //   try {
-    //     job = Memory.bases[creepJob.base].jobs[creepJob.type][creepJob.parentId].find(j => j.reserver === creep.name)
-    //   } catch (e) {
-    //     console.log('Error: could not find job. should we release job and amnesia creep?', e.stack)
-    //   }
-    // }
+    let target = Game.getObjectById(step.id)
 
-    // we are harvesting.
-    // refill
-    // dropoff
-    if (creep.memory.action === 'idle') {
-      if (creep.store.getUsedCapacity() / creep.store.getFreeCapacity() > 1) { // should we fill up or distribute?
-        // go to target
-        creep.travelling = true
-        creep.memory.action = 'dropoff'
-        creep.memory.target = getBaseResourceTarget(Memory.bases[creep.memory.base], RESOURCE_ENERGY)
-      } else {
-        // go to source
-        creep.travelling = true
-        creep.memory.action = 'refill'
-        setCreepSrcTrg(creep, job.parentId)
-      }
-    } else if (creep.memory.action === 'refill') {
-      // go to source or harvest
-      let source = Game.getObjectById(job.parentId)
-      if (creep.memory.travelling) {
-        creep.moveTo(source)
-      }
-      harvest(creep, source)
-    } else if (creep.memory.action === 'dropoff') {
-      // find target
-      // move to
-      // drop off
-      console.log('Performing Action ', creep.memory.action, 'target: ', creep.memory.target, 'travelling',creep.memory.travelling)
-      if (!creep.memory.target) {
-        if (job.params.dropoff) {
-          creep.memory.target = job.params.dropoff
-        } else {
-          creep.memory.target = validatePriorityTarget(creep)
+    let actionRes = creep.harvest(target)
+    // console.log('actionRes: ', creep.name, actionRes)
+    switch (actionRes) {
+      case ERR_NOT_IN_RANGE:
+        creep.moveTo(target, {range: 1, ignoreCreeps: true, visualizePathStyle: {stroke: '#ffffff'}})
+        break
+      case ERR_TIRED:
+        console.log('creep says they are tired: ', creep.name)
+        break
+      case ERR_NOT_ENOUGH_RESOURCES:
+        // hybernate a bit maybe?
+        break
+      case OK:
+        if (creep.store.getFreeCapacity() === 0) {
+          creep.memory.step++
         }
-      }
-      let trgObj = Game.getObjectById(creep.memory.target)
-      if (trgObj) {
-        if (creep.memory.travelling) {
-          creep.moveTo(trgObj)
-        }
-        doDropOff(creep, trgObj)
-      } else {
-        creep.memory.target = null
-      }
+        break
+    }
 
+
+    if (job.steps.length < creep.memory.step + 1) {
+      creep.memory.step = 0
     }
   } catch (e) {
     console.log('Error: couldnt run harvest job', e.stack)
   }
-
 }
-// if (creep.harvest(srcTrgObj) === ERR_NOT_IN_RANGE) {
-//         creep.moveTo(srcTrgObj, {visualizePathStyle: {stroke: '#ffffff'}})
-//     } else if (creep.store.getFreeCapacity() === 0) {
-//         creep.memory.status = 'full'
-//         removeCreepFromSource(creep, creep.memory.srcTrg)// remove creep from source active list
-//         validatePriorityTarget(creep) // recheck that the destination for energy is still priority
-//     }

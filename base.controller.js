@@ -10,7 +10,7 @@ function needsEnergy (controller, base) {
 }
 module.exports.controllerNeedsEnergy = needsEnergy
 
-module.exports.run = function (base) {
+module.exports.run = function (base, manifest) {
   // base.structures[STRUCTURE_CONTROLLER].forEach(controllerId => {
   //   let controller = Game.getObjectById(controllerId)
   //   // should it be added to the energyTargets list?

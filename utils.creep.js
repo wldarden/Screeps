@@ -7,23 +7,23 @@ module.exports.onDestroyCommon = function(name) {
     // remove from roles
     // release jobs
     let creepMemory = Memory.creeps[name]
-    if (creepMemory.job) {
-        releaseJob(creepMemory.job)
-    }
-    let base = Game.bases[creepMemory.base]
-    if (base) {
-        if (creepMemory.srcTrg) { // remove srcTrg claim
-            base.sources.some(s => {
-                if (s.id === creepMemory.srcTrg) {
-                    s.active = s.active.filter(id => id !== creepMemory.name)
-                    return true
-                }
-            })
-        }
-        let roleObj = base.roles[creepMemory.role]
-        roleObj.creeps = base.roles[creepMemory.role].creeps.filter(cId => cId !== creepMemory.name) // remove from role list
-        creepMemory.parts.forEach(part => {roleObj[part]--}) // remove part counts
-    }
+    // if (creepMemory.job) {
+    //     releaseJob(creepMemory.job)
+    // }
+    // let base = Game.bases[creepMemory.base]
+    // if (base) {
+    //     if (creepMemory.srcTrg) { // remove srcTrg claim
+    //         base.sources.some(s => {
+    //             if (s.id === creepMemory.srcTrg) {
+    //                 s.active = s.active.filter(id => id !== creepMemory.name)
+    //                 return true
+    //             }
+    //         })
+    //     }
+    //     let roleObj = base.roles[creepMemory.role]
+    //     roleObj.creeps = base.roles[creepMemory.role].creeps.filter(cId => cId !== creepMemory.name) // remove from role list
+    //     creepMemory.parts.forEach(part => {roleObj[part]--}) // remove part counts
+    // }
 }
 
 

@@ -1,3 +1,4 @@
+const {serializePos} = require('./utils.memory')
 
 module.exports.getSlotsAround = function (pos) {
     try {
@@ -13,7 +14,8 @@ module.exports.getSlotsAround = function (pos) {
         } catch (e) {
             console.log('Error: getting room terrain: ', pos.roomName, e.stack)
         }
-        let res = 0
+        let res = []
+        // let count = 0
         const minCheckX = pos.x === 0 ? 0 : -1
         const minCheckY = pos.y === 0 ? 0 : -1
         const maxCheckX = pos.x === 49 ? 0 : 1
@@ -24,7 +26,8 @@ module.exports.getSlotsAround = function (pos) {
                     const checkX = x + pos.x
                     const checkY = y + pos.y
                     if (terrain.get(checkX, checkY) !== 1) {
-                        res++
+                        res.push(serializePos({x: checkX, y: checkY, roomName: pos.roomName}))
+                        // count++
                     }
                 }
             }

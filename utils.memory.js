@@ -1,6 +1,4 @@
-const {getSlotsAround, getSourcesForPos} = require('./utils.cartographer')
-const {creepRunners} = require('./runners')
-const {submitJob} = require('./operation.job')
+// const {creepRunners} = require('./runners')
 
 function serializePos (pos) {
     const x = (pos.x < 10) ? '0' + pos.x : pos.x.toString()
@@ -25,7 +23,7 @@ module.exports.createSpawn = function (spawn) {
     return {
         id: spawn.name,
         room: spawn.room.name,
-        sources: getSourcesForPos(spawn.pos, spawn.room.find(FIND_SOURCES))
+        sources: []
     }
 }
 
@@ -43,15 +41,14 @@ module.exports.createJob = function () {
 
 function createSource (source) {
     try {
-        let newSource = {
+        return {
             id: source.id,
             pos: serializePos(source.pos),
-            slots: getSlotsAround(source.pos),
+            slots: [],
+            plan: 'simple',
             active: [],
-            type: 'mine'
+            jobs: []
         }
-
-        return newSource
     } catch (e) {
         console.log('Error Creating Source: ', e.stack)
     }
@@ -63,9 +60,7 @@ module.exports.createBase = function (room) {
         let base =  {
             name: room.name,
             sources: [],
-            sourcePaths: {},
             creeps: [],
-            // energyTargets: [],
             targets: {
                 [RESOURCE_ENERGY]: []
             },
@@ -92,18 +87,7 @@ module.exports.createBase = function (room) {
                 // [STRUCTURE_FACTORY]: "factory",
                 // [STRUCTURE_INVADER_CORE]: "invaderCore",
             },
-            spawnRequests: [],
-            buildRequests: [],
-            roles: {},
-            goal: {
-                controllerLevel: 2
-            },
-            jobs: {
-                harvest: {},
-                upgrade: {},
-                build: {},
-                spawn: {}
-            }
+            jobs: {}
         }
 
         let structs = room.find(FIND_STRUCTURES)
@@ -114,11 +98,6 @@ module.exports.createBase = function (room) {
                 base.structures[s.structureType].push(s.id)
             }
         })
-        let sources = room.find(FIND_SOURCES)
-        base.sources = sources.map(s => createSource(s))
-        for (let role in creepRunners) {
-            base.roles[role] = createRole()
-        }
         return base
     } catch (e) {
         console.log('Error createBase( ' + (room?.name ?? 'Undefined Room Name!') + ' ): ', e.stack)
@@ -126,23 +105,23 @@ module.exports.createBase = function (room) {
     }
 }
 
-function createRole () {
-    try {
-        return {
-            parts: {
-                [MOVE]: 0,
-                [WORK]: 0,
-                [CARRY]: 0,
-                [ATTACK]: 0,
-                [RANGED_ATTACK]: 0,
-                [TOUGH]: 0,
-                [HEAL]: 0,
-                [CLAIM]: 0
-            },
-            creeps: []
-        }
-    } catch (e) {
-        console.log('Error Creating RoleCount: ', e.stack)
-    }
-}
-module.exports.createSource = createRole
+// function createRole () {
+//     try {
+//         return {
+//             parts: {
+//                 [MOVE]: 0,
+//                 [WORK]: 0,
+//                 [CARRY]: 0,
+//                 [ATTACK]: 0,
+//                 [RANGED_ATTACK]: 0,
+//                 [TOUGH]: 0,
+//                 [HEAL]: 0,
+//                 [CLAIM]: 0
+//             },
+//             creeps: []
+//         }
+//     } catch (e) {
+//         console.log('Error Creating RoleCount: ', e.stack)
+//     }
+// }
+// module.exports.createSource = createRole

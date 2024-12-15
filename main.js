@@ -1,14 +1,18 @@
-const {createBase, createSpawn} = require('./utils.memory')
+const {createBase, createSpawn, createSource} = require('./utils.memory')
 const {creepRunners} = require('./runners')
 const {sortEnergyRequests} = require('./utils.request')
-const {JOB_TYPES, submitJob} = require('./operation.job')
+const {getSlotsAround, getSourcesForPos} = require('./utils.cartographer')
 
 const baseRunners = [
-  {runner: require('base.spawn'), name: 'General Spawn', ticks: 1, offset: 0},
-  {runner: require('base.controller'), name: 'Controller General', ticks: 1, offset: 0},
   {runner: require('base.source'), name: 'Source General', ticks: 1, offset: 0},
+  {runner: require('base.spawn'), name: 'General Spawn', ticks: 1, offset: 0},
+  // {runner: require('base.controller'), name: 'Controller General', ticks: 1, offset: 0},
 ]
 
+const actionRunners = {
+  harvest: {runner: require('job.harvest')},
+  transfer: {runner: require('job.transfer')}
+}
 function initMemory () {
   Memory.bases = {}
   Memory.init = true
@@ -35,12 +39,36 @@ module.exports.loop = function () {
     }
     for (let name in Game.creeps) {
       let creep = Game.creeps[name]
-      if (creep) {
-
-        creepRunners[creep.memory.role].run(creep, manifest)
+      if (!creep) {
+          // dead creep. destroy
       } else {
-        // dead creep. destroy
+        if (!creep.spawning) {
+          if (creep.memory.jobId) {
+            let base = Memory.bases[creep.memory.base]
+            let job = base.jobs[creep.memory.jobId]
+            let stepIndex = creep.memory.step
+            if (typeof stepIndex !== 'number') {
+              creep.memory.step = 0
+              stepIndex = 0
+            }
+            let step = job.steps[stepIndex]
+            if (!step) {
+              step = job.steps[0]
+              creep.memory.step = 0
+            }
+            let runner = actionRunners[step.action[0]]
+            if (!runner) {
+              console.log('Error: no runner defined for ', step.action[0])
+            } else {
+              actionRunners[step.action[0]].runner.run(creep)
+
+            }
+          } else if (creep.memory.role) {
+            // creepRunners[creep.memory.role].run(creep, manifest)
+          }
+        }
       }
+
     }
   } catch (e) {
     console.log('Global Uncaught Error: ', e.stack)
@@ -60,22 +88,20 @@ function gatherGlobal () {
         let spawn = Game.spawns[name]
         if (!Memory.bases[spawn.room.name]) {
           let base = createBase(spawn.room)
-          Memory.bases[spawn.room.name] = base
-          base.sources.forEach(s => {
-            for (let i = 0; i < s.slots; i++) {
-              submitJob({
-                type: 'harvest',
-                parentId: s.id,
-                base: base.name,
-                threat: 0,
-                roles: ['harvester', 'peon']
-              })
-            }
-            return s
+          let sources = spawn.room.find(FIND_SOURCES)
+          base.sources = sources.map(s => {
+            let src = createSource(s)
+            src.slots = getSlotsAround(s.pos)
+            return src
           })
+          console.log('made base. has sources:', base.sources.length, JSON.stringify(base.sources))
+          Memory.bases[spawn.room.name] = base
+
         } else {}
         if (!Memory.spawns[name]) {
-          Memory.spawns[name] = createSpawn(spawn)
+          let s = createSpawn(spawn)
+          s.sources = getSourcesForPos(spawn.pos, spawn.room.find(FIND_SOURCES))
+          Memory.spawns[name] = s
         }
       }
 
@@ -121,7 +147,7 @@ function runBase(base, manifest) {
         console.log('Error: Running General ', general.name, e.stack)
       }
     })
-    Memory.bases[base.name].targets[RESOURCE_ENERGY] = sortEnergyRequests(Memory.bases[base.name].targets[RESOURCE_ENERGY])
+    // Memory.bases[base.name].targets[RESOURCE_ENERGY] = sortEnergyRequests(Memory.bases[base.name].targets[RESOURCE_ENERGY])
   } catch (e) {
     console.log('Error: runBase( ' + (base?.name ?? 'Undefined Base Name!') + ' ): ', e.stack)
   }
