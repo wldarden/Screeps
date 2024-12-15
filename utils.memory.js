@@ -87,7 +87,12 @@ module.exports.createBase = function (room) {
                 // [STRUCTURE_FACTORY]: "factory",
                 // [STRUCTURE_INVADER_CORE]: "invaderCore",
             },
-            jobs: {}
+            jobs: {},
+            queue: {
+                mine: [],
+                build: [],
+                upgrade: []
+            }
         }
 
         let structs = room.find(FIND_STRUCTURES)

@@ -5,13 +5,16 @@ const {getSlotsAround, getSourcesForPos} = require('./utils.cartographer')
 
 const baseRunners = [
   {runner: require('base.source'), name: 'Source General', ticks: 1, offset: 0},
+  {runner: require('base.extentions'), name: 'Controller General', ticks: 1, offset: 0},
   {runner: require('base.spawn'), name: 'General Spawn', ticks: 1, offset: 0},
-  // {runner: require('base.controller'), name: 'Controller General', ticks: 1, offset: 0},
+  {runner: require('base.controller'), name: 'Controller General', ticks: 1, offset: 0},
 ]
 
 const actionRunners = {
   harvest: {runner: require('job.harvest')},
-  transfer: {runner: require('job.transfer')}
+  transfer: {runner: require('job.transfer')},
+  upgrade: {runner: require('job.upgrade')},
+  withdraw: {runner: require('job.withdraw')}
 }
 function initMemory () {
   Memory.bases = {}
@@ -41,6 +44,7 @@ module.exports.loop = function () {
       let creep = Game.creeps[name]
       if (!creep) {
           // dead creep. destroy
+        delete Game.creeps[name]
       } else {
         if (!creep.spawning) {
           if (creep.memory.jobId) {

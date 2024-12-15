@@ -26,6 +26,19 @@ const {deserializePos} = require('./utils.memory')
 //     })
 //     return newJobIds
 // }
+
+function addJobToBase(base, job) {
+  base.jobs[job.id] = job // add to base job map
+  //TODO - insert where it should be at first instead, not post sort like this
+  base.queue[base.jobs[job.id].cat].push(job.id) // add to base job queue
+  base.queue[base.jobs[job.id].cat] = base.queue[base.jobs[job.id].cat].sort((aId,bId) => {
+    const a = base.jobs[aId]
+    const b = base.jobs[bId]
+    return b.value - a.value
+  }) // sort base queue
+  return base
+}
+module.exports.addJobToBase = addJobToBase
 function getDestinations (room) {
   return room.find(FIND_STRUCTURES, {
     filter: (s) => {

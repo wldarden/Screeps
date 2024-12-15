@@ -54,7 +54,7 @@ module.exports.run = function (creep) {
     // console.log('actionRes: ', creep.name, actionRes)
     switch (actionRes) {
       case ERR_NOT_IN_RANGE:
-        creep.moveTo(target, {range: 1, ignoreCreeps: true, visualizePathStyle: {stroke: '#ffffff'}})
+        creep.moveTo(target, {range: 1, visualizePathStyle: {stroke: '#ffffff'}})
         break
       case ERR_TIRED:
         console.log('creep says they are tired: ', creep.name)

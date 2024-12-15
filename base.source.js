@@ -1,5 +1,5 @@
 const {getSourcesForPos} = require('./utils.cartographer')
-const {submitJob} = require('./operation.job')
+const {submitJob, addJobToBase} = require('./operation.job')
 
 
 module.exports.addTrgSources = function (base, trgId) {
@@ -134,7 +134,6 @@ module.exports.run = function (base, manifest) {
       if (!s.jobs) {
         s.jobs = []
       }
-      planSource(base, s)
       if (!s.jobs.length || !s.jobs.some(jobId => base.jobs[jobId].group === 'main')) { // No Source PLan! init main source plan
         let jobs = planSource(base, s)
         // console.log('plan logggg', JSON.stringify(jobs))
@@ -144,10 +143,19 @@ module.exports.run = function (base, manifest) {
           while (base.jobs['' + newJobIndex]) {
             newJobIndex++
           }
-          job.id = newJobIndex
-          base.jobs['' + newJobIndex] = job
-          s.jobs.push(job.id)
+          job.id = '' + newJobIndex
+          base = addJobToBase(base, job) // add to base, queue, etc.
+          s.jobs.push(job.id) // add to source job list
         })
+      } else {
+        // jobs exist. clean them
+        if (Game.time % 10 === 0) { // cleanup every 10 ticks
+          s.jobs = s.jobs.filter(j => !!base.jobs[j]) // remove my jobs that dont exist in base
+          s.jobs.forEach(jobId => { // remove creeps from jobs that dont exist
+            base.jobs[jobId].creeps = base.jobs[jobId].creeps.filter(cId => !!Game.creeps[cId])
+          })
+        }
+
       }
       return s
     })
