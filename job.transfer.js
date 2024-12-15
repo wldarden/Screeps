@@ -39,13 +39,15 @@ module.exports.run = function (creep) {
     let actionRes = creep.transfer(target, RESOURCE_ENERGY)
     switch (actionRes) {
       case ERR_NOT_IN_RANGE:
-        creep.moveTo(target, {ignoreCreeps: true, visualizePathStyle: {stroke: '#ffffff'}})
+        creep.moveTo(target, {
+          ignoreCreeps: true,
+          visualizePathStyle: {stroke: '#008800'}}
+        )
         break
       case ERR_TIRED:
         console.log('creep says they are tired: ', creep.name)
         break
       case ERR_NOT_ENOUGH_RESOURCES:
-        // hybernate a bit maybe?
         creep.memory.step++
         break
       case ERR_FULL:
@@ -58,7 +60,7 @@ module.exports.run = function (creep) {
         }
         break
       default:
-        creep.memory.step++
+        console.log('Error: Action Response not handled: ', actionRes)
         break
     }
 

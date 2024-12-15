@@ -28,6 +28,9 @@ module.exports.addTrgSources = function (base, trgId) {
 //       "claim": 600
 // },
 
+function jobTicks (job, dist) {
+
+}
 function simpleCreepPlanROI (slots, dist, plan, srcId ) {
   let partCounts = {}
   let creepCost = 0
@@ -151,9 +154,6 @@ module.exports.run = function (base, manifest) {
         // jobs exist. clean them
         if (Game.time % 10 === 0) { // cleanup every 10 ticks
           s.jobs = s.jobs.filter(j => !!base.jobs[j]) // remove my jobs that dont exist in base
-          s.jobs.forEach(jobId => { // remove creeps from jobs that dont exist
-            base.jobs[jobId].creeps = base.jobs[jobId].creeps.filter(cId => !!Game.creeps[cId])
-          })
         }
 
       }

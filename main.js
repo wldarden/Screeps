@@ -2,19 +2,23 @@ const {createBase, createSpawn, createSource} = require('./utils.memory')
 const {creepRunners} = require('./runners')
 const {sortEnergyRequests} = require('./utils.request')
 const {getSlotsAround, getSourcesForPos} = require('./utils.cartographer')
+const {hireCreep, getCreepStep, addJobToBase, fireCreep} = require('./operation.job')
 
 const baseRunners = [
   {runner: require('base.source'), name: 'Source General', ticks: 1, offset: 0},
-  {runner: require('base.extentions'), name: 'Controller General', ticks: 1, offset: 0},
+  {runner: require('base.extension'), name: 'Controller Extension', ticks: 1, offset: 0},
   {runner: require('base.spawn'), name: 'General Spawn', ticks: 1, offset: 0},
   {runner: require('base.controller'), name: 'Controller General', ticks: 1, offset: 0},
+  {runner: require('base.creep'), name: 'Controller Creeps', ticks: 1, offset: 0},
 ]
 
 const actionRunners = {
+  build: {runner: require('job.build')},
   harvest: {runner: require('job.harvest')},
+  recycle: {runner: require('job.recycle')},
   transfer: {runner: require('job.transfer')},
   upgrade: {runner: require('job.upgrade')},
-  withdraw: {runner: require('job.withdraw')}
+  withdraw: {runner: require('job.withdraw')},
 }
 function initMemory () {
   Memory.bases = {}
@@ -42,37 +46,7 @@ module.exports.loop = function () {
     }
     for (let name in Game.creeps) {
       let creep = Game.creeps[name]
-      if (!creep) {
-          // dead creep. destroy
-        delete Game.creeps[name]
-      } else {
-        if (!creep.spawning) {
-          if (creep.memory.jobId) {
-            let base = Memory.bases[creep.memory.base]
-            let job = base.jobs[creep.memory.jobId]
-            let stepIndex = creep.memory.step
-            if (typeof stepIndex !== 'number') {
-              creep.memory.step = 0
-              stepIndex = 0
-            }
-            let step = job.steps[stepIndex]
-            if (!step) {
-              step = job.steps[0]
-              creep.memory.step = 0
-            }
-            let runner = actionRunners[step.action[0]]
-            if (!runner) {
-              console.log('Error: no runner defined for ', step.action[0])
-            } else {
-              actionRunners[step.action[0]].runner.run(creep)
-
-            }
-          } else if (creep.memory.role) {
-            // creepRunners[creep.memory.role].run(creep, manifest)
-          }
-        }
-      }
-
+      runCreep(creep)
     }
   } catch (e) {
     console.log('Global Uncaught Error: ', e.stack)
@@ -90,7 +64,7 @@ function gatherGlobal () {
     try {
       for (let name in Game.spawns) {
         let spawn = Game.spawns[name]
-        if (!Memory.bases[spawn.room.name]) {
+        if (!Memory.bases[spawn.room.name]) { // make new base
           let base = createBase(spawn.room)
           let sources = spawn.room.find(FIND_SOURCES)
           base.sources = sources.map(s => {
@@ -98,26 +72,10 @@ function gatherGlobal () {
             src.slots = getSlotsAround(s.pos)
             return src
           })
-          console.log('made base. has sources:', base.sources.length, JSON.stringify(base.sources))
           Memory.bases[spawn.room.name] = base
 
-        } else {}
-        if (!Memory.spawns[name]) {
-          let s = createSpawn(spawn)
-          s.sources = getSourcesForPos(spawn.pos, spawn.room.find(FIND_SOURCES))
-          Memory.spawns[name] = s
         }
       }
-
-      // destroy creep test...
-      // for (let baseName in Memory.bases) {
-      //   let base = Memory.bases[baseName]
-      //   base.creeps = base.creeps.filter.(cId => {
-      //     if (!Game.creeps[cId]) {
-      //
-      //     }
-      //   })
-      // }
     } catch (e) {
       console.log('Error: creating untracked objects in gatherGlobal: ', e.stack)
     }
@@ -151,11 +109,60 @@ function runBase(base, manifest) {
         console.log('Error: Running General ', general.name, e.stack)
       }
     })
+
     // Memory.bases[base.name].targets[RESOURCE_ENERGY] = sortEnergyRequests(Memory.bases[base.name].targets[RESOURCE_ENERGY])
   } catch (e) {
     console.log('Error: runBase( ' + (base?.name ?? 'Undefined Base Name!') + ' ): ', e.stack)
   }
 
+}
+
+function runCreep (creep) {
+
+  if (creep.spawning) {
+    return
+  } else {
+    let base = Memory.bases[creep.memory.base]
+    if (creep.hits < creep.hitsMax) { // creep was attacked!
+      if (base.jobs[creep.memory.jobId]) {
+        const job = base.jobs[creep.memory.jobId]
+        base.jobs[creep.memory.jobId].threat = job.threat ? job.threat + 1 : 1 // raise job threat
+        fireCreep(base, creep.name, creep.memory.jobId) // Abandon Job
+      }
+      if (!base.jobs[creep.memory.jobId] || base.jobs[creep.memory.jobId].cat !== 'flee') {
+        const spawnId = base.structures[STRUCTURE_SPAWN][0]
+        const fleeJob = {
+          cat: 'flee',
+          id: creep.name,
+          steps: [
+            // {id: spawnId, type: 'obj', action: ['move']},
+            {id: spawnId, type: 'obj', action: ['recycle']}
+          ],
+          max: 1,
+          creeps: [creep.name],
+          reqs: { parts: [MOVE] }
+        }
+        addJobToBase(base, fleeJob, false)
+        creep.memory.jobId = creep.name
+        creep.memory.init = true
+        creep.memory.step = 0
+      }
+    } // end creep attacked code
+    if (base.jobs[creep.memory.jobId]) { // if creep employed
+      if (!creep.memory.init) {
+        hireCreep(base, creep.name, creep.memory.jobId)
+        creep.memory.init = true
+        creep.memory.step = 0
+      }
+      let step = getCreepStep(creep, base.jobs[creep.memory.jobId]) // get job from base
+      let runner = actionRunners[step.action[0]]
+      if (!runner) {
+        console.log('Error: no runner defined for ', step.action[0])
+      } else {
+        actionRunners[step.action[0]].runner.run(creep)
+      }
+    }
+  }
 }
 
 // Atlas:

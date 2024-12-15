@@ -57,7 +57,7 @@ module.exports.run = function (creep) {
                 }
                 break
             default:
-                creep.memory.step++
+                console.log('Error: Action Response not handled: ', actionRes)
                 break
         }
 
@@ -66,6 +66,6 @@ module.exports.run = function (creep) {
             creep.memory.step = 0
         }
     } catch (e) {
-        console.log('Error: couldnt run transfer job', e.stack)
+        console.log('Error: couldnt run withdraw job', e.stack)
     }
 }

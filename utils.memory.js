@@ -22,20 +22,26 @@ module.exports.deserializePos = deserializePos
 module.exports.createSpawn = function (spawn) {
     return {
         id: spawn.name,
-        room: spawn.room.name,
-        sources: []
+        room: spawn.room.name
     }
 }
 
 module.exports.createJob = function () {
     return {
-        id: null,
-        base: null,
-        priority: 0,
-        time: Game.time,
-        roles: [],
-        creeps: [],
-        reserved: false
+        // group: 'main',
+        // cat: 'mine',
+        // threat: 0,
+        // steps: [
+        //     {id: source.id, type: 'src', action: ['harvest']},
+        //     {id: base.name, type: 'base', action: ['transfer']}
+        //     // {id: base.name, type: 'base', action: ['transfer', 'build', 'upgrade']}
+        // ],
+        // max: bestPlanROI.maxCreeps,
+        // creeps: [],
+        // cost: bestPlanROI.creepCost,
+        // value: bestPlanROI.valuePerCreep,
+        // plan: simplePlans[bestPlanIndex],
+        // reqs: { parts: [WORK, CARRY, MOVE] }
     }
 }
 

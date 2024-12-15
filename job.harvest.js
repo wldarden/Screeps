@@ -49,23 +49,25 @@ module.exports.run = function (creep) {
     let step = job.steps[creep.memory.step]
 
     let target = Game.getObjectById(step.id)
+    // console.log(creep.room.name)
+    // console.log(JSON.stringify(creep.room.getPositionAt(22, 17).lookFor(LOOK_CONSTRUCTION_SITES)[0]))
 
     let actionRes = creep.harvest(target)
     // console.log('actionRes: ', creep.name, actionRes)
     switch (actionRes) {
       case ERR_NOT_IN_RANGE:
-        creep.moveTo(target, {range: 1, visualizePathStyle: {stroke: '#ffffff'}})
+        creep.moveTo(target, {range: 1, visualizePathStyle: {stroke: '#004400'}})
         break
       case ERR_TIRED:
         console.log('creep says they are tired: ', creep.name)
-        break
-      case ERR_NOT_ENOUGH_RESOURCES:
-        // hybernate a bit maybe?
         break
       case OK:
         if (creep.store.getFreeCapacity() === 0) {
           creep.memory.step++
         }
+        break
+      default:
+        console.log('Error: Action Response not handled: ', actionRes)
         break
     }
 

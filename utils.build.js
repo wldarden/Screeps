@@ -28,7 +28,7 @@ function buildNear (position, structure = STRUCTURE_EXTENSION) {
         // ERR_FULL	           -8 You have too many construction sites. The maximum number of construction sites per player is 100.
         // ERR_INVALID_ARGS	  -10 The location is incorrect.
         // ERR_RCL_NOT_ENOUGH	-14 Room Controller Level insufficient. Learn more
-        console.log(res, x,y,'res loggg')
+        console.log(res, x,y,'res loggg', JSON.stringify(room.getPositionAt(x,y).lookFor(LOOK_CONSTRUCTION_SITES)[0]))
         if (res === 0) {
             searching = false
             siteId = room.getPositionAt(x,y).lookFor(LOOK_CONSTRUCTION_SITES)[0].id

@@ -18,7 +18,7 @@ module.exports.run = function (base, manifest) {
 
     if (Object.keys(Game.creeps).length > 5 && needsEnergy(controller, base)) {
       let myJob = base.jobs[controllerId]
-      myJob.max = 1
+
       if (!myJob) {
         const newJob = {
           cat: 'upgrade',

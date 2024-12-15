@@ -1,4 +1,3 @@
-const {deserializePos} = require('./utils.memory')
 
 // module.exxports.getJobUnid = function (base, job) {
 //     let newJobIndex = 0
@@ -27,15 +26,58 @@ const {deserializePos} = require('./utils.memory')
 //     return newJobIds
 // }
 
-function addJobToBase(base, job) {
+function getStep(job, i) {
+  let step = job.steps[i]
+  if (!step) {
+    console.log('Error: creep was on step index outside steps length')
+    i = 0
+  }
+  return i
+}
+function getCreepStep(creep, job) {
+  let index = getStep(job, creep.memory.step)
+  creep.memory.step = index
+  return job.steps[index]
+}
+module.exports.getCreepStep = getCreepStep
+function hireCreep (base, creepName, jobId) {
+  if (jobId !== undefined && !base.jobs[jobId].creeps.some(jcId => jcId === creepName)) {
+    base.jobs[jobId].creeps.push(creepName)
+    if (!base.jobs[jobId].max || base.jobs[jobId].creeps.length >= base.jobs[jobId].max) { // job full. remove from queue
+      base.queue[base.jobs[jobId].cat] = base.queue[base.jobs[jobId].cat].filter(qId => qId !== jobId)
+    }
+  }
+}
+module.exports.hireCreep = hireCreep
+
+function fireCreep (base, creepName, jobId) {
+  if (jobId !== undefined) {
+    const reQueue = base.jobs[jobId].creeps.length === base.jobs[jobId].max
+    base.jobs[jobId].creeps = base.jobs[jobId].creeps.filter(id => id !== creepName) // remove creep from job
+    if (reQueue) { // job was at max, and is now less than max, and will need a worker. reQueue
+      addJobToBase(base, base.jobs[jobId]) // put job in queue if needed, save new job creeps
+    }
+  }
+}
+module.exports.fireCreep = fireCreep
+function addJobToBase(base, job, sort = true) {
   base.jobs[job.id] = job // add to base job map
   //TODO - insert where it should be at first instead, not post sort like this
-  base.queue[base.jobs[job.id].cat].push(job.id) // add to base job queue
-  base.queue[base.jobs[job.id].cat] = base.queue[base.jobs[job.id].cat].sort((aId,bId) => {
-    const a = base.jobs[aId]
-    const b = base.jobs[bId]
-    return b.value - a.value
-  }) // sort base queue
+  if (!base.queue[base.jobs[job.id].cat]) { // cat didnt exist. make it, add job.
+    base.queue[base.jobs[job.id].cat] = [job.id]
+  } else if (
+    base.jobs[job.id].creeps.length < base.jobs[job.id].max && // job has openeings
+    !base.queue[base.jobs[job.id].cat].some(jId => jId === job.id) // job not in queue
+  ) {
+    base.queue[base.jobs[job.id].cat].push(job.id) // add to base job queue
+    if (sort) {
+      base.queue[base.jobs[job.id].cat] = base.queue[base.jobs[job.id].cat].sort((aId,bId) => {
+        const a = base.jobs[aId]
+        const b = base.jobs[bId]
+        return b.value - a.value
+      }) // sort base queue
+    }
+  }
   return base
 }
 module.exports.addJobToBase = addJobToBase
