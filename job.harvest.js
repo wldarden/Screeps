@@ -50,13 +50,12 @@ module.exports.run = function (creep) {
 
     let target = Game.getObjectById(step.id)
     // console.log(creep.room.name)
-    // console.log(JSON.stringify(creep.room.getPositionAt(22, 17).lookFor(LOOK_CONSTRUCTION_SITES)[0]))
 
     let actionRes = creep.harvest(target)
     // console.log('actionRes: ', creep.name, actionRes)
     switch (actionRes) {
       case ERR_NOT_IN_RANGE:
-        creep.moveTo(target, {range: 1, visualizePathStyle: {stroke: '#004400'}})
+        creep.moveTo(target, {range: 0, visualizePathStyle: {stroke: '#004400'}})
         break
       case ERR_TIRED:
         console.log('creep says they are tired: ', creep.name)

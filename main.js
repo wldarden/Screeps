@@ -5,11 +5,12 @@ const {getSlotsAround, getSourcesForPos} = require('./utils.cartographer')
 const {hireCreep, getCreepStep, addJobToBase, fireCreep} = require('./operation.job')
 
 const baseRunners = [
+  {runner: require('base.creep'), name: 'Controller Creeps', ticks: 1, offset: 0}, // do first so spawns have a chance
   {runner: require('base.source'), name: 'Source General', ticks: 1, offset: 0},
   {runner: require('base.extension'), name: 'Controller Extension', ticks: 1, offset: 0},
-  {runner: require('base.spawn'), name: 'General Spawn', ticks: 1, offset: 0},
+  {runner: require('base.container'), name: 'Controller Container', ticks: 1, offset: 0},
   {runner: require('base.controller'), name: 'Controller General', ticks: 1, offset: 0},
-  {runner: require('base.creep'), name: 'Controller Creeps', ticks: 1, offset: 0},
+  {runner: require('base.spawn'), name: 'General Spawn', ticks: 1, offset: 0},
 ]
 
 const actionRunners = {

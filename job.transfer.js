@@ -40,7 +40,7 @@ module.exports.run = function (creep) {
     switch (actionRes) {
       case ERR_NOT_IN_RANGE:
         creep.moveTo(target, {
-          ignoreCreeps: true,
+          ignoreCreeps: false,
           visualizePathStyle: {stroke: '#008800'}}
         )
         break
@@ -51,8 +51,17 @@ module.exports.run = function (creep) {
         creep.memory.step++
         break
       case ERR_FULL:
-        creep.drop(RESOURCE_ENERGY)
-        creep.memory.step++
+        console.log('waiting: my wait:', creep.memory.wait, 'Game.time', Game.time)
+        if (!creep.memory.wait) {
+          creep.memory.wait = Game.time + 3
+        } else {
+          if (Game.time >= creep.memory.wait) { // waited 3 ticks and still full. drop and continue
+            creep.drop(RESOURCE_ENERGY)
+            creep.memory.step++
+            delete creep.memory.wait
+          }
+        }
+
         break
       case OK:
         if (creep.store.getUsedCapacity() === 0) {

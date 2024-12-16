@@ -4,6 +4,7 @@
 const {getUniqueName} = require('./utils.spawner')
 const {getSites, buildNear} = require('./utils.build')
 const {addJobToBase} = require('./operation.job')
+const {addEnergyRequest} = require('./utils.request')
 
 function shouldBuildExtension (base) {
     let room = Game.rooms[base.name]
@@ -15,7 +16,7 @@ function shouldBuildExtension (base) {
 }
 module.exports.run = function (base, manifest) {
     let room = Game.rooms[base.name]
-
+    addEnergyRequest(base, base.structures[STRUCTURE_EXTENSION])
     // addResourceRequests(base)
     if (shouldBuildExtension(base)) {
         let activeSites = getSites(room)
@@ -23,16 +24,17 @@ module.exports.run = function (base, manifest) {
             //make a build site
             const structure = STRUCTURE_EXTENSION // TODO - build other things?
             let spawn = Game.getObjectById(base.structures[STRUCTURE_SPAWN][0])
-            let siteId = buildNear(spawn.pos, structure)
-            if (siteId) {
+            let sitePos = buildNear(spawn.pos, structure)
+            if (sitePos) {
                 const job = {
                     cat: 'build',
-                    id: siteId,
+                    id: sitePos,
                     threat: 0,
                     steps: [
                         {id: base.structures[STRUCTURE_SPAWN][0], type: 'obj', action: ['withdraw']},
-                        {id: siteId, type: 'obj', action: ['build']}
+                        {id: sitePos, type: 'pos', action: ['build']}
                     ],
+                    max: 1,
                     cost: 300,
                     creeps: [],
                     plan: [WORK, WORK, CARRY, MOVE] ,

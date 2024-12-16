@@ -46,10 +46,20 @@ function hireCreep (base, creepName, jobId) {
     if (!base.jobs[jobId].max || base.jobs[jobId].creeps.length >= base.jobs[jobId].max) { // job full. remove from queue
       base.queue[base.jobs[jobId].cat] = base.queue[base.jobs[jobId].cat].filter(qId => qId !== jobId)
     }
+    Game.creeps[creepName].memory.jobId = jobId
+    return true
   }
+  return false
 }
 module.exports.hireCreep = hireCreep
 
+function completeJob (base, jobId) {
+  if (jobId !== undefined && base.jobs[jobId]) {
+    base.queue[base.jobs[jobId].cat] = base.queue[base.jobs[jobId].cat].filter(jId => jId !== jobId)
+    delete base.jobs[jobId]
+  }
+}
+module.exports.completeJob = completeJob
 function fireCreep (base, creepName, jobId) {
   if (jobId !== undefined) {
     const reQueue = base.jobs[jobId].creeps.length === base.jobs[jobId].max
@@ -84,7 +94,7 @@ module.exports.addJobToBase = addJobToBase
 function getDestinations (room) {
   return room.find(FIND_STRUCTURES, {
     filter: (s) => {
-      return (s.structureType == STRUCTURE_EXTENSION || s.structureType == STRUCTURE_SPAWN) &&
+      return (s.structureType == STRUCTURE_EXTENSION || s.structureType == STRUCTURE_SPAWN || s.structureType == STRUCTURE_CONTAINER) &&
         s.store.getFreeCapacity(RESOURCE_ENERGY) > 0;
     }
   });
@@ -94,6 +104,8 @@ function getStepGameEntityId (job, stepIndex) {
   switch (step.type) {
     case 'base':
       let base = Memory.bases[step.id]
+      let room = Game.rooms[base.room]
+      return getDestinations(room)[0]
       // TODO - memoize or something
       return base.structures[STRUCTURE_SPAWN][0]// getDestinations(Game.rooms[step.id]) //base.structures[STRUCTURE_SPAWN][0]
       // return Memory.bases[step.id]

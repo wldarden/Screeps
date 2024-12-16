@@ -12,7 +12,7 @@
 //
 //   ERR_RCL_NOT_ENOUGH	-14
 // Your Room Controller level is insufficient to use this spawn.
-const {getCreepStep} = require('./operation.job')
+const {getCreepStep, completeJob} = require('./operation.job')
 module.exports.run = function (creep) {
     try {
         let base = Memory.bases[creep.memory.base]
@@ -29,6 +29,7 @@ module.exports.run = function (creep) {
                 break
             case OK:
                 console.log('Creep', creep.name, 'waiting to die...')
+              completeJob(base,creep.memory.jobId)
                 break
             default:
                 console.log('Error: Action Response not handled: ', actionRes)

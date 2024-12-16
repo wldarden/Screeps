@@ -1,8 +1,10 @@
 const {getUniqueName} = require('./utils.spawner')
 const {hireCreep} = require('./operation.job')
+const {addEnergyRequest} = require('./utils.request')
 
 function doSpawn (base, spawn, plan, name, mem) {
   let res = spawn.spawnCreep(plan, name, mem)
+  console.log(name, res, 'spawn result log')
   if (res === OK) {
     base.creeps.push(name)
     let jobId = mem.memory.jobId
@@ -14,15 +16,17 @@ function doSpawn (base, spawn, plan, name, mem) {
 }
 
 function getCatPriority () {
-  return ['build', 'upgrade', 'mine']
+  return ['mine', 'build', 'upgrade']
 }
 
 module.exports.run = function (base, manifest) {
   let room = Game.rooms[base.name]
   let controller = room.controller
 
+  addEnergyRequest(base, base.structures[STRUCTURE_SPAWN])
+
   const cats = getCatPriority()
-  cats.forEach((cat) => {
+  cats.some((cat) => {
     let queue = base.queue[cat]
     if (queue.length && room.energyAvailable > 200) {
       let openJobs = queue.map(jobId => base.jobs[jobId])

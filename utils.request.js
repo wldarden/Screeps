@@ -55,7 +55,19 @@ function trgEnergyReq (trg) {
 }
 
 
-module.exports.addEnergyRequest = function (base, trg, priorityOverride) {
+function addEnergyRequest (base, trg, priorityOverride, force = false) {
+  if (!force && Game.time % 8 !== 0) {
+    return
+  }
+  if (Array.isArray(trg)) {
+    if (trg.length) {
+      trg.forEach(id => {addEnergyRequest(base, id, priorityOverride)})
+    }
+    return
+  }
+  if (typeof trg === 'string') {
+    trg = Game.getObjectById(trg)
+  }
   const req = {
     id: trg.id,
     energy: trgEnergyReq(trg),
@@ -76,3 +88,4 @@ module.exports.sortEnergyRequests = function (energyRequests = []) {
     return b.priority - a.priority
   })
 }
+module.exports.addEnergyRequest = addEnergyRequest

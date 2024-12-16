@@ -19,16 +19,64 @@
 //
 //   ERR_NO_BODYPART	-12
 // There are no WORK body parts in this creep’s body.
+const {deserializePos} = require('./utils.memory')
+const {fireCreep, completeJob, hireCreep} = require('./operation.job')
+
+function finishBuild (base, creep) {
+    console.log('site doesnt exist anymore.')
+    delete creep.memory.siteId
+    completeJob(base, creep.memory.jobId)
+    delete creep.memory.jobId
+    if (base.queue.build[0]) {
+        hireCreep(base, creep.name, base.queue.build[0])
+    } else {
+        console.log('no open build jobs for builders...')
+    }
+}
+
 module.exports.run = function (creep) {
     try {
         let base = Memory.bases[creep.memory.base]
         let job = base.jobs[creep.memory.jobId]
+        if (!job) {
+            finishBuild(base, creep)
+            job = base.jobs[creep.memory.jobId]
+        }
+
         let step = job.steps[creep.memory.step]
 
-
         let target
-        if (step.type === 'obj') {
-            target = Game.getObjectById(step.id)
+        if (!creep.memory.siteId) {
+            if (step.type === 'pos') {
+                let pos = deserializePos(step.id)
+                if (pos) {
+                    let lookRes = pos.lookFor(LOOK_CONSTRUCTION_SITES)[0]
+                    if (lookRes) {
+                        target = Game.getObjectById(lookRes.id)
+                        if (target) {
+                            creep.memory.siteId = lookRes.id
+                        }
+                    } else {
+                        console.log('Error: couldnt find construction site id ', step.id, 'found:', JSON.stringify(lookRes))
+                        finishBuild(base, creep)
+                    }
+                } else {
+                    console.log('Error: couldnt find construction site at ', step.id)
+                    finishBuild(base, creep)
+                }
+
+            }
+        } else {
+            target = Game.getObjectById(creep.memory.siteId)
+            if (!target) {
+                console.log('site doesnt exist anymore.')
+                finishBuild(base, creep)
+            }
+        }
+
+        if (!target) {
+            //since no target found, filling up
+            creep.memory.step++
         }
 
         let actionRes = creep.build(target)
