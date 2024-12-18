@@ -1,6 +1,13 @@
 const {addTrgSources} = require('./base.source')
-const {releaseJob} = require('./operation.job')
+const {freeSrcSlot} = require('./utils.jobs')
 
+function ticksPerSpace (plan, partCounts) {
+    let weight = plan.length - partCounts[MOVE]
+    let ticksPerSpaceTo = Math.ceil((weight - partCounts[CARRY]) / partCounts[MOVE])
+    let ticksPerSpaceFrom = Math.ceil(weight / partCounts[MOVE])
+    return {to: ticksPerSpaceTo, from: ticksPerSpaceFrom}
+}
+module.exports.ticksPerSpace = ticksPerSpace
 
 module.exports.onDestroyCommon = function(name) {
     // clear from source lists
@@ -62,9 +69,6 @@ module.exports.validatePriorityTarget = function (creep) {
             res = res ?? getBaseResourceTarget(base, RESOURCE_ENERGY)
         }
         return res
-        // if (originalTarget !== creep.memory.target) {
-        //     validatePrioritySrc(creep) // if target changed, then make sure src is good
-        // }
     } catch (e) {
         console.log('Error: validatePriorityTarget', creep.name, e.stack)
     }
@@ -93,25 +97,7 @@ function setCreepSrcTrg (creep, newSrcTrg) {
     }
 }
 module.exports.setCreepSrcTrg = setCreepSrcTrg
-/**
- * MUST have target already, else returns base source 1
- * @param creep
- */
 
-function validatePrioritySrc (creep) {
-    try {
-        let baseMemory = Memory.bases[creep.memory.base]
-        if (!creep.memory.target) { // no destination in mind, get random energy, get base source 1
-            setCreepSrcTrg(creep, getOpenSource(baseMemory.sources).id)
-        } else { // get sourcePaths for this target. if you cant, get default base source
-            let srcPaths = addTrgSources(baseMemory, creep.memory.target)
-            setCreepSrcTrg(creep, getOpenSource(srcPaths.length ? srcPaths : baseMemory.sources))
-        }
-    } catch (e) {
-        console.log('Error: validatePrioritySrc', creep.name, e.stack)
-    }
-}
-module.exports.validatePrioritySrc = validatePrioritySrc
 function addCreepToSource (creep, srcId) {
     if (Memory.bases[creep.memory.base].sources[srcId]) {
         if (!Memory.bases[creep.memory.base].sources[srcId].active.some(c => c === creep.name)) {
@@ -130,42 +116,33 @@ function removeCreepFromSource (creep, srcId) {
 }
 module.exports.removeCreepFromSource = removeCreepFromSource
 
+function creepPlanInfo (plan) {
+    let partCounts = {}
+    let creepCost = 0
+    plan.forEach(part => {
+        if (!partCounts[part]) {
+            partCounts[part] = 1
+        } else {
+            partCounts[part] += 1 // add part counts to role counts
+        }
+        creepCost += BODYPART_COST[part]
+    })
+    return {cost: creepCost, partCounts: partCounts}
+}
+module.exports.creepPlanInfo = creepPlanInfo
 
-/**
- * SOURCE UTILS END
- */
-
-// module.exports.totalHarvesters = function (base) {
-//     const harvesters = ['peon']
-// }
-
-
-//
-// module.exports.getSourceTarget = function (creep) {
-//     let base = Memory.bases[creep.room.name]
-//     creep.memory.refilling = true
-//     creep.memory.travelling = true
-//     let possibleSources = base.sources.filter(s => s.active.length < s.slots.length)
-//     let newTarget = creep.pos.findClosestByRange(possibleSources.map(s => (deserializePos(s.pos))))
-//     if (newTarget) {
-//         creep.memory.target = {trg: serializePos(newTarget), type: 'source'}
-//     }
-// }
-//
-// module.exports.getDestTarget = function (creep) {
-//     creep.memory.refilling = false
-//     creep.memory.travelling = true
-//     let type = 'store'
-//     let targets = room.find(FIND_STRUCTURES, {
-//         filter: (s) => {
-//             return (s.structureType == STRUCTURE_EXTENSION || s.structureType == STRUCTURE_SPAWN) &&
-//               s.store.getFreeCapacity(RESOURCE_ENERGY) > 0;
-//         }
-//     })
-//     if (!targets.length) {
-//         type = 'site'
-//         targets = room.find(FIND_CONSTRUCTION_SITES)
-//     }
-//     return {trg: targets[0], type: type}
-// }
-
+function nextAction (creep, step) {
+    creep.memory.actionIndex = creep.memory.actionIndex ? creep.memory.actionIndex + 1 : 1 // increment action index
+    if (step.action.length <= creep.memory.actionIndex) { // reset if needed
+        nextStep(creep)
+    }
+}
+module.exports.nextAction = nextAction
+function nextStep (creep) {
+    freeSrcSlot(Memory.bases[creep.memory.base], creep.name)
+    creep.memory.step++
+    delete creep.memory.actionIndex
+    delete creep.memory.dest
+    delete creep.memory.wait
+}
+module.exports.nextStep = nextStep

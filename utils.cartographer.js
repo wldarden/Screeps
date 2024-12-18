@@ -1,5 +1,7 @@
 const {serializePos} = require('./utils.memory')
 
+
+
 module.exports.getSlotsAround = function (pos) {
     try {
         let room

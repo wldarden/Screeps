@@ -20,8 +20,9 @@
 //
 //   ERR_NO_BODYPART	-12
 // There are no WORK body parts in this creep’s body.
-const {getStepGameEntityId} = require('./operation.job')
 
+const {getStepEntityId, getStepEntity, getCreepStep} = require('./operation.job')
+const {nextStep} = require('./utils.creep')
 module.exports.run = function (creep) {
     try {
         let base = Memory.bases[creep.memory.base]
@@ -29,10 +30,10 @@ module.exports.run = function (creep) {
         let step = job.steps[creep.memory.step]
 
 
-        let target
-        if (step.type === 'obj') {
-          target = Game.getObjectById(step.id)
+        if (!creep.memory.dest) {
+            creep.memory.dest = getStepEntityId(getCreepStep(creep, job), creep.memory.step)
         }
+        let target = getStepEntity(step)
 
         let actionRes = creep.upgradeController(target)
         switch (actionRes) {
@@ -44,22 +45,18 @@ module.exports.run = function (creep) {
                 break
             case ERR_NOT_ENOUGH_RESOURCES:
                 // hybernate a bit maybe?
-                creep.memory.step++
+                nextStep(creep)
                 break
             case OK:
                 if (creep.store.getUsedCapacity() === 0) {
-                    creep.memory.step++
+                    nextStep(creep)
                 }
                 break
             default:
-                console.log('Error: Action Response not handled: ', actionRes)
+                console.log('Error: Upgrade Action Response not handled: ', actionRes)
                 break
         }
 
-
-        if (job.steps.length < creep.memory.step + 1) {
-            creep.memory.step = 0
-        }
     } catch (e) {
         console.log('Error: couldnt run upgrade job', e.stack)
     }

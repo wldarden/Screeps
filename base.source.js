@@ -28,9 +28,26 @@ module.exports.addTrgSources = function (base, trgId) {
 //       "claim": 600
 // },
 
-function jobTicks (job, dist) {
-
-}
+// function makeSimpleHarvestJob (dist, srcId, baseName, max, cost, valuePerCreep) {
+//   return {
+//     group: 'main',
+//     cat: 'mine',
+//     threat: 0,
+//     dist: dist, //path.length,
+//     steps: [
+//       {id: srcId, type: 'src', action: ['harvest']},
+//       // {id: source.id, type: 'src', action: ['harvest']},
+//       {id: baseName, type: 'base', action: ['transfer', 'drop']}
+//       // {id: base.name, type: 'base', action: ['transfer', 'drop']}
+//     ],
+//     max: max,
+//     creeps: [],
+//     cost: cost,
+//     value: valuePerCreep,
+//     plan: [WORK, CARRY, CARRY, MOVE, MOVE],
+//     reqs: { parts: [WORK, CARRY, MOVE] }
+//   }
+// }
 function simpleCreepPlanROI (slots, dist, plan, srcId ) {
   let partCounts = {}
   let creepCost = 0
@@ -54,7 +71,7 @@ function simpleCreepPlanROI (slots, dist, plan, srcId ) {
   let revPerTick = loadSize / loadTicks
   let creepsPerSlot = loadTicks / mineTicks
   let maxCreeps = Math.floor(slots * creepsPerSlot) // final ans
-  let valuePerCreep = revPerTick - (2 / 15)
+  let valuePerCreep = revPerTick - (creepCost / 1500)
   // if (srcId === '9749d1c8af1421df1bd460b9' && partCounts[MOVE] === 2 && partCounts[CARRY] === 2) {
   //   console.log('weight', weight)
   //   console.log('srcId', srcId)
@@ -80,7 +97,21 @@ function simpleCreepPlanROI (slots, dist, plan, srcId ) {
     maxCreeps,
     totalValue: maxCreeps * valuePerCreep,
     creepCost: creepCost,
-    dist: dist
+    dist: dist,
+
+    weight,
+    ticksPerSpaceTo,
+    ticksPerSpaceFrom,
+    loadSize,
+    ticksTo,
+    ticksFrom,
+    mineTicks,
+    loadTicks,
+    revPerTick,
+    // creepsPerSlot,
+    // maxCreeps,
+    partCounts
+
   }
 }
 function simpleSourcePlan (base, source) {
@@ -88,7 +119,35 @@ function simpleSourcePlan (base, source) {
   const spawnId = base.structures[STRUCTURE_SPAWN][0]
   const spawn = Game.getObjectById(spawnId)
   let path = src.pos.findPathTo(spawn)
-  let dist = path.length
+  const dist = path.length
+
+  if (spawn.room.energyCapacityAvailable === 300) { // Hard coded plan for energy cap = 300
+    const slots = source.slots.length
+    const loadTicks = 50 + (3 * dist)
+    const creepsPerSlot = loadTicks / 50
+    const valuePerCreep = (100 / loadTicks) - .2
+    const max = Math.floor(slots * creepsPerSlot)
+    return [
+      {
+        group: 'main',
+        cat: 'mine',
+        threat: 0,
+        dist: path.length,
+        steps: [
+          {id: source.id, type: 'src', action: ['harvest']},
+          {id: base.name, type: 'base', action: ['transfer', 'drop']}
+        ],
+        max: max,
+        creeps: [],
+        cost: 300,
+        value: valuePerCreep,
+        plan: [WORK, CARRY, CARRY, MOVE, MOVE],
+        reqs: { parts: [WORK, CARRY, MOVE] }
+      }
+    ]
+  }
+
+
   // console.log('path logggg', JSON.stringify(path))
   const simplePlans = [
     [WORK, CARRY, MOVE],
@@ -112,9 +171,10 @@ function simpleSourcePlan (base, source) {
       group: 'main',
       cat: 'mine',
       threat: 0,
+      dist: path.length,
       steps: [
         {id: source.id, type: 'src', action: ['harvest']},
-        {id: base.name, type: 'base', action: ['transfer']}
+        {id: base.name, type: 'base', action: ['transfer', 'drop']}
         // {id: base.name, type: 'base', action: ['transfer', 'build', 'upgrade']}
       ],
       max: bestPlanROI.maxCreeps,
@@ -122,7 +182,10 @@ function simpleSourcePlan (base, source) {
       cost: bestPlanROI.creepCost,
       value: bestPlanROI.valuePerCreep,
       plan: simplePlans[bestPlanIndex],
-      reqs: { parts: [WORK, CARRY, MOVE] }
+      reqs: { parts: [WORK, CARRY, MOVE] },
+      ROI: {
+        ...bestPlanROI
+      }
     }
   ]
 }
@@ -139,8 +202,6 @@ module.exports.run = function (base, manifest) {
       }
       if (!s.jobs.length || !s.jobs.some(jobId => base.jobs[jobId].group === 'main')) { // No Source PLan! init main source plan
         let jobs = planSource(base, s)
-        // console.log('plan logggg', JSON.stringify(jobs))
-        // let newJobIds = submitJob(base.name, jobs)
         let newJobIndex = 1
         jobs.forEach(job => {
           while (base.jobs['' + newJobIndex]) {

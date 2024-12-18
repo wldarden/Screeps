@@ -2,47 +2,27 @@
 
 
 const {getUniqueName} = require('./utils.spawner')
-const {getSites, buildNear} = require('./utils.build')
+const {getSites, buildNear, getBuildSite, createBuildJob} = require('./utils.build')
 const {addJobToBase} = require('./operation.job')
-const {addEnergyRequest} = require('./utils.request')
+// const {addEnergyRequest} = require('./utils.request')
+const {deserializePos} = require('./utils.memory')
 
 function shouldBuildExtension (base) {
     let room = Game.rooms[base.name]
+
     return (
       room.controller.level >=2 &&
       base.structures[STRUCTURE_EXTENSION].length < 6 &&
-      Object.keys(Game.creeps).length >= 5
+      Object.keys(Game.creeps).length >= 5 &&
+      !Object.values(base.jobs).some(j => j.structureType === STRUCTURE_EXTENSION)
     )
 }
 module.exports.run = function (base, manifest) {
     let room = Game.rooms[base.name]
-    addEnergyRequest(base, base.structures[STRUCTURE_EXTENSION])
+    // addEnergyRequest(base, base.structures[STRUCTURE_EXTENSION])
     // addResourceRequests(base)
     if (shouldBuildExtension(base)) {
-        let activeSites = getSites(room)
-        if (activeSites.length < 1) {
-            //make a build site
-            const structure = STRUCTURE_EXTENSION // TODO - build other things?
-            let spawn = Game.getObjectById(base.structures[STRUCTURE_SPAWN][0])
-            let sitePos = buildNear(spawn.pos, structure)
-            if (sitePos) {
-                const job = {
-                    cat: 'build',
-                    id: sitePos,
-                    threat: 0,
-                    steps: [
-                        {id: base.structures[STRUCTURE_SPAWN][0], type: 'obj', action: ['withdraw']},
-                        {id: sitePos, type: 'pos', action: ['build']}
-                    ],
-                    max: 1,
-                    cost: 300,
-                    creeps: [],
-                    plan: [WORK, WORK, CARRY, MOVE] ,
-                    reqs: { parts: [WORK, CARRY, MOVE] }
-                }
-                addJobToBase(base, job) // add to base, queue, etc.
-            }
-        }
+        createBuildJob(base, STRUCTURE_EXTENSION)
     }
 }
 //   CONSTRUCTION_COST: {

@@ -22,7 +22,6 @@ module.exports.run = function (creep) {
         let target = Game.getObjectById(step.id)
 
         let actionRes = target.recycleCreep(creep)
-        // console.log('actionRes: ', creep.name, actionRes)
         switch (actionRes) {
             case ERR_NOT_IN_RANGE:
                 creep.moveTo(target, {range: 1, visualizePathStyle: {stroke: '#BB0000'}})
@@ -32,7 +31,7 @@ module.exports.run = function (creep) {
               completeJob(base,creep.memory.jobId)
                 break
             default:
-                console.log('Error: Action Response not handled: ', actionRes)
+                console.log('Error: Recycle Action Response not handled: ', actionRes)
                 break
         }
         if (job.steps.length < creep.memory.step + 1) {

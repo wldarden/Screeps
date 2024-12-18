@@ -1,6 +1,9 @@
 // const {creepRunners} = require('./runners')
 
 function serializePos (pos) {
+    if (typeof pos === 'string') {
+        return pos
+    }
     const x = (pos.x < 10) ? '0' + pos.x : pos.x.toString()
     const y = (pos.y < 10) ? '0' + pos.y : pos.y.toString()
     return x + y + pos.roomName;
@@ -9,11 +12,19 @@ module.exports.serializePos = serializePos
 
 function deserializePos (pos) {
     if (typeof pos === 'string') {
-        var x = parseInt(pos.slice(0, 2));
-        var y = parseInt(pos.slice(2, 4));
-        var room = pos.slice(4);
-        return new RoomPosition(x, y, room);
+        try {
+            var x = parseInt(pos.slice(0, 2));
+            var y = parseInt(pos.slice(2, 4));
+            var room = pos.slice(4);
+            return new RoomPosition(x, y, room);
+        } catch (e) {
+            console.log('ERROR: deserializingPos: ', 'stringified pos:', JSON.stringify(pos), 'obj pos:', pos, e)
+        }
     } else {
+        console.log('Tried to deseralize a non string: ', JSON.stringify(pos))
+        if (pos.x && pos.y && pos.roomName) {
+            return new RoomPosition(pos.x, pos.y, pos.roomName)
+        }
         return pos
     }
 }
@@ -67,31 +78,14 @@ module.exports.createBase = function (room) {
             name: room.name,
             sources: [],
             creeps: [],
-            targets: {
-                [RESOURCE_ENERGY]: []
-            },
-            structures: {
-                [STRUCTURE_CONTAINER]: [],
-                [STRUCTURE_CONTROLLER]: [],
-                [STRUCTURE_EXTENSION]: [],
-                [STRUCTURE_SPAWN]: [],
-                [STRUCTURE_STORAGE]: [],
-                // [STRUCTURE_ROAD]: [],
-                // [STRUCTURE_WALL]: [],
-                // [STRUCTURE_RAMPART]: "rampart",
-                // [STRUCTURE_KEEPER_LAIR]: "keeperLair",
-                // [STRUCTURE_PORTAL]: "portal",
-                // [STRUCTURE_LINK]: "link",
-                // [STRUCTURE_TOWER]: "tower",
-                // [STRUCTURE_OBSERVER]: "observer",
-                // [STRUCTURE_POWER_BANK]: "powerBank",
-                // [STRUCTURE_POWER_SPAWN]: "powerSpawn",
-                // [STRUCTURE_EXTRACTOR]: "extractor",
-                // [STRUCTURE_LAB]: "lab",
-                // [STRUCTURE_TERMINAL]: "terminal",
-                // [STRUCTURE_NUKER]: "nuker",
-                // [STRUCTURE_FACTORY]: "factory",
-                // [STRUCTURE_INVADER_CORE]: "invaderCore",
+            // targets: {
+            //     [RESOURCE_ENERGY]: []
+            // },
+            structures: createStructureMap(),
+            sites: {
+                structures: [],
+                roads: [],
+                def: []
             },
             jobs: {},
             queue: {
@@ -116,6 +110,32 @@ module.exports.createBase = function (room) {
     }
 }
 
+function createStructureMap () {
+    return {
+        [STRUCTURE_CONTAINER]: [],
+        [STRUCTURE_CONTROLLER]: [],
+        [STRUCTURE_EXTENSION]: [],
+        [STRUCTURE_SPAWN]: [],
+        [STRUCTURE_STORAGE]: [],
+        piles: [], // places we dropped energy
+        // [STRUCTURE_ROAD]: [],
+        // [STRUCTURE_WALL]: [],
+        // [STRUCTURE_RAMPART]: "rampart",
+        // [STRUCTURE_KEEPER_LAIR]: "keeperLair",
+        // [STRUCTURE_PORTAL]: "portal",
+        // [STRUCTURE_LINK]: "link",
+        // [STRUCTURE_TOWER]: "tower",
+        // [STRUCTURE_OBSERVER]: "observer",
+        // [STRUCTURE_POWER_BANK]: "powerBank",
+        // [STRUCTURE_POWER_SPAWN]: "powerSpawn",
+        // [STRUCTURE_EXTRACTOR]: "extractor",
+        // [STRUCTURE_LAB]: "lab",
+        // [STRUCTURE_TERMINAL]: "terminal",
+        // [STRUCTURE_NUKER]: "nuker",
+        // [STRUCTURE_FACTORY]: "factory",
+        // [STRUCTURE_INVADER_CORE]: "invaderCore",
+    }
+}
 // function createRole () {
 //     try {
 //         return {
@@ -135,4 +155,4 @@ module.exports.createBase = function (room) {
 //         console.log('Error Creating RoleCount: ', e.stack)
 //     }
 // }
-// module.exports.createSource = createRole
+// module.exports.createRole = createRole

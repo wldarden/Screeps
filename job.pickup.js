@@ -24,18 +24,18 @@
 //   ERR_INVALID_ARGS	-10
 // The resourceType is not one of the RESOURCE_* constants, or the amount is incorrect.
 
-const {nextStep, nextAction} = require('./utils.creep')
-const {getStepEntity} = require('./operation.job')
+const {nextStep} = require('./utils.creep')
+const {getStepEntity, getCreepStep} = require('./operation.job')
 module.exports.run = function (creep) {
     try {
         let base = Memory.bases[creep.memory.base]
         let job = base.jobs[creep.memory.jobId]
-        let step = job.steps[creep.memory.step]
+        let step = getCreepStep(creep, job)
 
 
         let target = getStepEntity(step, creep.memory.actionIndex)
 
-        let actionRes = creep.withdraw(target, RESOURCE_ENERGY)
+        let actionRes = creep.pickup(target, RESOURCE_ENERGY)
         switch (actionRes) {
             case ERR_NOT_IN_RANGE:
                 creep.moveTo(target, {visualizePathStyle: {stroke: '#ffffff'}})
@@ -48,7 +48,7 @@ module.exports.run = function (creep) {
                 nextStep(creep)
                 break
             case ERR_FULL:
-                nextAction(creep, step)
+                nextStep(creep)
                 break
             case OK:
                 if (creep.store.getFreeCapacity() === 0) {
@@ -56,7 +56,7 @@ module.exports.run = function (creep) {
                 }
                 break
             default:
-                console.log('Error: Withdraw Action Response not handled: ', creep.name, actionRes, step.id)
+                console.log('Error: Pickup Action Response not handled: ', actionRes)
                 break
         }
 

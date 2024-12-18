@@ -56,9 +56,12 @@ function trgEnergyReq (trg) {
 
 
 function addEnergyRequest (base, trg, priorityOverride, force = false) {
-  if (!force && Game.time % 8 !== 0) {
-    return
-  }
+  // if (!force && Game.time % 8 !== 0) {
+  //   return
+  // }
+
+
+
   if (Array.isArray(trg)) {
     if (trg.length) {
       trg.forEach(id => {addEnergyRequest(base, id, priorityOverride)})
