@@ -1,6 +1,5 @@
-const {createBase, createSpawn, createSource} = require('./utils.memory')
-const {sortEnergyRequests} = require('./utils.request')
-const {getSlotsAround, getSourcesForPos} = require('./utils.cartographer')
+const {createBase, createSource} = require('./utils.memory')
+const {getSlotsAround} = require('./utils.cartographer')
 const {hireCreep, getCreepStep, addJobToBase, fireCreep, getCreepStepAction} = require('./operation.job')
 
 const baseRunners = [
@@ -133,6 +132,9 @@ function runCreep (creep) {
       let base = Memory.bases[creep.memory.base]
       if (creep.hits < creep.hitsMax) { // creep was attacked!
         if (base.jobs[creep.memory.jobId]) {
+          if (creep.memory.step === null || !creep.memory.step) {
+            creep.memory.step = 0
+          }
           const job = base.jobs[creep.memory.jobId]
           base.jobs[creep.memory.jobId].threat = job.threat ? job.threat + 1 : 1 // raise job threat
           fireCreep(base, creep.name, creep.memory.jobId) // Abandon Job

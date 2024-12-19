@@ -25,7 +25,7 @@
 // The resourceType is not one of the RESOURCE_* constants, or the amount is incorrect.
 
 const {nextStep} = require('./utils.creep')
-const {getStepEntity, getCreepStep} = require('./operation.job')
+const {getStepEntity, getCreepStep, completeJob, fireCreep} = require('./operation.job')
 module.exports.run = function (creep) {
     try {
         let base = Memory.bases[creep.memory.base]
@@ -42,6 +42,10 @@ module.exports.run = function (creep) {
                 break
             case ERR_TIRED:
                 console.log('creep says they are tired: ', creep.name)
+                break
+            case ERR_INVALID_TARGET:
+                // completeJob(base, creep.memory.jobId)
+                // fireCreep(base, creep.name, creep.memory.jobId)
                 break
             case ERR_NOT_ENOUGH_RESOURCES:
                 // hybernate a bit maybe?
@@ -61,6 +65,6 @@ module.exports.run = function (creep) {
         }
 
     } catch (e) {
-        console.log('Error: couldnt run withdraw job', e.stack)
+        console.log('Error: couldnt run pickup job', e.stack)
     }
 }

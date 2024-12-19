@@ -1,13 +1,8 @@
 
 
 
-const {getUniqueName} = require('./utils.spawner')
-const {getSites, buildNear, createBuildJob, findContainerSite} = require('./utils.build')
-const {addJobToBase} = require('./operation.job')
-const {serializePos, deserializePos} = require('./utils.memory')
-const {creepPlanInfo, ticksPerSpace} = require('./utils.creep')
-const {calculateJobROI} = require('./utils.jobs')
-// const {addEnergyRequest} = require('./utils.request')
+const { createBuildJob} = require('./utils.build')
+
 
 function alreadyBuildingContainer (base) {
     const res = Object.values(base.jobs).some(j => j.structureType === STRUCTURE_CONTAINER)

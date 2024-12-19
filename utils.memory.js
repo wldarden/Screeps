@@ -1,4 +1,3 @@
-// const {creepRunners} = require('./runners')
 
 function serializePos (pos) {
     if (typeof pos === 'string') {
@@ -25,7 +24,7 @@ function deserializePos (pos) {
         if (pos.x && pos.y && pos.roomName) {
             return new RoomPosition(pos.x, pos.y, pos.roomName)
         }
-        return pos
+        return {...pos}
     }
 }
 module.exports.deserializePos = deserializePos

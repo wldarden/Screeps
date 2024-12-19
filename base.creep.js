@@ -1,5 +1,4 @@
-const {addJobToBase, fireCreep} = require('./operation.job')
-const {freeSrcSlot} = require('./utils.jobs')
+const {fireCreep} = require('./operation.job')
 
 
 module.exports.run = function (base, manifest) {

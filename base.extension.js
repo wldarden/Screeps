@@ -1,11 +1,7 @@
 
 
 
-const {getUniqueName} = require('./utils.spawner')
-const {getSites, buildNear, getBuildSite, createBuildJob} = require('./utils.build')
-const {addJobToBase} = require('./operation.job')
-// const {addEnergyRequest} = require('./utils.request')
-const {deserializePos} = require('./utils.memory')
+const {createBuildJob} = require('./utils.build')
 
 function shouldBuildExtension (base) {
     let room = Game.rooms[base.name]

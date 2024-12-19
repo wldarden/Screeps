@@ -3,9 +3,43 @@ const {addJobToBase} = require('./operation.job')
 const {calculateJobROI} = require('./utils.jobs')
 
 
+function isBetterContainerSrc(src1, src2) {
+    if (!src1) {
+        return src2
+    } else if (!src2) {
+        return src1
+    }
+    // negative means choose src 2, postive means choose src 1
+    // const totalDist = src2.job.dist + src1.job.dist
+    // const distRatio = (src2.job.dist - src1.job.dist) / totalDist // positive means src 2 is farther, and negative means src 1 is farther and would benefit more from containerization
+    // const totalSlots = src1.job.slots + src2.job.slots
+    // const slotsRatio = (src1.job.slots - src2.job.slots) / slots
+
+    // const totalDist = src2.job.dist + src1.job.dist
+    // const distRatio = ((src2.job.dist/src1.job.dist) - (src1.job.dist/src2.job.dist)) // positive means src 2 is farther, and negative means src 1 is farther and would benefit more from containerization
+    // const totalSlots = src1.job.slots + src2.job.slots
+    // const slotsRatio = (src1.job.slots - src2.job.slots) / slots
+}
 
 function findContainerSite (base, structure) {
-
+    const room = Game.rooms[position.roomName]
+    let src = base.sources[0]
+    let source = Game.getObjectById(src.id)
+    let path = source.pos.findPathTo(Game.getObjectById(base.structures[STRUCTURE_SPAWN][0]), {ignoreCreeps: true})
+    let pos
+    if (path[0].dx !== 0) {
+        pos = {x: path[0].x + path[0].dx, y: path[0].y, roomName: source.pos.roomName }
+    } else {
+        pos = {x: path[0].x, y: path[0].y + path[0].dy, roomName: source.pos.roomName }
+    }
+    const res = room.createConstructionSite(pos.x, pos.y, STRUCTURE_CONTAINER)
+    if (res === 0) {
+        let container = serializePos(pos)
+        base.sources[0].container = container
+        return container
+    } else {
+        return null
+    }
     /**
      * Places we want containers:
      * 1. somewhere along natural path between source and spawn
@@ -21,31 +55,43 @@ function findContainerSite (base, structure) {
      */
     // let bestContainerSource
     // base.sources.forEach(baseSource => {
-    //     let srcJob = base.jobs[baseSource.jobs]
-    //     if (!bestContainerSource || bestContainerSource.dist < baseSource) {
-    //
+    //     if (baseSource.jobs.length === 1) {
+    //         // let srcJobs = baseSource.jobs.map(jId => base.jobs[jId]) // for sources with multiple jobs
+    //         let srcJob = base.jobs[baseSource.jobs[0]]
+    //         if (
+    //           !srcJob.threat &&
+    //           isBetterContainerSrc(bestContainerSource, {src: baseSource, job: srcJob})
+    //         ) {
+    //             bestContainerSource = {
+    //                 src: baseSource,
+    //                 job: srcJob
+    //             }
+    //         }
+    //         // we have the target
     //     }
+    //
+    //
     // })
-    const distanceToContainer = 4
-
-    const room = Game.rooms[position.roomName]
-
-    let res = room.createConstructionSite(position.x - distanceToContainer, position.y, STRUCTURE_CONTAINER)
-    if (res === 0) {
-        return serializePos({x: position.x - distanceToContainer, y: position.y, roomName: position.roomName})
-    }
-    res = room.createConstructionSite(position.x + distanceToContainer, position.y, STRUCTURE_CONTAINER)
-    if (res === 0) {
-        return serializePos({x: position.x + distanceToContainer, y: position.y, roomName: position.roomName})
-    }
-    res = room.createConstructionSite(position.x, position.y - distanceToContainer, STRUCTURE_CONTAINER)
-    if (res === 0) {
-        return serializePos({x: position.x, y: position.y - distanceToContainer, roomName: position.roomName})
-    }
-    res = room.createConstructionSite(position.x, position.y + distanceToContainer, STRUCTURE_CONTAINER)
-    if (res === 0) {
-        return serializePos({x: position.x, y: position.y + 1, roomName: position.roomName})
-    }
+    // const distanceToContainer = 4
+    //
+    // const room = Game.rooms[position.roomName]
+    //
+    // let res = room.createConstructionSite(position.x - distanceToContainer, position.y, STRUCTURE_CONTAINER)
+    // if (res === 0) {
+    //     return serializePos({x: position.x - distanceToContainer, y: position.y, roomName: position.roomName})
+    // }
+    // res = room.createConstructionSite(position.x + distanceToContainer, position.y, STRUCTURE_CONTAINER)
+    // if (res === 0) {
+    //     return serializePos({x: position.x + distanceToContainer, y: position.y, roomName: position.roomName})
+    // }
+    // res = room.createConstructionSite(position.x, position.y - distanceToContainer, STRUCTURE_CONTAINER)
+    // if (res === 0) {
+    //     return serializePos({x: position.x, y: position.y - distanceToContainer, roomName: position.roomName})
+    // }
+    // res = room.createConstructionSite(position.x, position.y + distanceToContainer, STRUCTURE_CONTAINER)
+    // if (res === 0) {
+    //     return serializePos({x: position.x, y: position.y + 1, roomName: position.roomName})
+    // }
 }
 module.exports.findContainerSite = findContainerSite
 function getBuildSiteInfo (base, structure, pos) {
@@ -99,17 +145,17 @@ function createUpgradeJob (base, params = {}) {
         let path = controller.pos.findPathTo(spawn.pos)
         const dist = path.length
         const plan = [WORK, CARRY, CARRY, MOVE, MOVE] // TODO - replace with calculation
-        const ROI = calculateJobROI(plan, dist, 'upgrade')
+        const upgradeSteps = [
+            {id: base.name, type: 'base', action: ['withdraw']},
+            {id: contId, type: 'obj', action: ['upgrade']}
+        ]
+        const ROI = calculateJobROI(plan, dist, upgradeSteps)
         console.log('ROI', JSON.stringify(ROI))
 
         const newJob = {
             cat: 'upgrade',
             id: contId,
-            threat: 0,
-            steps: [
-                {id: base.name, type: 'base', action: ['withdraw']},
-                {id: contId, type: 'obj', action: ['upgrade']}
-            ],
+            steps: upgradeSteps,
             max: 2,
             cost: ROI.cost,
             creeps: [],
@@ -141,24 +187,22 @@ function createBuildJob (base, structure, params = {}) {
         addToBase = true, // whether to add job to the passed base
         overrides = {} // fields will be put into job.
     } = params
-    console.log('doing it', JSON.stringify(pos), JSON.stringify(base), JSON.stringify(structure))
 
     let site = getBuildSiteInfo(base, structure, pos) // returns {src: {id,type,pos} trg: {id,type,pos}}
     console.log('JSON site', JSON.stringify(site))
     if (site) {
-        console.log('doing it')
         let path = deserializePos(site.trg.pos).findPathTo(site.src.pos)
         const dist = path.length
         const plan = [WORK, CARRY, MOVE] // TODO - replace with calculation
-        const ROI = calculateJobROI(plan, dist, 'build')
+        const buildSteps = [
+            {id: site.src.id, type: 'base', action: ['withdraw']},
+            {id: site.trg.pos, type: 'pos', action: ['build']}
+        ]
+        const ROI = calculateJobROI(plan, dist, buildSteps)
         const job = {
             cat: 'build',
             id: site.trg.id,
-            threat: 0,
-            steps: [
-                {id: site.src.id, type: 'base', action: ['withdraw']},
-                {id: site.trg.pos, type: 'pos', action: ['build']}
-            ],
+            steps: buildSteps,
             structureType: structure,
             max: ROI.max,
             cost: ROI.cost,
@@ -215,18 +259,3 @@ function buildNear (position, structure = STRUCTURE_EXTENSION) {
 }
 
 module.exports.buildNear = buildNear
-
-// const EXAMPLE_ROI = {
-//     "cost":300,
-//     "load":100,
-//     "speed":{
-//         "to":1,
-//         "from":2
-//     },
-//     "travelTicks":24,
-//     "workTicks":100,
-//     "loadTicks":124,
-//     "creepsPerSlot":1.24,
-//     "max":-1,
-//     "valuePerCreep":-1.0064516129032257
-// }

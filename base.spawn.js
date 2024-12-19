@@ -1,7 +1,5 @@
 const {getUniqueName} = require('./utils.spawner')
 const {hireCreep} = require('./operation.job')
-// const {addEnergyRequest} = require('./utils.request')
-//
 // Body
 // part	Build cost	Effect per one body part
 // MOVE	50	Decreases fatigue by 2 points per tick.
@@ -57,7 +55,7 @@ function getCatPriority (revenue) {
 }
 
 function isSafe (job) {
-  return job.threat === 0
+  return !job.threat
 }
 
 function isPossible (job, room) {
@@ -100,7 +98,7 @@ module.exports.run = function (base, manifest) {
 
   const cats = getCatPriority(revenue)
 
-  cats.some((cat) => {
+  const completedQueueCheck = cats.some((cat) => {
     let queue = base.queue[cat]
     if (queue.length && room.energyAvailable > 200) {
       let openJobs = queue.map(jobId => base.jobs[jobId])
@@ -112,15 +110,14 @@ module.exports.run = function (base, manifest) {
           return false
         } else {
           return openJobs.some(job => {
-            if (cat === 'upgrade') {
-              console.log('almost spawning an upgrade creep!')
-              console.log('Job:', JSON.stringify(job))
-              console.log('isSafe(job)', isSafe(job))
-              console.log('isCostEffective(job, revenue)', revenue, isCostEffective(job, revenue), revenue + job.value)
-              console.log('isPossible(job)', isSafe(job, room))
-            }
             // console.log('revenue', revenue, job.id, 'isSafe(job)', isSafe(job), 'isCostEffective(job, revenue)', isCostEffective(job, revenue), 'isPossible(job, room)', isPossible(job, room))
-            if (isSafe(job) && isCostEffective(job, revenue) && isPossible(job, room)) {
+            if (!isSafe(job)) {
+              return false
+            } else if (!isCostEffective(job, revenue)) {
+              return false
+            } else if (!isPossible(job, room)) {
+              return false
+            } else {
               let plan = job.plan
               let name = getUniqueName(base.name)
               const newMemory = {
@@ -131,12 +128,11 @@ module.exports.run = function (base, manifest) {
                 plan: plan
               }
               return doSpawn(base, spawn, plan, name, {memory: newMemory})
-            } else {
-              return false // job is dangerous, or too expensive. ignore
             }
           })
         }
       })
     }
   })
+  // console.log('completed queue check: ', completedQueueCheck)
 }

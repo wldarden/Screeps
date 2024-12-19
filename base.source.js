@@ -1,5 +1,5 @@
 const {getSourcesForPos} = require('./utils.cartographer')
-const {submitJob, addJobToBase} = require('./operation.job')
+const {addJobToBase, mineAndCarryPlan} = require('./operation.job')
 
 
 module.exports.addTrgSources = function (base, trgId) {
@@ -131,7 +131,6 @@ function simpleSourcePlan (base, source) {
       {
         group: 'main',
         cat: 'mine',
-        threat: 0,
         dist: path.length,
         steps: [
           {id: source.id, type: 'src', action: ['harvest']},
@@ -170,7 +169,6 @@ function simpleSourcePlan (base, source) {
     {
       group: 'main',
       cat: 'mine',
-      threat: 0,
       dist: path.length,
       steps: [
         {id: source.id, type: 'src', action: ['harvest']},
@@ -189,14 +187,34 @@ function simpleSourcePlan (base, source) {
     }
   ]
 }
+function calcMineTransROI (plan, dist, slots) {
+  let maxRevenuePerTick = 10
+  if (slots === 1) {
+    // maxRevenuePerTick is probably capped by maxAvailableEnergy and should be adjusted
+    maxRevenuePerTick = 6 // based off 600 avaialble energy
+  }
+  let containerDistFromSrc = 1
+  const minerROI = {
+    dist: 0,
+    cost: 300, // something like WCCMM
+  }
 
-function planSource (base, source) {
-  return simpleSourcePlan(base, source) // only simple source plan supported right now
+
 }
+
+function planSource (base, source, containerized = false) {
+  if (containerized) {
+    return mineAndCarryPlan(base, source) // only simple source plan supported right now
+  } else {
+    return simpleSourcePlan(base, source) // only simple source plan supported right now
+  }
+}
+
 
 module.exports.run = function (base, manifest) {
   try {
     base.sources = base.sources.map((s,i) => {
+
       if (!s.jobs) {
         s.jobs = []
       }
@@ -214,7 +232,35 @@ module.exports.run = function (base, manifest) {
       } else {
         // jobs exist. clean them
         if (Game.time % 10 === 0) { // cleanup every 10 ticks
-          s.jobs = s.jobs.filter(j => !!base.jobs[j]) // remove my jobs that dont exist in base
+          // base.sources[i].jobs = s.jobs.filter(j => !!base.jobs[j]) // remove my jobs that dont exist in base
+        }
+        if (!s.operation && s.jobs.length === 1 && base.jobs[s.jobs[0]].dist > 10 && !base.jobs[s.jobs[0]].threat) {
+          // let operation = mineAndCarryPlan(base, s)
+          // base.sources[i].operation = operation
+        }
+        if (s.operation) { //running operation
+          console.log('')
+          const operation = base.sources[i].operation
+          const stageIndex = operation.stageIndex
+          const stage = operation.stages[stageIndex]
+          console.log('Running operation stageIndex', stageIndex, 'stage', JSON.stringify(stage))
+          if (stage) {
+            let stageJobs = stage.jobs
+            stageJobs.forEach(job => {
+              if (job && job.id && !base.jobs[job.id]) {
+                console.log('would Have added stage', JSON.stringify(stage))
+                console.log('would Have added job', JSON.stringify(job))
+                console.log('would Have added base.sources[i]', JSON.stringify(base.sources[i]))
+                addJobToBase(base, job) // add to base, queue, etc.
+                base.sources[i].jobs.push(job.id)
+                base.sources[i].operation
+              } else {
+                console.log('Are we ready for the next job?')
+              }
+
+            })
+          }
+
         }
 
       }
@@ -226,3 +272,4 @@ module.exports.run = function (base, manifest) {
   // manage jobs
 
 }
+

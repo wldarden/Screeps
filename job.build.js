@@ -20,7 +20,7 @@
 //   ERR_NO_BODYPART	-12
 // There are no WORK body parts in this creep’s body.
 const {deserializePos, serializePos} = require('./utils.memory')
-const {fireCreep, completeJob, hireCreep, getStepEntityId} = require('./operation.job')
+const { completeJob, hireCreep, getStepEntityId} = require('./operation.job')
 const {nextStep, nextAction} = require('./utils.creep')
 
 function finishBuild (base, creep) {
@@ -204,3 +204,4 @@ module.exports.run = function (creep) {
         console.log('Error: couldnt run build job', e.stack)
     }
 }
+

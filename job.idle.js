@@ -1,42 +1,13 @@
-const {creepPlanInfo} = require('./utils.creep')
-const {serializePos, deserializePos} = require('./utils.memory')
-const {addJobToBase, hireCreep, completeJob} = require('./operation.job')
-const {calculateJobROI} = require('./utils.jobs')
+const {addJobToBase, hireCreep, completeJob, jobCreators} = require('./operation.job')
 
-function createPickUpJob (base, creep, pile) {
-  const spawnId = base.structures[STRUCTURE_SPAWN][0]
-  const spawn = Game.getObjectById(spawnId)
-  const pilePos = deserializePos(pile.pos)
-  const path = spawn.pos.findPathTo(pilePos)
-  const dist = path.length
-  const ROI = calculateJobROI(creep.body, dist, 'pickup', 1)
-  return {
-    cat: 'transport',
-    id: `pile-${pile.pos}`,
-    threat: 0,
-    dist: ROI.dist,
-    steps: [
-      {id: pile.pos, type: 'pos', action: ['pickup']},
-      {id: base.name, type: 'base', action: ['transfer', 'upgrade']}
-    ],
-    max: ROI.max,
-    creeps: [],
-    cost: ROI.cost,
-    value: ROI.value
-  }
-}
-
-const jobCreators = {
-  pile: createPickUpJob
-}
 
 module.exports.run = function (creep) {
   try {
-    console.log('Idling', creep.name)
+    console.log('Idling', creep.name, JSON.stringify(creep.memory))
     let base = Memory.bases[creep.memory.base]
     let room = Game.rooms[base.name]
 
-     if (!creep.memory.target) {
+     if (!creep.memory.jobId && !creep.memory.target) {
        let piles
        const checkExistingPiles = base.structures?.piles?.length
        if (checkExistingPiles) {
@@ -45,7 +16,7 @@ module.exports.run = function (creep) {
          piles = room.find(FIND_DROPPED_RESOURCES)
        }
        console.log('piles.length', piles.length, piles.length && piles[0].energy > 0, JSON.stringify(piles[0]))
-       if (piles.length) {
+       if (piles?.length) {
          piles.some(p => {
            if (p.energy > 0) {
              const pileId = `pile-${p.pos}`
@@ -53,13 +24,14 @@ module.exports.run = function (creep) {
              if (checkExistingPiles && base.jobs[pileId]) {
                creepJob = base.jobs[p.pos]
              } else {
-               creepJob = createPickUpJob(base, creep, p)
+               creepJob = jobCreators.pile.create(base, creep, p)
                addJobToBase(base, creepJob, false)
              }
              hireCreep(base, creep.name, creepJob.id)
            } else {
              if (checkExistingPiles) {
-               completeJob(base, pos)
+               jobCreators.pile.destroy(base, p)
+               completeJob(base, p.pos)
              }
            }
          })
@@ -128,4 +100,19 @@ module.exports.run = function (creep) {
   } catch (e) {
     console.log('Error: couldnt run idle job', e.stack)
   }
+}
+
+const EXAMPLE_PILE = {
+  "room":{
+    "name":"sim",
+    "energyAvailable":10,
+    "energyCapacityAvailable":300,
+    "survivalInfo":{"mode":"survival","status":"active","user":"5a36af6766a5f468481beb41","score":0,"timeToWave":200,"wave":1,"survivalEnabled":true,"invaders":{"bodies":[]}},
+    "visual":{"roomName":"sim"}
+  }
+  ,"pos":{"x":28,"y":25,"roomName":"sim"},
+  "id":"30bcfb25b09283fc161b9a25",
+  "energy":192,
+  "amount":192,
+  "resourceType":"energy"
 }

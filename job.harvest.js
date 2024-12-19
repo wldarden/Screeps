@@ -42,8 +42,7 @@
 //
 
 const {deserializePos} = require('./utils.memory')
-const {freeSrcSlot, reserveSrcSlot} = require('./utils.jobs')
-const {nextStep} = require('./utils.creep')
+const {nextStep, reserveSrcSlot} = require('./utils.creep')
 module.exports.run = function (creep) {
   try {
     // console.log('running creep[harvest]', creep.name)

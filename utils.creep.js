@@ -1,5 +1,3 @@
-const {addTrgSources} = require('./base.source')
-const {freeSrcSlot} = require('./utils.jobs')
 
 function ticksPerSpace (plan, partCounts) {
     let weight = plan.length - partCounts[MOVE]
@@ -146,3 +144,61 @@ function nextStep (creep) {
     delete creep.memory.wait
 }
 module.exports.nextStep = nextStep
+
+
+function reserveSrcSlot (base, creep, srcId) {
+    // let baseSourceIndex = base.sources.findIndex(s => s.id === srcId)
+    // if (baseSourceIndex !== -1) {
+    //     let openPos = base.sources[baseSourceIndex].slots.find(s => !base.sources[baseSourceIndex].active.includes(s))
+    //     if (openPos) {
+    //         base.sources[baseSourceIndex].active.push(openPos)
+    //         creep.memory.srcSlot = openPos
+    //         return true
+    //     }
+    // }
+    // return false
+
+    let baseSourceIndex = base.sources.findIndex(s => s.id === srcId)
+    if (baseSourceIndex !== -1) {
+        let src = base.sources[baseSourceIndex]
+        if (src) {
+            let openPos = src.slots.find(s => !src.activePos[s])
+            if (openPos) {
+                base.sources[baseSourceIndex].active.push(creep.name)
+                base.sources[baseSourceIndex].activePos[openPos] = creep.name
+                creep.memory.srcSlot = openPos
+                creep.memory.srcIndex = baseSourceIndex
+                // creep.memory.srcBase = base.name
+                return true
+            }
+        }
+    }
+
+    return false
+}
+module.exports.reserveSrcSlot = reserveSrcSlot
+function freeSrcSlot (base, creepName) {
+    // if (Memory.creeps[creepName].srcSlot) {
+    //     let baseSourceIndex = base.sources.findIndex(s => s.id === srcIndex)
+    //     if (baseSourceIndex !== -1) {
+    //         base.sources[baseSourceIndex].active = base.sources[baseSourceIndex].active.filter(a => a !== Memory.creeps[creepName].srcSlot)
+    //         delete Memory.creeps[creepName].srcSlot
+    //         return true
+    //     }
+    //     return false
+    // }[
+    // return true // there wasn't a srcSlot to free... so success?
+
+    if (Memory.creeps[creepName].srcSlot) {
+        let baseSourceIndex = Memory.creeps[creepName].srcIndex
+        if (baseSourceIndex !== undefined && baseSourceIndex !== -1) {
+            base.sources[baseSourceIndex].active = base.sources[baseSourceIndex].active.filter(a => a !== creepName)
+            base.sources[baseSourceIndex].activePos[Memory.creeps[creepName].srcSlot] = false
+            delete Memory.creeps[creepName].srcSlot
+            return true
+        }
+        return false
+    }
+    return true // there wasn't a srcSlot to free... so success?
+}
+module.exports.freeSrcSlot = freeSrcSlot

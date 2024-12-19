@@ -1,12 +1,13 @@
 const {deserializePos, serializePos} = require('./utils.memory')
-const {freeSrcSlot} = require('./utils.jobs')
+const {calculateJobROI} = require('./utils.jobs')
+const {freeSrcSlot} = require('./utils.creep')
 
 function getValidStep(job, i) {
   // return (job?.steps?.length < i + 1) ? i : 0
-  if (job?.steps?.length < i + 1) {
+  if (job?.steps?.length < 1 + i ) {
     return 0
   } else {
-    return i
+    return i || 0
   }
 }
 function getCreepStep(creep, job) {
@@ -60,6 +61,7 @@ function fireCreep (base, creepName, jobId) {
 module.exports.fireCreep = fireCreep
 
 function completeJob (base, jobId) {
+  console.log('completed job', jobId, JSON.stringify(base.jobs[jobId]))
   if (jobId !== undefined && base.jobs[jobId]) {
     base.queue[base.jobs[jobId].cat] = base.queue[base.jobs[jobId].cat].filter(jId => jId !== jobId)
     delete base.jobs[jobId]
@@ -67,6 +69,7 @@ function completeJob (base, jobId) {
 }
 module.exports.completeJob = completeJob
 function addJobToBase(base, job, sort = true) {
+  console.log('adding job to base', job.id, JSON.stringify(job))
   base.jobs[job.id] = job // add to base job map
   if (base.jobs[job.id].cat === 'build') {
     if (!base.newSites) {
@@ -156,17 +159,6 @@ function getBaseDest (base, resource = RESOURCE_ENERGY) {
 }
 function getBaseSrc (base, resource = RESOURCE_ENERGY) {
   return getBaseTrgFromTypes(base, 'src', [STRUCTURE_CONTAINER, STRUCTURE_SPAWN], resource)
-}
-
-function doLookAt (room, x, y, action) {
-  room.lookAt(x,y).forEach(obj => {
-    switch (obj.type) {
-      case 'terrain':
-        break
-      case 'structure':
-        break
-    }
-  })
 }
 
 const orderedSpaces = [
@@ -266,22 +258,32 @@ function getStepPosEntityId (step, actionIndex = 0) {
   // step type IS pos here by definition
   let pos = deserializePos(step.id)
   let lookRes
-  console.log('Getting pos entitiy id', JSON.stringify(pos), actionIndex, step.action[actionIndex ?? 0])
   switch (step.action[actionIndex ?? 0]) {
+    case 'pickup':
+      lookRes = pos.lookFor(LOOK_RESOURCES)
+      if (lookRes?.length) {
+        let pile = lookRes.find(r => {r.resourceType === 'energy'})
+        return pile?.id
+      } else {
+        return false // bad position to look for site. building complete.
+      }
     case 'build':
       lookRes = pos.lookFor(LOOK_CONSTRUCTION_SITES)
-      console.log('lookRes', JSON.stringify(lookRes))
       if (lookRes?.length) {
-        // lookRes.find(r => {
-        //   r.type ===''
-        // })
-        console.log('1111',JSON.stringify(lookRes))
+        // let pile = lookRes.find(r => {r.resourceType === 'energy'})
+
+        // if (pile) {
+        //   return pile.id
+        // } else {
+        //   return false
+        // }
+        // console.log('1111',JSON.stringify(lookRes))
         return lookRes[0]?.id
       } else {
         return false // bad position to look for site. building complete.
       }
     case 'withdraw':
-      lookRes = pos.lookFor(LOOK_RESOURCES)
+      lookRes = pos.lookFor(LOOK_STRUCTURES)
       if (lookRes?.length) {
         return lookRes[0]?.id
       } else {
@@ -304,6 +306,7 @@ function getStepPosEntityId (step, actionIndex = 0) {
     case 'upgrade':
       return Memory.bases[pos.roomName].structures[STRUCTURE_CONTROLLER][0]
     default:
+      console.log('Error: Unhandled getStepPosEntityId', step.action[actionIndex ?? 0])
       return pos
   }
 }
@@ -319,7 +322,6 @@ function getStepEntityId (step, actionIndex = 0) {
       return getStepPosEntityId(step, actionIndex)
       break
     case 'site':
-      console.log('Getting site id:', step.site)
       return step.site
     default:
       console.log('Error: Unhandled step entity type: ', JSON.stringify(step))
@@ -333,3 +335,172 @@ function getStepEntity (step, actionIndex = 0) {
   return id ? Game.getObjectById(id) : false
 }
 module.exports.getStepEntity = getStepEntity
+
+
+/**
+ * Plan - Simple PLan
+ *
+ * Plan - Midway
+ * Benefit:
+ * - double slot capacity
+ * Costs:
+ * - Halve slot capacity?
+ *
+ * Plan - Mine And Carry
+ *
+ *
+ *
+ */
+
+function mineAndCarryPlan (base, source) {
+  // if (source.plan) {
+  //
+  // } else {
+  //
+  // }
+  // source.plan = {}
+  let src = Game.getObjectById(source.id)
+  const spawnId = base.structures[STRUCTURE_SPAWN][0]
+  const spawn = Game.getObjectById(spawnId)
+  let path = src.pos.findPathTo(spawn, {ignoreCreeps: true})
+
+  const site = {
+    src: {id: source.id, type: 'src', pos: source.pos},
+    trg: undefined
+  }
+  let pos
+
+  if (path[0].dx !== 0) {
+    pos = {x: path[0].x + path[0].dx, y: path[0].y, roomName: src.pos.roomName }
+  } else {
+    pos = {x: path[0].x, y: path[0].y + path[0].dy, roomName: src.pos.roomName }
+  }
+  site.trg = {id: serializePos(pos), type: 'pos', pos: pos}
+
+  const dist = path.length - 1 // because the container is closer than path
+
+  const slots = source.slots.length
+
+
+
+
+
+  const minerSteps = [
+    {id: source.id, type: 'src', action: ['harvest']},
+    {id: site.trg.id, type: 'pos', action: ['transfer']}
+  ]
+  const minerROI = calculateJobROI([WORK, WORK, CARRY, MOVE], 0, minerSteps, slots)
+  const transferSteps = [
+    {id: site.trg.id, type: 'pos', action: ['withdraw']},
+    {id: base.name, type: 'base', action: ['transfer', 'drop']}
+  ]
+  const transferROI = calculateJobROI([WORK, CARRY, CARRY, MOVE, MOVE], dist - 1, transferSteps, 6)
+
+  return { // operation
+    name: 'M&C',
+    stageIndex: 0,
+    stages: [
+      {
+        stage: 0,
+        ratio: 1,
+        jobs: [
+          { // the container build site job
+            group: source.id,
+            cat: 'build',
+            id: site.trg.id, // TODO - Container Position here
+            dist: path.length,
+            steps: [
+              {id: site.src.id, type: 'base', action: ['withdraw']},
+              {id: site.trg.pos, type: 'pos', action: ['build']}
+            ],
+            structureType: STRUCTURE_CONTAINER,
+            max: -1,
+            creeps: [],
+            cost: 300,
+            value: 0,
+            plan: [WORK, CARRY, CARRY, MOVE, MOVE],
+            reqs: {parts: [WORK, CARRY, MOVE]}
+          }
+        ]
+      }, {
+        stage: 1,
+        ratio: [minerROI.value, transferROI.capacity],
+        jobs: [
+          { // the miner that mines the src and brings energy to the container  (mines, deposits)
+            group: source.id,
+            cat: 'mine',
+            id: `mine-${source.id}`,
+            dist: path.length,
+            steps: minerSteps,
+            max: minerROI.max,
+            creeps: [],
+            cost: minerROI.cost,
+            value: minerROI.value,
+            plan: [WORK, WORK, CARRY, MOVE],
+            roi: minerROI
+          },
+          { // takes from container to base
+            group: source.id,
+            cat: 'carry',
+            id: `carry-${source.id}`,
+            dist: path.length,
+            steps: transferSteps,
+            max: (minerROI.max * minerROI.value) / transferROI.capacity,
+            creeps: [],
+            cost: transferROI.cost,
+            value: transferROI.value,
+            plan: [WORK, CARRY, CARRY, MOVE, MOVE],
+            roi: transferROI
+          }
+        ]
+      }
+    ]
+  }
+}
+module.exports.mineAndCarryPlan = mineAndCarryPlan
+// const EXAMPLE_ROI = {
+//     "cost":300,
+//     "load":100,
+//     "speed":{
+//         "to":1,
+//         "from":2
+//     },
+//     "travelTicks":24,
+//     "workTicks":100,
+//     "loadTicks":124,
+//     "creepsPerSlot":1.24,
+//     "max":-1,
+//     "valuePerCreep":-1.0064516129032257
+// }
+
+
+function createPickUpJob (base, creep, pile) {
+  const spawnId = base.structures[STRUCTURE_SPAWN][0]
+  const spawn = Game.getObjectById(spawnId)
+  const pilePos = deserializePos(pile.pos)
+  const path = spawn.pos.findPathTo(pilePos)
+  const dist = path.length
+  const pickupSteps = [
+    {id: serializePos(pile.pos), type: 'pos', action: ['pickup']},
+    {id: base.name, type: 'base', action: ['transfer', 'upgrade']}
+  ]
+  const ROI = calculateJobROI(creep.body, dist, pickupSteps, Math.round(pile.energy / 100))
+  return {
+    cat: 'transport',
+    id: `pile-${serializePos(pile.pos)}`,
+    dist: ROI.dist,
+    steps: pickupSteps,
+    max: ROI.max,
+    creeps: [],
+    cost: ROI.cost,
+    value: ROI.value
+  }
+}
+function destroyPile (base, pile) {
+  console.log('Destroying Pile', pile.pos)
+  base.structures.piles = base.structures.piles.filter(p => p.pos !== pile.pos)
+}
+
+module.exports.jobCreators = {
+  pile: {create: createPickUpJob, destroy: destroyPile}
+}

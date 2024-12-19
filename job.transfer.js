@@ -35,7 +35,6 @@ const TRANSFER_ERRORS = {
 }
 
 const {getStepEntityId, getCreepStep} = require('./operation.job')
-const {serializePos, deserializePos} = require('./utils.memory')
 const {nextStep} = require('./utils.creep')
 module.exports.run = function (creep) {
   try {

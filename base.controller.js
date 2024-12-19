@@ -1,6 +1,4 @@
-const {addEnergyRequest} = require('./utils.request')
-const {addJobToBase} = require('./operation.job')
-const {createBuildJob, createUpgradeJob} = require('./utils.build')
+const {createUpgradeJob} = require('./utils.build')
 
 
 function needsEnergy (controllerId) {
