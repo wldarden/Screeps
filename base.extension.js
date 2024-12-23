@@ -5,9 +5,9 @@ const {createBuildJob} = require('./utils.build')
 
 function shouldBuildExtension (base) {
     let room = Game.rooms[base.name]
-
+    // console.log('room.controller.level >= 2 ', room.controller.level >= 2 )
     return (
-      room.controller.level >=2 &&
+      room.controller.level >= 2 &&
       base.structures[STRUCTURE_EXTENSION].length < 6 &&
       Object.keys(Game.creeps).length >= 5 &&
       !Object.values(base.jobs).some(j => j.structureType === STRUCTURE_EXTENSION)
@@ -18,6 +18,7 @@ module.exports.run = function (base, manifest) {
     // addEnergyRequest(base, base.structures[STRUCTURE_EXTENSION])
     // addResourceRequests(base)
     if (shouldBuildExtension(base)) {
+      console.log('tried to build extension')
         createBuildJob(base, STRUCTURE_EXTENSION)
     }
 }

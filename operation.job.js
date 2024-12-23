@@ -63,13 +63,15 @@ module.exports.fireCreep = fireCreep
 function completeJob (base, jobId) {
   console.log('completed job', jobId, JSON.stringify(base.jobs[jobId]))
   if (jobId !== undefined && base.jobs[jobId]) {
+    base.jobs[jobId].creeps.forEach(cId => {
+      fireCreep(base, cId, jobId)
+    })
     base.queue[base.jobs[jobId].cat] = base.queue[base.jobs[jobId].cat].filter(jId => jId !== jobId)
     delete base.jobs[jobId]
   }
 }
 module.exports.completeJob = completeJob
 function addJobToBase(base, job, sort = true) {
-  console.log('adding job to base', job.id, JSON.stringify(job))
   base.jobs[job.id] = job // add to base job map
   if (base.jobs[job.id].cat === 'build') {
     if (!base.newSites) {
@@ -98,7 +100,69 @@ function addJobToBase(base, job, sort = true) {
 }
 module.exports.addJobToBase = addJobToBase
 
+function getJobForCreep (base, creep, hire = true, cats = ['build', 'mine', 'upgrade']) {
+  // let newJobId = base.queue?.mine?.find(jId => {
+  //   let job = base.jobs[jId]
+  //   return job.creeps.length < job.max && job.threat === 0
+  // })
+  let newJobId = catJobFinder(base, creep, cats)
+  console.log('Found new job for ', creep.name, newJobId)
+  if (newJobId && hire) {
+    hireCreep(base, creep.name, newJobId)
+  }
+  return newJobId
+}
+module.exports.getJobForCreep = getJobForCreep
 
+function catJobFinder (base, creep, cats) {
+  for (let catIndex in cats) {
+    let cat = cats[catIndex]
+    let res =  getCatJobForCreep(base, cat)
+    console.log('searched jobs for', creep.name, 'in cat', cat, JSON.stringify(res))
+    if (res.id) {
+      return res.id
+    } else if (res.possibles.length) {
+      return res.possibles[0]
+    }
+  }
+}
+function getCatJobForCreep (base, cat) {
+  let possibles = []
+  let newJobId
+  console.log('Search in ', cat)
+  if (base.queue[cat] && base.queue[cat].length) {
+    newJobId = base.queue[cat].find(jobId => {
+      let job = base.jobs[jobId]
+      console.log('checking ', cat, jobId, job.threat, job.creeps.length, job.max)
+      if (!job.threat) {
+        if (job.creeps.length < 2 && (job.max === -1 || job.max < job.creeps.length)) {
+          return true
+        } else if (job.max === -1 || job.creeps.length < job.max) {
+          possibles.push(jobId)
+        }
+      }
+    })
+  }
+  return {id: newJobId, possibles}
+}
+// function getBuildJobForCreep (base, creep) {
+//   let possibles = []
+//   let newJobId
+//   if (base.queue['build'] && base.queue['build'].length) {
+//      newJobId = base.queue['build'].find(jobId => {
+//       let job = base.jobs[jobId]
+//       if (base.jobs[jobId].threat === 0) {
+//         if (job.creeps.length < 2 && (job.max === -1 || job.max < job.creeps.length)) {
+//           return true
+//         } else if (job.max === -1 || job.creeps.length < job.max) {
+//           possibles.push(jobId)
+//         }
+//       }
+//     })
+//   }
+//   return {id: newJobId, possibles}
+// }
+// module.exports.getBuildJobForCreep = getBuildJobForCreep
 /**
  *
  * @param srcMode - True/False: True: get dest to give energy to. False: get src to take energy from

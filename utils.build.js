@@ -22,8 +22,14 @@ function isBetterContainerSrc(src1, src2) {
 }
 
 function findContainerSite (base, structure) {
-    const room = Game.rooms[position.roomName]
-    let src = base.sources[0]
+    const room = Game.rooms[base.name]
+    let baseSrcIndex = base.sources.findIndex(s => {
+        return !s?.container && s.jobs.every(srcJobId => !base.jobs[srcJobId].threat)
+    })
+    let src = base.sources[baseSrcIndex]
+    if (!src) {
+        return null
+    }
     let source = Game.getObjectById(src.id)
     let path = source.pos.findPathTo(Game.getObjectById(base.structures[STRUCTURE_SPAWN][0]), {ignoreCreeps: true})
     let pos
@@ -35,7 +41,7 @@ function findContainerSite (base, structure) {
     const res = room.createConstructionSite(pos.x, pos.y, STRUCTURE_CONTAINER)
     if (res === 0) {
         let container = serializePos(pos)
-        base.sources[0].container = container
+        base.sources[baseSrcIndex].container = container
         return container
     } else {
         return null
@@ -116,7 +122,6 @@ function getBuildSiteInfo (base, structure, pos) {
         case STRUCTURE_CONTAINER:
             spawn = Game.getObjectById(base.structures[STRUCTURE_SPAWN][0])
             trgPos = findContainerSite(base, structure)
-            console.log('spawn', spawn.pos.x, JSON.stringify(trgPos))
             return trgPos ? {
                 src: {id: base.name, type: 'base', pos: spawn.pos},
                 trg: {id: trgPos, type: 'pos', pos: trgPos}
@@ -189,9 +194,9 @@ function createBuildJob (base, structure, params = {}) {
     } = params
 
     let site = getBuildSiteInfo(base, structure, pos) // returns {src: {id,type,pos} trg: {id,type,pos}}
-    console.log('JSON site', JSON.stringify(site))
     if (site) {
-        let path = deserializePos(site.trg.pos).findPathTo(site.src.pos)
+        console.log('got site')
+        let path = deserializePos(site.trg.pos).findPathTo(site.src.pos, {ignoreCreeps: true})
         const dist = path.length
         const plan = [WORK, CARRY, MOVE] // TODO - replace with calculation
         const buildSteps = [

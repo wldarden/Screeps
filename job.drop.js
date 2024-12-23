@@ -43,22 +43,30 @@ module.exports.run = function (creep) {
         let job = base.jobs[creep.memory.jobId]
         let step = job.steps[creep.memory.step]
         let resource = step.resource ?? RESOURCE_ENERGY
-        if (!creep.memory.dest) {
-            let dest = getStepEntityId(getCreepStep(creep, job), creep.memory.actionIndex)
-            if (dest) {
-                creep.memory.dest = dest
-            }
-        }
 
         let target
         let actionRes
-        target = deserializePos(creep.memory.dest)
-        if (!creep.pos.isNearTo(target.x, target.y)) {
-            actionRes = ERR_NOT_IN_RANGE
-        } else {
+        if (step && step.type === 'now') {
             creep.drop(resource)
             actionRes = OK
+        } else {
+            if (!creep.memory.dest) {
+                let dest = getStepEntityId(getCreepStep(creep, job), creep.memory.actionIndex)
+                if (dest) {
+                    creep.memory.dest = dest
+                }
+            }
+
+
+            target = deserializePos(creep.memory.dest)
+            if (!creep.pos.isNearTo(target.x, target.y)) {
+                actionRes = ERR_NOT_IN_RANGE
+            } else {
+                creep.drop(resource)
+                actionRes = OK
+            }
         }
+
 
         switch (actionRes) {
             case ERR_NOT_IN_RANGE:
@@ -82,44 +90,6 @@ module.exports.run = function (creep) {
                 console.log('Error: ', creep.name, 'Drop Action Response not handled: ', actionRes)
                 break
         }
-
-
-        // let actionRes = creep.transfer(target, resource)
-        // switch (actionRes) {
-        //   case ERR_NOT_IN_RANGE:
-        //     creep.moveTo(target, {
-        //       ignoreCreeps: false,
-        //       visualizePathStyle: {stroke: '#008800'}}
-        //     )
-        //     break
-        //   case ERR_TIRED:
-        //     console.log('creep says they are tired: ', creep.name)
-        //     break
-        //   case ERR_NOT_ENOUGH_RESOURCES:
-        //     creep.memory.step++
-        //     break
-        //   case ERR_FULL:
-        //     console.log('waiting: my wait:', creep.memory.wait, 'Game.time', Game.time)
-        //     if (!creep.memory.wait) {
-        //       creep.memory.wait = Game.time + 3
-        //     } else {
-        //       if (Game.time >= creep.memory.wait) { // waited 3 ticks and still full. drop and continue
-        //         creep.drop(resource)
-        //         creep.memory.step++
-        //         delete creep.memory.wait
-        //       }
-        //     }
-        //
-        //     break
-        //   case OK:
-        //     if (creep.store.getUsedCapacity() === 0) {
-        //       creep.memory.step++
-        //     }
-        //     break
-        //   default:
-        //     console.log('Error: Action Response not handled: ', actionRes)
-        //     break
-        // }
 
 
     } catch (e) {

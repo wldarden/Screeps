@@ -65,6 +65,9 @@ function isPossible (job, room) {
 function isCostEffective (job, revenue) {
   if (job.value > 0) { // job is already positive, so do sure
     return true
+  } else if (job.cat === 'build') {
+    const newRevenue = revenue + job.value
+    return newRevenue >= -5
   } else {
     const newRevenue = revenue + job.value
     return newRevenue >= 2
@@ -109,15 +112,9 @@ module.exports.run = function (base, manifest) {
         if (spawn.spawning) {
           return false
         } else {
-          return openJobs.some(job => {
-            // console.log('revenue', revenue, job.id, 'isSafe(job)', isSafe(job), 'isCostEffective(job, revenue)', isCostEffective(job, revenue), 'isPossible(job, room)', isPossible(job, room))
-            if (!isSafe(job)) {
-              return false
-            } else if (!isCostEffective(job, revenue)) {
-              return false
-            } else if (!isPossible(job, room)) {
-              return false
-            } else {
+          return base.priority.spawn.slice(0,1).some(jobId => {
+            let job = base.jobs[jobId]
+            if (job && job.cost <= room.energyAvailable) {
               let plan = job.plan
               let name = getUniqueName(base.name)
               const newMemory = {

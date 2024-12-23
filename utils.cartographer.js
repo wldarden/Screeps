@@ -84,7 +84,7 @@ module.exports.getSourcesForPos = function (position = {}, sources = {}) {
             pos = position.pos
         }
         console.log('Heavy: initializing source array for ', position)
-        return sources.map(s => ({id: s.id, dist: pos.findPathTo(s).length}))
+        return sources.map(s => ({id: s.id, dist: pos.findPathTo(s, {ignoreCreeps: true}).length}))
           .sort((a,b) => (a.dist ?? 100) - (b.dist ?? 100))
           .map(s => s.id)
     } catch (e) {

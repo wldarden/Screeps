@@ -1,8 +1,10 @@
+const {serializePos} = require('./utils.memory')
 
 function ticksPerSpace (plan, partCounts) {
-    let weight = plan.length - partCounts[MOVE]
-    let ticksPerSpaceTo = Math.ceil((weight - partCounts[CARRY]) / partCounts[MOVE])
-    let ticksPerSpaceFrom = Math.ceil(weight / partCounts[MOVE])
+    let fullWeight = plan.length - partCounts[MOVE]
+    const emptyWeight = fullWeight - partCounts[CARRY] || 1
+    let ticksPerSpaceTo = Math.min(Math.ceil(emptyWeight / partCounts[MOVE]), 1)
+    let ticksPerSpaceFrom = Math.min(Math.ceil(fullWeight / partCounts[MOVE]), 1)
     return {to: ticksPerSpaceTo, from: ticksPerSpaceFrom}
 }
 module.exports.ticksPerSpace = ticksPerSpace
@@ -145,7 +147,25 @@ function nextStep (creep) {
 }
 module.exports.nextStep = nextStep
 
-
+function switchSrcSlot (base, creep, srcId) {
+    let baseSourceIndex = base.sources.findIndex(s => s.id === srcId)
+    if (baseSourceIndex !== -1) {
+        let src = base.sources[baseSourceIndex]
+        if (src) {
+            let openPos = src.slots.find(s => !src.activePos[s])
+            if (openPos) {
+                // base.sources[baseSourceIndex].active.push(creep.name)
+                base.sources[baseSourceIndex].activePos[openPos] = creep.name
+                base.sources[baseSourceIndex].activePos[creep.memory.srcSlot] = false
+                creep.memory.srcSlot = openPos
+                creep.memory.srcIndex = baseSourceIndex
+                // creep.memory.srcBase = base.name
+                return true
+            }
+        }
+    }
+}
+module.exports.switchSrcSlot = switchSrcSlot
 function reserveSrcSlot (base, creep, srcId) {
     // let baseSourceIndex = base.sources.findIndex(s => s.id === srcId)
     // if (baseSourceIndex !== -1) {
@@ -162,7 +182,13 @@ function reserveSrcSlot (base, creep, srcId) {
     if (baseSourceIndex !== -1) {
         let src = base.sources[baseSourceIndex]
         if (src) {
-            let openPos = src.slots.find(s => !src.activePos[s])
+            let openPos
+            let creepSPos = serializePos(creep.pos)
+            if (src.slots.some(sPos => sPos === creepSPos)) {
+                openPos = creepSPos
+            } else {
+                openPos = src.slots.find(s => !src.activePos[s])
+            }
             if (openPos) {
                 base.sources[baseSourceIndex].active.push(creep.name)
                 base.sources[baseSourceIndex].activePos[openPos] = creep.name
@@ -177,6 +203,7 @@ function reserveSrcSlot (base, creep, srcId) {
     return false
 }
 module.exports.reserveSrcSlot = reserveSrcSlot
+
 function freeSrcSlot (base, creepName) {
     // if (Memory.creeps[creepName].srcSlot) {
     //     let baseSourceIndex = base.sources.findIndex(s => s.id === srcIndex)

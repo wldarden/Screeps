@@ -61,9 +61,10 @@ function createSource (source) {
             id: source.id,
             pos: serializePos(source.pos),
             slots: [],
-            plan: 'simple',
+            level: 0,
             active: [],
-            jobs: []
+            jobs: [],
+            initPlan: true
         }
     } catch (e) {
         console.log('Error Creating Source: ', e.stack)
@@ -81,6 +82,9 @@ module.exports.createBase = function (room) {
             //     [RESOURCE_ENERGY]: []
             // },
             structures: createStructureMap(),
+            priority: {
+                spawn: []
+            },
             sites: {
                 structures: [],
                 roads: [],

@@ -4,12 +4,13 @@ const {hireCreep, getCreepStep, addJobToBase, fireCreep, getCreepStepAction} = r
 
 const baseRunners = [
   {runner: require('base.creep'), name: 'Controller Creeps', ticks: 1, offset: 0}, // do first so spawns have a chance
-  {runner: require('base.source'), name: 'Source General', ticks: 1, offset: 0},
-  {runner: require('base.extension'), name: 'Controller Extension', ticks: 1, offset: 0},
-  {runner: require('base.container'), name: 'Controller Container', ticks: 1, offset: 0},
-  {runner: require('base.controller'), name: 'Controller General', ticks: 1, offset: 0},
+  {runner: require('base.source'), name: 'General of Resources', ticks: 1, offset: 0},
+  {runner: require('base.extension'), name: 'Extension Commander', ticks: 1, offset: 0},
+  {runner: require('base.container'), name: 'General of Storage Logistics', ticks: 1, offset: 0},
+  {runner: require('base.controller'), name: 'HQ Manager', ticks: 1, offset: 0},
   {runner: require('base.spawn'), name: 'General Spawn', ticks: 1, offset: 0},
-  {runner: require('base.builder'), name: 'Controller Builder', ticks: 1, offset: 0}, // do first so spawns have a chance
+  {runner: require('base.builder'), name: 'Construction Foreman', ticks: 1, offset: 0}, // do first so spawns have a chance
+  {runner: require('base.jobs'), name: 'Job Controller', ticks: 1, offset: 0}, // do first so spawns have a chance
 ]
 
 const actionRunners = {

@@ -1,42 +1,47 @@
-const {addJobToBase, hireCreep, completeJob, jobCreators} = require('./operation.job')
+const {addJobToBase, hireCreep, completeJob, jobCreators, fireCreep, getJobForCreep} = require('./operation.job')
 
 
 module.exports.run = function (creep) {
   try {
-    console.log('Idling', creep.name, JSON.stringify(creep.memory))
+    // console.log('Idling', creep.name, JSON.stringify(creep.memory))
     let base = Memory.bases[creep.memory.base]
     let room = Game.rooms[base.name]
-
+    // fireCreep(base, creep.name, creep.memory.jobId)
      if (!creep.memory.jobId && !creep.memory.target) {
        let piles
-       const checkExistingPiles = base.structures?.piles?.length
-       if (checkExistingPiles) {
-         piles = base.structures.piles
-       } else {
-         piles = room.find(FIND_DROPPED_RESOURCES)
-       }
-       console.log('piles.length', piles.length, piles.length && piles[0].energy > 0, JSON.stringify(piles[0]))
+       // const checkExistingPiles = base.structures?.piles?.length
+       // if (checkExistingPiles) {
+       //   piles = base.structures.piles
+       // } else {
+       //   piles = room.find(FIND_DROPPED_RESOURCES)
+       // }
+       // console.log('piles.length', piles.length, piles.length && piles[0].energy > 0, JSON.stringify(piles[0]))
        if (piles?.length) {
-         piles.some(p => {
-           if (p.energy > 0) {
-             const pileId = `pile-${p.pos}`
-             let creepJob
-             if (checkExistingPiles && base.jobs[pileId]) {
-               creepJob = base.jobs[p.pos]
-             } else {
-               creepJob = jobCreators.pile.create(base, creep, p)
-               addJobToBase(base, creepJob, false)
-             }
-             hireCreep(base, creep.name, creepJob.id)
-           } else {
-             if (checkExistingPiles) {
-               jobCreators.pile.destroy(base, p)
-               completeJob(base, p.pos)
-             }
-           }
-         })
+         // piles.some(p => {
+         //   if (p.energy > 0) {
+         //     const pileId = `pile-${p.pos}`
+         //     let creepJob
+         //     if (checkExistingPiles && base.jobs[pileId]) {
+         //       creepJob = base.jobs[p.pos]
+         //     } else {
+         //       creepJob = jobCreators.pile.create(base, creep, p)
+         //       addJobToBase(base, creepJob, false)
+         //     }
+         //     hireCreep(base, creep.name, creepJob.id)
+         //   } else {
+         //     if (checkExistingPiles) {
+         //       jobCreators.pile.destroy(base, p)
+         //       completeJob(base, p.pos)
+         //     }
+         //   }
+         // })
+       } else {
+         // try a mining Job
+
+
        }
      }
+    getJobForCreep(base, creep)
      // const tmp = {
      //   "room":{
      //     "name":"sim",

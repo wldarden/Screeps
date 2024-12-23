@@ -38,7 +38,14 @@ module.exports.run = function (creep) {
         let actionRes = creep.pickup(target, RESOURCE_ENERGY)
         switch (actionRes) {
             case ERR_NOT_IN_RANGE:
-                creep.moveTo(target, {visualizePathStyle: {stroke: '#ffffff'}})
+                let path = creep.pos.findPathTo(target, {visualizePathStyle: {stroke: '#ffffff'}})
+              // if (path.length < 3) {
+              //     base.jobs[`${job.group}-mine`].waiting.push(creep.name)
+              // }
+                creep.moveByPath(path)
+                // if (job.cat === 'mine' && job.id.includes('DropMine')) {
+                //
+                // }
                 break
             case ERR_TIRED:
                 console.log('creep says they are tired: ', creep.name)

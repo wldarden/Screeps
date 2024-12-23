@@ -125,8 +125,8 @@ function calculateJobROI (plan, dist, steps = [], slots) {
         workTicks: actionWorkTicks(steps, creepInfo.partCounts[WORK], load)
     }
     roi.loadTicks = roi.workTicks + roi.travelTicks
-    roi.creepsPerSlot = Math.max(roi.loadTicks / roi.workTicks, 1)
-    roi.max = slots ? Math.floor(roi.slots * roi.creepsPerSlot) : -1
+    roi.creepsPerSlot = Math.max(roi.loadTicks / Math.max(roi.workTicks, 1), 1)
+    roi.max = slots ? Math.floor(slots * roi.creepsPerSlot) : 5
     roi.valuePerCreep = creepValuePerTick(steps, roi)
     roi.value = roi.valuePerCreep
     roi.capacity = (load / roi.loadTicks)
