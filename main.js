@@ -1,6 +1,5 @@
 const {createBase, createSourceOwner} = require('./utils.memory')
 const {getSlotsAround} = require('./utils.cartographer')
-const {hireCreep, getCreepStep, addJobToBase, fireCreep, getCreepStepAction} = require('./operation.job')
 const {DONE, ACTIONS} = require('./actions')
 
 const baseRunners = [
@@ -21,12 +20,12 @@ const actionRunners = {
   build: {runner: require('job.build')},
   harvest: {runner: require('job.harvest')},
   recycle: {runner: require('job.recycle')},
-  transfer: {runner: require('job.transfer')},
+  // transfer: {runner: require('job.transfer')},
   upgrade: {runner: require('job.upgrade')},
-  withdraw: {runner: require('job.withdraw')},
-  idle: {runner: require('job.idle')},
-  pickup: {runner: require('job.pickup')},
-  drop: {runner: require('job.drop')}
+  // withdraw: {runner: require('job.withdraw')},
+  // idle: {runner: require('job.idle')},
+  // pickup: {runner: require('job.pickup')},
+  // drop: {runner: require('job.drop')}
 }
 function initMemory () {
   Memory.bases = {}
@@ -108,7 +107,6 @@ function gatherGlobal () {
     } catch (e) {
       console.log('Error: creating untracked objects in gatherGlobal: ', e.stack)
     }
-
   } catch (e) {
    console.log('Error: GatherGlobal(): ', e.stack)
   }

@@ -99,6 +99,53 @@ module.exports.createBase = function (room) {
     }
 }
 
+function createNode (parent, id, type = 'none', subType = '') {
+    return {
+        parent: parent, // undefined || nodeId
+        type: type, // base, outpost, src, spawn, controller, storage, fort,
+        sub: subType, // STRUCTURE_*,
+        id: id,
+        children: {},
+    }
+}
+
+module.exports.createBaseNode = function (room) {
+    try {
+        let base =  {
+            structures: createStructureMap(),
+            sites: {
+                structures: [],
+                roads: [],
+                def: []
+            },
+
+            id: room.name,
+            nodeType: 'base',
+            parent: null,
+            nodes: {
+                // strId?
+                // [structureType]: [strId, strId]?
+            },
+            creeps: {
+                // [role]: [cId, cId, cId]
+            }
+        }
+
+        let structs = room.find(FIND_STRUCTURES)
+        structs.forEach(s => {
+            if (!base.structures[s.structureType]) {
+                base.structures[s.structureType] = [s.id]
+            } else {
+                base.structures[s.structureType].push(s.id)
+            }
+        })
+        return base
+    } catch (e) {
+        console.log('Error createBase( ' + (room?.name ?? 'Undefined Room Name!') + ' ): ', e.stack)
+        Memory.init = false
+    }
+}
+
 function createStructureMap () {
     return {
         [STRUCTURE_CONTAINER]: [],

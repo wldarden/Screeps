@@ -1,5 +1,4 @@
 const {serializePos, deserializePos} = require('./utils.memory')
-const {addJobToBase} = require('./operation.job')
 const {calculateJobROI} = require('./utils.jobs')
 
 
@@ -209,7 +208,6 @@ function createUpgradeJob (base, params = {}) {
             ...overrides
         }
         if (addToBase) {
-            addJobToBase(base, newJob) // add to base, queue, etc.
         }
     }
 }
@@ -256,7 +254,6 @@ function createBuildJob (base, structure, params = {}) {
             ...overrides
         }
         if (addToBase) {
-            addJobToBase(base, job) // add to base, queue, etc.
         }
         return job
     }

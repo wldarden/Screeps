@@ -1,5 +1,4 @@
 // const {getSourcesForPos} = require('./utils.cartographer')
-const {addJobToBase, mineAndCarryPlan, completeJob} = require('./operation.job')
 const {calculateJobROI} = require('./utils.jobs')
 const {deserializePos, serializePos} = require('./utils.memory')
 const {findContainerSite, findContainerSiteForSrc} = require('./utils.build')
@@ -23,7 +22,7 @@ function requestSrcMiner (manifest, srcId, role, priority, replaceCreep) {
   const slots = Object.keys(src.slots)
   const miners = src?.creeps?.length || 0
   const saturation = miners / slots.length
-  const pri = priority || ((1 / src.dist) + (1 / saturation))
+  const pri = priority || ((1 / src.dist) + (1 / Math.max(saturation, 1)))
   addSpawnRequest(manifest, {plan, mem, pri, replace: replaceCreep})
 }
 

@@ -1,102 +1,225 @@
 const {deserializePos, serializePos} = require('./utils.memory')
 
-function findSrc (pos, amount = 50, harvestOnly = false, structOnly = false) {
-    // function startFill (creep, destPosition, targets = ['str', 'src'], resource = RESOURCE_ENERGY) {
-    // let amount = creep.store.getFreeCapacity()
-    // for (let i = 0; i < targets.length; i++) {
-    //     switch (targets[i]) {
-    //         case 'str': // any stucture
-    //             let strRes = findCustSrc(destPosition, amount, FIND_MY_STRUCTURES, resource)
-    //             if (strRes) {
-    //                 return strRes
-    //             }
-    //             break
-    //         case 'src':
-    //             let closestOpenSource = destPosition.findClosestByPath(FIND_SOURCES, {ignoreCreeps: true, filter: (src) =>
-    //                   (Object.keys(Memory.nodes[src.id].slots).some(key => !Memory.nodes[src.id].slots[key]))
-    //             })
-    //             if (closestOpenSource) {
-    //                 return closestOpenSource
-    //             }
-    //             break
-    //         default:
-    //             let defaultRes = findCustSrc(destPosition, amount, targets[i], resource)
-    //             if (defaultRes) {
-    //                 return defaultRes
-    //             }
-    //             break
-    //     }
-    // }
 
-
-
-
-    let room = Game.rooms[pos.roomName]
-    let best
-    if (!harvestOnly) {
-        const structs = room.find(FIND_MY_STRUCTURES)
-        for (let i = 0; i < structs.length; i++) {
-            if (structs[i].store) {
-                if (structs[i].store[RESOURCE_ENERGY] > amount) {
-                    return structs[i]
-
-                } else if (!best || structs[i].store[RESOURCE_ENERGY] > best.store[RESOURCE_ENERGY]) {
-                    best = structs[i]
-                }
-            }
-        }
-    }
-    if (structOnly) {
-        return best
-    } else {
-        let closestSource = pos.findClosestByPath(FIND_SOURCES, {filter: (src) =>
-              (Object.keys(Memory.nodes[src.id].slots).some(key => !Memory.nodes[src.id].slots[key]))
-        })
-        if (best && closestSource) {
-            return best.pos.getRangeTo(pos) > closestSource.pos.getRangeTo(pos) ? closestSource : best
-        } else if (best) {
-            return best
-        } else if (closestSource) {
-            return closestSource
-        } else {
-            return null
-        }
-    }
-
-}
-module.exports.findSrc = findSrc
-
-function findDest (creep) {
+const defEnergyDestPri = [STRUCTURE_SPAWN, STRUCTURE_EXTENSION, STRUCTURE_CONTAINER]
+function findEnergyDest (creep, targets = defEnergyDestPri, resource = RESOURCE_ENERGY) {
     let room = Game.rooms[creep.pos.roomName]
+
     const energy = creep.store.getUsedCapacity()
-    // if (creep.memory.base && Memory.bases[creep.memory.base]) {
-    //     if (Memory.bases[creep.memory.base].structures[STRUCTURE_SPAWN][0]) {
-    //         let spawn = Game.getObjectById(Memory.bases[creep.memory.base].structures[STRUCTURE_SPAWN][0])
-    //         if (spawn.store.getFreeCapacity() > 50) {
-    //             return spawn
-    //         }
-    //     }
-    // }
     let best
-    const structs = room.find(FIND_STRUCTURES)
-    for (let i = 0; i < structs.length ; i++) {
-        if (structs[i].store) {
-            const capacity = structs[i].store.getFreeCapacity()
-            if (
-                capacity > energy || (
-                capacity > 0 &&
-                (structs[i].structureType === STRUCTURE_SPAWN || structs[i].structureType === STRUCTURE_EXTENSION)
-              ))
-            {
-                return structs[i]
-            } else if (!best || structs[i].store[RESOURCE_ENERGY] < best.store[RESOURCE_ENERGY]) {
-                best = structs[i]
+    let bestTypeIndex = targets.length
+    let bestCapacity = 0
+    let bestFillFrac
+    let bestRoomFrac
+    let bestScore = 0
+    const allStructs = room.find(FIND_MY_STRUCTURES)
+    for (let i = 0; i < allStructs.length; i++) {
+        let str = allStructs[i]
+        if (str?.store) {
+            const capacity = str.store.getFreeCapacity(resource)
+            if (!!capacity) {
+                let newTypeIndex = targets.findIndex(t => t === str.structureType)
+                if (!best || newTypeIndex < bestTypeIndex) {
+                    // new best
+                    best = str
+                    bestTypeIndex = newTypeIndex
+                    bestCapacity = capacity
+                    bestFillFrac = capacity / energy
+                    bestRoomFrac = creep.pos.getRangeTo(best) / 50
+                    bestScore = bestFillFrac - bestRoomFrac
+                } else if (newTypeIndex === bestTypeIndex) { // both are same level of target. compare them
+                    const newFillFrac = capacity / energy
+                    const newRoomFrac = creep.pos.getRangeTo(str) / 50
+                    const newScore = newFillFrac - newRoomFrac
+                    if (bestScore < newScore) {
+                        best = str
+                        bestFillFrac = newFillFrac
+                        bestRoomFrac = creep.pos.getRangeTo(best) / 50
+                        bestScore = bestFillFrac - bestRoomFrac
+                    }
+                }
+                if (bestTypeIndex === 0 && bestCapacity > energy) {
+                    return best
+                }
             }
         }
     }
     return best
 }
-module.exports.findDest = findDest
+//
+// function findCustSrc (destPosition, amount, findConst, resource = RESOURCE_ENERGY) {
+//     let best
+//     let bestFillFrac
+//     let bestRoomFrac
+//     let bestScore = 0
+//     let room = Game.rooms[destPosition.roomName]
+//     const structs = room.find(findConst)
+//     for (let resIndex = 0; resIndex < structs.length; resIndex++) {
+//         if (structs[resIndex].store && structs[resIndex].structureType !== STRUCTURE_EXTENSION) {
+//             if (structs[resIndex].store[resource] > amount) {
+//                 return structs[resIndex]
+//             } else {
+//                 if (!best) {
+//                     best = structs[resIndex]
+//                     bestFillFrac = best.store[resource] / amount
+//                     bestRoomFrac = destPosition.getRangeTo(best) / 50
+//                     bestScore = bestFillFrac - bestRoomFrac
+//                 } else {
+//                     const newFillFrac = structs[resIndex].store[resource] / amount
+//                     const newRoomFrac = destPosition.getRangeTo(structs[resIndex]) / 50
+//                     const newScore = newFillFrac - newRoomFrac
+//                     if (bestScore < newScore) {
+//                         best = structs[resIndex]
+//                         bestFillFrac = newFillFrac
+//                         bestRoomFrac = newRoomFrac
+//                         bestScore = newScore
+//                     }
+//                 }
+//             }
+//         }
+//     }
+//     if (best) {
+//         return best
+//     }
+// }
+
+//
+// function findFillSrc (creep, destPosition, targets = ['str', 'src'], resource = RESOURCE_ENERGY) {
+//     let amount = creep.store.getFreeCapacity()
+//     if (!destPosition) {
+//         destPosition = creep.pos
+//     }
+//     for (let i = 0; i < targets.length; i++) {
+//         switch (targets[i]) {
+//             case 'str': // any stucture
+//                 let strRes = findCustSrc(destPosition, amount, FIND_MY_STRUCTURES, resource)
+//                 if (strRes) {
+//                     return strRes
+//                 }
+//                 break
+//             case FIND_DROPPED_RESOURCES:
+//                 console.log('ERROR: tried to findFillSrc Dropped resources, but i didnt code that yet')
+//                 break
+//             case 'src':
+//                 let closestOpenSource = destPosition.findClosestByPath(
+//                   FIND_SOURCES,
+//                   {
+//                       ignoreCreeps: true,
+//                       filter: (src) => (
+//                         Object.keys(Memory.nodes[src.id].slots).some(key => !Memory.nodes[src.id].slots[key])
+//                       )
+//                   }
+//                 )
+//                 if (closestOpenSource) {
+//                     return closestOpenSource
+//                 }
+//                 break
+//             default:
+//                 let defaultRes = findCustSrc(destPosition, amount, targets[i], resource)
+//                 if (defaultRes) {
+//                     return defaultRes
+//                 }
+//                 break
+//         }
+//     }
+//     // const target = findFillSrc(creep, destPosition, targets, resource)
+//     // creep.memory.Fsrc = target?.id
+//     // if (target?.id) {
+//     //     let trg = Game.getObjectById(target?.id)
+//     //     if (Memory.nodes[target?.id] && Memory.nodes[target?.id].type === 'src') {
+//     //         creep.memory.FsrcType = 'src'
+//     //     } else if (trg.structureType) {
+//     //         creep.memory.FsrcType = 'str'
+//     //     } else if (trg.resourceType) {
+//     //         creep.memory.FsrcType = 'pile'
+//     //     }
+//     // }
+// }
+
+const defEnergySrcPri = [STRUCTURE_CONTAINER, STRUCTURE_SPAWN, STRUCTURE_EXTENSION]
+function openSrc (room) {
+    const allSources = room.find(FIND_SOURCES)
+    for (let i = 0; i < allSources.length; i++) {
+        let src = allSources[i]
+        if (src) {
+            let nodeSrc = Memory.nodes[src.id]
+            if (nodeSrc && nodeSrc.threat === 0) {
+                let open
+                Object.keys(nodeSrc.slots).forEach(sl => {
+                    if ((!open && !nodeSrc.slots[sl]) || nodeSrc.slots[sl] === creep.name) {
+                        open = sl
+                    }
+                })
+                return src
+            }
+        }
+    }
+}
+function findEnergySrc (creep, destPosition, targets = defEnergySrcPri, resource = RESOURCE_ENERGY) {
+    let room = Game.rooms[creep.pos.roomName]
+    if (!destPosition) {
+        destPosition = creep.pos
+    }
+    const energyNeeded = creep.store.getFreeCapacity()
+
+    let srcIndex = targets.find(type => type === 'src')
+    if (srcIndex === 0) {
+        // try get src
+        let src = openSrc(room)
+        if (src) {
+            return src
+        }
+    }
+
+    let best
+    let bestTypeIndex = targets.length
+    let bestAmount = 0
+    let bestFillFrac
+    let bestRoomFrac
+    let bestScore = 0
+    const allStructs = room.find(FIND_MY_STRUCTURES)
+    for (let i = 0; i < allStructs.length; i++) {
+        let str = allStructs[i]
+        if (str?.store) {
+            const amount = str.store.getUsedCapacity(resource)
+            if (!!bestAmount) {
+                let newTypeIndex = targets.findIndex(t => t === str.structureType)
+                if (!best || newTypeIndex < bestTypeIndex) {
+                    // new best
+                    best = str
+                    bestTypeIndex = newTypeIndex
+                    bestAmount = amount
+                    bestFillFrac = amount / energyNeeded
+                    bestRoomFrac = destPosition.getRangeTo(best) / 50
+                    bestScore = bestFillFrac - bestRoomFrac
+                } else if (newTypeIndex === bestTypeIndex) { // both are same level of target. compare them
+                    const newFillFrac = amount / energyNeeded
+                    const newRoomFrac = destPosition.getRangeTo(str) / 50
+                    const newScore = newFillFrac - newRoomFrac
+                    if (bestScore < newScore) {
+                        best = str
+                        bestFillFrac = newFillFrac
+                        bestRoomFrac = destPosition.getRangeTo(best) / 50
+                        bestScore = bestFillFrac - bestRoomFrac
+                    }
+                }
+                if (bestTypeIndex === 0 && bestFillFrac >= 1) {
+                    return best
+                }
+            }
+        }
+    }
+
+    if (srcIndex !== -1 && srcIndex < bestTypeIndex) {
+        let src = openSrc(room)
+        if (src) {
+            return src
+        }
+    }
+    // if src, and bestIndex is > src, try src
+    return best
+}
+
 
 const DONE = 999
 module.exports.DONE = DONE
@@ -138,148 +261,69 @@ const ACTIONS = {
         do: doUpgrade,
         finish: finishUpgrade
     },
-    // build: {
-    //     start: (creep, ...args) => globalActionStart(startBuild, creep, ...args),
-    //     do: doBuild,
-    //     finish: finishBuild
-    // }
+    build: {
+        start: (creep, ...args) => globalActionStart(startBuild, creep, ...args),
+        do: doBuild,
+        finish: finishBuild
+    }
 }
 module.exports.ACTIONS = ACTIONS
 
-function findCustSrc (destPosition, amount, findConst, resource = RESOURCE_ENERGY) {
-    let best
-    let bestFillFrac
-    let bestRoomFrac
-    let bestScore = 0
-    let room = Game.rooms[destPosition.roomName]
-    const structs = room.find(findConst)
-    for (let resIndex = 0; resIndex < structs.length; resIndex++) {
-        if (structs[resIndex].store && structs[resIndex].structureType !== STRUCTURE_EXTENSION) {
-            if (structs[resIndex].store[resource] > amount) {
-                return structs[resIndex]
-            } else {
-                if (!best) {
-                    best = structs[resIndex]
-                    bestFillFrac = best.store[resource] / amount
-                    bestRoomFrac = destPosition.getRangeTo(best) / 50
-                    bestScore = bestFillFrac - bestRoomFrac
-                } else {
-                    const newFillFrac = structs[resIndex].store[resource] / amount
-                    const newRoomFrac = destPosition.getRangeTo(structs[resIndex]) / 50
-                    const newScore = newFillFrac - newRoomFrac
-                    if (bestScore < newScore) {
-                        best = structs[resIndex]
-                        bestFillFrac = newFillFrac
-                        bestRoomFrac = newRoomFrac
-                        bestScore = newScore
-                    }
-                }
+
+function startBuild (creep, siteId) {
+
+    creep.memory.BSite = siteId
+    creep.memory.actions.unshift('build')
+}
+function finishBuild (creep) {
+    delete creep.memory.BSite
+    creep.memory.actions.shift()
+}
+
+function doBuild (creep, manifest) {
+    try {
+        if (creep.store.getFreeCapacity() === 0) {
+            return DONE
+        } else {
+
+
+            let target = Game.getObjectById(creep.memory.Bsite)
+            if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
+               return DONE
+            }
+
+
+            let actionRes = creep.build(target)
+            switch (actionRes) {
+                case ERR_NOT_OWNER:
+                    console.log('Tried to build someone elses site')
+                case ERR_NOT_IN_RANGE:
+                    creep.moveTo(target, {visualizePathStyle: {stroke: '#ffffff'}})
+                    break
+                case ERR_TIRED:
+                    console.log('creep says they are tired: ', creep.name)
+                    break
+                case ERR_NOT_ENOUGH_RESOURCES:
+                    // hybernate a bit maybe?
+                    return DONE
+                    break
+                case ERR_INVALID_TARGET:
+                    return DONE
+                case OK:
+                    break
+                default:
+                    console.log('Error: Build Action Response not handled: ', creep.name, JSON.stringify(target), actionRes, JSON.stringify(creep) )
+                    break
             }
         }
-    }
-    if (best) {
-        return best
+    } catch (e) {
+        console.log('Error: couldnt doBuild job', e.stack, 'site:', creep.memory.Bsite)
     }
 }
 
-const defEnergyPri = [STRUCTURE_SPAWN, STRUCTURE_EXTENSION, STRUCTURE_CONTAINER]
-function findEnergyDest (creep, targets = defEnergyPri, resource = RESOURCE_ENERGY) {
-    let room = Game.rooms[creep.pos.roomName]
 
-    const energy = creep.store.getUsedCapacity()
-    let best
-    let bestTypeIndex = targets.length
-    let bestCapacity = 0
-    let bestFillFrac
-    let bestRoomFrac
-    let bestScore = 0
-    const allStructs = room.find(FIND_MY_STRUCTURES)
-    for (let i = 0; i < allStructs.length; i++) {
-        let str = allStructs[i]
-        if (str?.store) {
-            const capacity = str.store.getFreeCapacity(resource)
-            if (!!capacity) {
-                let newTypeIndex = targets.findIndex(t => t === str.structureType)
-                if (!best || newTypeIndex < bestTypeIndex) {
-                    // new best
-                    best = str
-                    bestTypeIndex = newTypeIndex
-                    bestCapacity = capacity
-                    bestFillFrac = capacity / energy
-                    bestRoomFrac = creep.pos.getRangeTo(best) / 50
-                    bestScore = bestFillFrac - bestRoomFrac
-                } else if (newTypeIndex === bestTypeIndex) { // both are same level of target. compare them
-                    const newFillFrac = capacity / energy
-                    const newRoomFrac = creep.pos.getRangeTo(str) / 50
-                    const newScore = newFillFrac - newRoomFrac
-                    if (bestScore < newScore) {
-                        best = str
-                        bestFillFrac = newFillFrac
-                        bestRoomFrac = destPosition.getRangeTo(best) / 50
-                        bestScore = bestFillFrac - bestRoomFrac
-                    }
-                }
-                if (bestTypeIndex === 0 && bestCapacity > energy) {
-                    return best
-                }
-            }
-        }
-    }
-    return best
-}
-function findFillSrc (creep, destPosition, targets = ['str', 'src'], resource = RESOURCE_ENERGY) {
-    let amount = creep.store.getFreeCapacity()
-    if (!destPosition) {
-        destPosition = creep.pos
-    }
-    for (let i = 0; i < targets.length; i++) {
-        switch (targets[i]) {
-            case 'str': // any stucture
-                let strRes = findCustSrc(destPosition, amount, FIND_MY_STRUCTURES, resource)
-                if (strRes) {
-                    return strRes
-                }
-                break
-            case FIND_DROPPED_RESOURCES:
-                console.log('ERROR: tried to findFillSrc Dropped resources, but i didnt code that yet')
-                break
-            case 'src':
-                let closestOpenSource = destPosition.findClosestByPath(
-                  FIND_SOURCES,
-                  {
-                      ignoreCreeps: true,
-                      filter: (src) => (
-                        Object.keys(Memory.nodes[src.id].slots).some(key => !Memory.nodes[src.id].slots[key])
-                      )
-                  }
-                )
-                if (closestOpenSource) {
-                    return closestOpenSource
-                }
-                break
-            default:
-                let defaultRes = findCustSrc(destPosition, amount, targets[i], resource)
-                if (defaultRes) {
-                    return defaultRes
-                }
-                break
-        }
-    }
-    // const target = findFillSrc(creep, destPosition, targets, resource)
-    // creep.memory.Fsrc = target?.id
-    // if (target?.id) {
-    //     let trg = Game.getObjectById(target?.id)
-    //     if (Memory.nodes[target?.id] && Memory.nodes[target?.id].type === 'src') {
-    //         creep.memory.FsrcType = 'src'
-    //     } else if (trg.structureType) {
-    //         creep.memory.FsrcType = 'str'
-    //     } else if (trg.resourceType) {
-    //         creep.memory.FsrcType = 'pile'
-    //     }
-    // }
-}
-function startFill (creep, destPosition, targets = ['str', 'src'], resource = RESOURCE_ENERGY) {
-    const target = findFillSrc(creep, destPosition, targets, resource)
+function startFill (creep, destPosition, targets = [STRUCTURE_CONTAINER, 'src', STRUCTURE_SPAWN, STRUCTURE_EXTENSION], resource = RESOURCE_ENERGY) {
+    const target = findEnergySrc(creep, destPosition, targets, resource)
     creep.memory.Fsrc = target?.id
     if (target?.id) {
         let trg = Game.getObjectById(target?.id)
@@ -380,11 +424,11 @@ function startWithdraw (creep, structId = undefined, nearPosition, resource = RE
     if (structId) {
         Wtrg = structId
     } else {
-        let newDest
-        const validTargets = (creep.getActiveBodyparts(WORK) === 0) ? ['str'] : ['str', 'src']
-        newDest = findFillSrc(creep, nearPosition, validTargets, resource)
-        if (newDest) {
-            Wtrg = newDest.id
+        let newWTrg
+        const validTargets = [STRUCTURE_CONTAINER, STRUCTURE_SPAWN, STRUCTURE_EXTENSION]
+        newWTrg = findEnergySrc(creep, nearPosition, validTargets, resource)
+        if (newWTrg) {
+            Wtrg = newWTrg.id
         } else {
             return // wasn't able to find something to withdraw from
         }
@@ -678,6 +722,7 @@ function startRecycle (creep, spawnId) {
     }
 }
 function finishRecycle (creep, spawnId) {
+    creep.memory.actions.shift()
     // i mean... they're dead.
 }
 function doRecylce (creep) {

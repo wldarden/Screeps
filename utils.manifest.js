@@ -28,7 +28,7 @@ function addRequest (manifest, request, type) {
     if (priIndex === -1) {
         manifest.req[type].push(request)
     } else {
-        manifest.req[type].splice(priIndex + 1, 0, request)
+        manifest.req[type].splice(priIndex, 0, request)
     }
 }
 module.exports.addRequest = addRequest

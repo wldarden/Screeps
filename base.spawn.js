@@ -1,5 +1,4 @@
 const {getUniqueName} = require('./utils.spawner')
-const {hireCreep} = require('./operation.job')
 const {ACTIONS} = require('./actions')
 const {containerized} = require('./utils.source')
 const {hasSpawnRequest, addSpawnRequest, hasBuildRequest, addBuildRequest} = require('./utils.manifest')
@@ -149,12 +148,28 @@ function requestSpawnExtension (manifest, base, spawnId) {
   }
 }
 
+function getUniqueName (role) {
+  let i = 0
+  let name = `${role}-${i}`
+  while(Game.creeps[name]) {
+    i++
+    name = `${role}-${i}`
+  }
+  return name
+}
+
 module.exports.run = function (base, manifest) {
   let room = Game.rooms[base.name]
   let spawnId = base.structures[STRUCTURE_SPAWN][0]
   if (spawnId) {
     let spawn = Game.getObjectById(spawnId)
 
+    if (!base.full && room.energyAvailable === room.energyCapacityAvailable) {
+      base.full = Game.time
+    }
+    if (base.full && room.energyAvailable !== room.energyCapacityAvailable) {
+      delete base.full
+    }
     // MAKE COURIERS FOR BASE?
     if (room.energyAvailable < room.energyCapacityAvailable) { // should we make a courier
       let courierIds = base.creeps?.courier
@@ -167,7 +182,7 @@ module.exports.run = function (base, manifest) {
         const couriersNeededToHandleEPL = EGenPerLoad / 150
         maxCouriers = maxCouriers + couriersNeededToHandleEPL
       })
-      maxCouriers = Math.max(Math.floor(maxCouriers), 1)
+      maxCouriers = Math.max(Math.floor(maxCouriers * .8), 1)
       if (
         containerizedSources?.length &&
         (!courierIds?.length || containerizedSources?.length * 2 > courierIds?.length) &&
@@ -185,6 +200,7 @@ module.exports.run = function (base, manifest) {
       }
     }
     // END COURIERS
+
     // SPAWN?
     if (manifest?.req?.spawn?.length) {
       let priorityReq = manifest.req?.spawn[0]
@@ -195,23 +211,12 @@ module.exports.run = function (base, manifest) {
         manifest.req.spawn[0].cost = creepPlanInfo(plan)
       }
       if (priorityReq.cost <= room.energyAvailable) {
-        const role = priorityReq.mem.role
-        let i = 0
-        let name = `${role}-${i}`
-        while(Game.creeps[name]) {
-          i++
-          name = `${role}-${i}`
-        }
+        let name = getUniqueName(priorityReq.mem.role)
         let res = spawn.spawnCreep(
           makePlan(priorityReq.plan),
-          name, {
-            memory: {
-              base: base.name,
-              actions: [],
-              node: base.name,
-              ...priorityReq.mem
-            }
-          })
+          name,
+          {memory: {base: base.name, actions: [], node: base.name, ...priorityReq.mem}}
+        )
         if (res === OK) {
           if (priorityReq.replace && Game.creeps[priorityReq.replace]) { // request was supposed to replace a creep. recycle them
             ACTIONS.recycle.start(Game.creeps[priorityReq.replace], spawn.id) // make the creep kill itself

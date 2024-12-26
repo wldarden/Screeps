@@ -1,4 +1,3 @@
-const {fireCreep} = require('./operation.job')
 const {ACTIONS} = require('./actions')
 
 

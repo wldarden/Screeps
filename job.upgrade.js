@@ -21,7 +21,6 @@
 //   ERR_NO_BODYPART	-12
 // There are no WORK body parts in this creep’s body.
 
-const {getStepEntityId, getStepEntity, getCreepStep} = require('./operation.job')
 const {nextStep} = require('./utils.creep')
 const {ACTIONS} = require('./actions')
 module.exports.run = function (creep) {
