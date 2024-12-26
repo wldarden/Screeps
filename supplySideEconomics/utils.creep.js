@@ -139,7 +139,7 @@ function nextAction (creep, step) {
 }
 module.exports.nextAction = nextAction
 function nextStep (creep) {
-    // freeSrcSlot(Memory.bases[creep.memory.base], creep.name)
+    freeSrcSlot(Memory.bases[creep.memory.base], creep.name)
     creep.memory.step++
     delete creep.memory.actionIndex
     delete creep.memory.dest

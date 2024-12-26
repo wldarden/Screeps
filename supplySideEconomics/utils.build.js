@@ -21,51 +21,10 @@ function isBetterContainerSrc(src1, src2) {
     // const slotsRatio = (src1.job.slots - src2.job.slots) / slots
 }
 
-
-function findContainerSiteForSrc (destId, srcId) {
-    let src = Memory.sources[srcId]
-    let source = Game.getObjectById(srcId)
-    let path = source.pos.findPathTo(Game.getObjectById(destId), {ignoreCreeps: true})
-    let pos
-    if (path[0].dx !== 0) {
-        pos = {x: path[0].x + path[0].dx, y: path[0].y, roomName: source.pos.roomName }
-    } else {
-        pos = {x: path[0].x, y: path[0].y + path[0].dy, roomName: source.pos.roomName }
-    }
-    const res = room.createConstructionSite(pos.x, pos.y, STRUCTURE_CONTAINER)
-    if (res === 0) {
-        let containerPos = serializePos(pos)
-        if (!Memory.sources[srcId].container) {
-            console.log('Good: Init container site for srcId', srcId, 'site:', containerPos)
-            Memory.sources[srcId].container = {
-                structureType: STRUCTURE_CONTAINER,
-                type: 'site',
-                id: containerPos
-            }
-        } else {
-            console.log('Error: tried to build a container on a src that already had one!',
-              'Old Container: ',
-              JSON.stringify(Memory.sources[srcId].container),
-              'New Site: ',
-              containerPos
-            )
-            Memory.sources[srcId].container = {
-                structureType: STRUCTURE_CONTAINER,
-                type: 'site',
-                id: containerPos
-            }
-        }
-
-        return containerPos
-    }
-}
-module.exports.findContainerSiteForSrc = findContainerSiteForSrc
-
 function findContainerSite (base, structure) {
     const room = Game.rooms[base.name]
-    let baseSrcIndex = base.sources.findIndex(srcId => {
-        let src = Memory.sources[srcId].container
-        return !src?.container
+    let baseSrcIndex = base.sources.findIndex(s => {
+        return !s?.container && s.jobs.every(srcJobId => !base.jobs[srcJobId].threat)
     })
     let src = base.sources[baseSrcIndex]
     if (!src) {
@@ -186,6 +145,8 @@ function createUpgradeJob (base, params = {}) {
     if (!upgradeJob) {
         let controller = Game.getObjectById(contId)
         let spawn = Game.getObjectById(base.structures[STRUCTURE_SPAWN][0])
+        console.log('JSON spawn pos', JSON.stringify(spawn.pos))
+        console.log('JSON controllerObj ', JSON.stringify(controller))
         let path = controller.pos.findPathTo(spawn.pos)
         const dist = path.length
         const plan = [WORK, CARRY, CARRY, MOVE, MOVE] // TODO - replace with calculation
@@ -299,7 +260,7 @@ function buildNear (position, structure = STRUCTURE_EXTENSION) {
             i++
         }
     }
-    return searching ? false : {x: resX, y: resY, roomName: position.roomName} // (false if couldnt, pos if building)
+    return searching ? false : serializePos({x: resX, y: resY, roomName: position.roomName}) // (false if couldnt, pos if building)
 }
 
 module.exports.buildNear = buildNear

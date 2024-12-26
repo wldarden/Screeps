@@ -36,7 +36,6 @@ const TRANSFER_ERRORS = {
 
 const {getStepEntityId, getCreepStep} = require('./operation.job')
 const {nextStep} = require('./utils.creep')
-const {DONE} = require('./actions')
 module.exports.run = function (creep) {
   try {
     let base = Memory.bases[creep.memory.base]
@@ -45,6 +44,7 @@ module.exports.run = function (creep) {
     let resource = step.resource ?? RESOURCE_ENERGY
     if (!creep.memory.dest) {
 
+      let dest = getStepEntityId(getCreepStep(creep, job))
       if (dest) {
         creep.memory.dest = dest
       }
@@ -54,7 +54,7 @@ module.exports.run = function (creep) {
     if (!target) {
       return
     }
-    let actionRes = ACTIONS.transfer(creep, target, creep.memory.res)
+    let actionRes = creep.transfer(target, resource)
     switch (actionRes) {
       case ERR_NOT_IN_RANGE:
         creep.moveTo(target, {ignoreCreeps: false, visualizePathStyle: {stroke: '#008800'}})
@@ -63,7 +63,8 @@ module.exports.run = function (creep) {
         console.log('creep says they are tired: ', creep.name)
         break
       case ERR_NOT_ENOUGH_RESOURCES: // basically done with the job.
-        return DONE
+        nextStep(creep)
+        break
       case ERR_INVALID_TARGET:
       case ERR_FULL:
         if (!creep.memory.wait) {
@@ -83,7 +84,7 @@ module.exports.run = function (creep) {
         break
       case OK:
         if (creep.store.getUsedCapacity() === 0) {
-          return DONE
+          nextStep(creep)
         }
         break
       default:

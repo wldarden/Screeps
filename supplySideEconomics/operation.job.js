@@ -47,7 +47,7 @@ function fireCreep (base, creepName, jobId) {
     const reQueue = base.jobs[jobId].creeps.length === base.jobs[jobId].max
     const job = base.jobs[jobId]
     if (job.cat === 'mine') {
-      // freeSrcSlot(base, creepName)
+      freeSrcSlot(base, creepName)
     }
     base.jobs[jobId].creeps = base.jobs[jobId].creeps.filter(id => id !== creepName) // remove creep from job
     if (reQueue) { // job was at max, and is now less than max, and will need a worker. reQueue

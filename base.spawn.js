@@ -1,5 +1,10 @@
 const {getUniqueName} = require('./utils.spawner')
 const {hireCreep} = require('./operation.job')
+const {ACTIONS} = require('./actions')
+const {containerized} = require('./utils.source')
+const {hasSpawnRequest, addSpawnRequest, hasBuildRequest, addBuildRequest} = require('./utils.manifest')
+const {buildNear} = require('./utils.build')
+const {serializePos} = require('./utils.memory')
 // Body
 // part	Build cost	Effect per one body part
 // MOVE	50	Decreases fatigue by 2 points per tick.
@@ -34,17 +39,6 @@ const {hireCreep} = require('./operation.job')
 //
 //   TOUGH	10	No effect, just additional hit points to the creep's body. Can be boosted to resist damage.
 
-function doSpawn (base, spawn, plan, name, mem) {
-  let res = spawn.spawnCreep(plan, name, mem)
-  if (res === OK) {
-    base.creeps.push(name)
-    let jobId = mem.memory.jobId
-    hireCreep(base, name, jobId)
-    return true
-  } else {
-    return false
-  }
-}
 
 function getCatPriority (revenue) {
   if (revenue <= 2) {
@@ -74,62 +68,179 @@ function isCostEffective (job, revenue) {
   }
 }
 
+const BODY_MAP = {
+  W: WORK,
+  w: WORK,
+  M: MOVE,
+  m: MOVE,
+  C: CARRY,
+  c: CARRY
+}
+
+function addPart (body, part, n) {
+  for (let i = 0; i < n; i++) {
+    body.push(part)
+  }
+  return body
+}
+function makePlan (plan) {
+  let body = []
+  Object.keys(plan).forEach(p => {
+    body = addPart(body, BODY_MAP[p], plan[p])
+  })
+  return body
+}
+function creepPlanInfo (plan) {
+  let partCounts = {}
+  let creepCost = 0
+  plan.forEach(part => {
+    if (!partCounts[part]) {
+      partCounts[part] = 1
+    } else {
+      partCounts[part] += 1 // add part counts to role counts
+    }
+    creepCost += BODYPART_COST[part]
+  })
+  return creepCost//{cost: creepCost, partCounts: partCounts}
+}
+
+function shouldBuildExtension (manifest, base, spawnId) {
+  let room = Game.rooms[base.name]
+  return (
+    room.controller.level >= 2 &&
+    base.structures[STRUCTURE_EXTENSION].length < 6 &&
+    Object.keys(Game.creeps).length >= 5 &&
+    !hasBuildRequest(manifest, spawnId, {structureType: STRUCTURE_EXTENSION})
+  )
+}
+
+function requestSpawnExtension (manifest, base, spawnId) {
+  spawnId = spawnId || base.structures[STRUCTURE_SPAWN][0]
+  const spawn = Game.getObjectById(spawnId)
+  let room = Game.rooms[base.name]
+
+  const structure = STRUCTURE_EXTENSION
+  const pos = buildNear(spawn.pos, structure)
+  // return (trgPos ? {
+  //   src: {id: base.name, type: 'base', pos: spawn.pos},
+  //   trg: {id: trgPos, type: 'pos', pos: trgPos}
+  // } : null)
+  if (!pos) {
+    return
+  }
+  const priorityReq = {
+    node: spawnId,
+    structureType: structure,
+    pos: serializePos(pos),
+  }
+  const res = room.createConstructionSite(pos.x, pos.y, structure)
+  if (res === 0) {
+    priorityReq.placed = Game.time
+    priorityReq.pri = .5
+    if (!base.sites) {
+      base.sites = {}
+    }
+    if (!base.sites.structures) {
+      base.sites.structures = [priorityReq.pos]
+    } else {
+      base.sites.structures.push(priorityReq.pos)
+    }
+    addBuildRequest(manifest, priorityReq)
+  }
+}
+
 module.exports.run = function (base, manifest) {
   let room = Game.rooms[base.name]
-  let controller = room.controller
+  let spawnId = base.structures[STRUCTURE_SPAWN][0]
+  if (spawnId) {
+    let spawn = Game.getObjectById(spawnId)
 
-  // addEnergyRequest(base, base.structures[STRUCTURE_SPAWN])
-
-  let revenue = 0
-  let upgradeJobInfo = 0
-  let buildingJobInfo = 0
-  Object.keys(base.jobs).forEach(jobId => {
-    revenue = revenue + ((base.jobs[jobId].value ?? 0) * base.jobs[jobId].creeps.length)
-  })
-
-  base.rev = revenue
-  if (Game.time % 10 === 0) {
-    if (base.revHistory) {
-      if (base.revHistory[base.revHistory.length - 1] !== revenue) {
-        base.revHistory.push(revenue)
+    // MAKE COURIERS FOR BASE?
+    if (room.energyAvailable < room.energyCapacityAvailable) { // should we make a courier
+      let courierIds = base.creeps?.courier
+      let containerizedSources = base.sources.filter(sourceId => containerized(sourceId))
+      let maxCouriers = 0
+      containerizedSources.forEach(srcId => {
+        const loadTime = 3 * Memory.nodes[srcId].dist
+        const EPT = Memory.nodes[srcId].creeps.length * 4
+        const EGenPerLoad = EPT * loadTime
+        const couriersNeededToHandleEPL = EGenPerLoad / 150
+        maxCouriers = maxCouriers + couriersNeededToHandleEPL
+      })
+      maxCouriers = Math.max(Math.floor(maxCouriers), 1)
+      if (
+        containerizedSources?.length &&
+        (!courierIds?.length || containerizedSources?.length * 2 > courierIds?.length) &&
+        !hasSpawnRequest(manifest, spawnId, {role: 'courier'})
+      ) {
+        addSpawnRequest(manifest, {
+          pri: .5,
+          mem: {
+            base: base.name,
+            node: spawnId,
+            role: 'courier'
+          },
+          plan: {C: 3, M: 3}
+        })
       }
-    } else {
-      base.revHistory = [revenue]
     }
-  }
-
-
-  const cats = getCatPriority(revenue)
-
-  const completedQueueCheck = cats.some((cat) => {
-    let queue = base.queue[cat]
-    if (queue.length && room.energyAvailable > 200) {
-      let openJobs = queue.map(jobId => base.jobs[jobId])
-      // openJobs = openJobs.sort((a,b) => { b.value - a.value})
-      let spawns = base.structures[STRUCTURE_SPAWN]
-      return spawns.some(s => {
-        let spawn = Game.getObjectById(s)
-        if (spawn.spawning) {
-          return false
-        } else {
-          return base.priority.spawn.slice(0,1).some(jobId => {
-            let job = base.jobs[jobId]
-            if (job && job.cost <= room.energyAvailable) {
-              let plan = job.plan
-              let name = getUniqueName(base.name)
-              const newMemory = {
-                action: 'idle',
-                jobId: job.id,
-                step: 0,
-                base: base.name,
-                plan: plan
-              }
-              return doSpawn(base, spawn, plan, name, {memory: newMemory})
+    // END COURIERS
+    // SPAWN?
+    if (manifest?.req?.spawn?.length) {
+      let priorityReq = manifest.req?.spawn[0]
+      let cost = priorityReq.cost
+      let plan
+      if (!cost) {
+        plan = makePlan(priorityReq.plan)
+        manifest.req.spawn[0].cost = creepPlanInfo(plan)
+      }
+      if (priorityReq.cost <= room.energyAvailable) {
+        const role = priorityReq.mem.role
+        let i = 0
+        let name = `${role}-${i}`
+        while(Game.creeps[name]) {
+          i++
+          name = `${role}-${i}`
+        }
+        let res = spawn.spawnCreep(
+          makePlan(priorityReq.plan),
+          name, {
+            memory: {
+              base: base.name,
+              actions: [],
+              node: base.name,
+              ...priorityReq.mem
             }
           })
+        if (res === OK) {
+          if (priorityReq.replace && Game.creeps[priorityReq.replace]) { // request was supposed to replace a creep. recycle them
+            ACTIONS.recycle.start(Game.creeps[priorityReq.replace], spawn.id) // make the creep kill itself
+          }
+          if (!base.creeps[role]) {
+            base.creeps[role] = [name]
+          } else {
+            base.creeps[role].push(name)
+          }
+          console.log('Creep spawned. adding to node:', (Memory.nodes[priorityReq.mem.node] && Memory.nodes[priorityReq.mem.node].type) || 'base', 'nodeId:', priorityReq.mem.node)
+          if (Memory.nodes[priorityReq.mem.node]) {
+            if (!Memory.nodes[priorityReq.mem.node].creeps) {
+              Memory.nodes[priorityReq.mem.node].creeps = []
+            }
+            Memory.nodes[priorityReq.mem.node].creeps.push(name)
+          } else if (Memory.bases[priorityReq.mem.node]) {
+            console.log('Error: Creep node is a base', name)
+          }
+          manifest.req.spawn.shift()
+          return true
         }
-      })
+      }
     }
-  })
-  // console.log('completed queue check: ', completedQueueCheck)
+    // END SPAWN
+    // BUILD EXTENSION?
+    if (shouldBuildExtension(manifest, base, spawnId)) {
+      requestSpawnExtension(manifest, base, spawnId)
+    }
+    // END EXTENSION
+  }
+
 }

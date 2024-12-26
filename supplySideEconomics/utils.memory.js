@@ -20,11 +20,11 @@ function deserializePos (pos) {
             console.log('ERROR: deserializingPos: ', 'stringified pos:', JSON.stringify(pos), 'obj pos:', pos, e)
         }
     } else {
-        console.log('Tried to deseralize a non string: ', JSON.stringify(pos), pos)
+        console.log('Tried to deseralize a non string: ', JSON.stringify(pos))
         if (pos.x && pos.y && pos.roomName) {
             return new RoomPosition(pos.x, pos.y, pos.roomName)
         }
-        return pos
+        return {...pos}
     }
 }
 module.exports.deserializePos = deserializePos
@@ -58,11 +58,13 @@ module.exports.createJob = function () {
 function createSourceOwner (source) {
     try {
         return {
-            init: true,
-            type: 'src',
-            slots: {},
-            creeps: [],
-            dist: 1,
+            id: source.id,
+            pos: serializePos(source.pos),
+            slots: [],
+            level: 0,
+            active: [],
+            jobs: [],
+            initPlan: true
         }
     } catch (e) {
         console.log('Error Creating Source: ', e.stack)
@@ -75,12 +77,24 @@ module.exports.createBase = function (room) {
         let base =  {
             name: room.name,
             sources: [],
-            creeps: {},
+            creeps: [],
+            // targets: {
+            //     [RESOURCE_ENERGY]: []
+            // },
             structures: createStructureMap(),
+            priority: {
+                spawn: []
+            },
             sites: {
                 structures: [],
                 roads: [],
                 def: []
+            },
+            jobs: {},
+            queue: {
+                mine: [],
+                build: [],
+                upgrade: []
             }
         }
 
