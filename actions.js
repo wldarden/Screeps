@@ -526,7 +526,7 @@ function startTransfer (creep, targetsOrId, resource = RESOURCE_ENERGY) {
 }
 
 function finishTransfer (creep, manifest) {
-    energy.freeSrc(manifest, creep.name, creep.memory.Tdest)
+    energy.freeDest(manifest, creep.name, creep.memory.Tdest)
     creep.memory.actions.shift()
     delete creep.memory.Tdest
     delete creep.memory.Tres
@@ -556,19 +556,20 @@ function doTransfer (creep) {
             break
         case ERR_FULL: // dest is full. what should transfer people do?
             if (!creep.memory.wait) {
-                creep.memory.wait = Game.time + Math.ceil((Math.random() * 4) + (Math.random() * 4) + (Math.random() * 4)) // wait some random amount of time
+                creep.memory.wait = Game.time + 3 // wait some random amount of time
             } else { // we were already waiting
                 if (Game.time >= creep.memory.wait) { // waited 3 ticks and still full. find drop site
-                    // creep.memory.actions.unshift('build')
-                    if (Math.random() < .2) {
-                        creep.drop()
-                        delete creep.memory.wait
-                        return DONE
-                    } else {
-                        ACTIONS.transfer.start(creep, undefined, resource)
-                        delete creep.memory.wait
-                        return
-                    }
+                    return DONE
+                    //// creep.memory.actions.unshift('build')
+                    //if (Math.random() < .2) {
+                    //    creep.drop()
+                    //    delete creep.memory.wait
+                    //    return DONE
+                    //} else {
+                    //    ACTIONS.transfer.start(creep, undefined, resource)
+                    //    delete creep.memory.wait
+                    //    return
+                    //}
                 }
             }
             break
@@ -677,11 +678,12 @@ function doHarvest (creep, manifest) {
     let actionRes = creep.harvest(src)
     switch (actionRes) {
         case ERR_NOT_IN_RANGE:
-            if (creep.memory.Hslt && Game.time % 2 === 0) {
-                creep.moveTo(deserializePos(creep.memory.Hslt), {range: 0, visualizePathStyle: SHOW_PATHS ? {stroke: '#004400' } : undefined})
-            } else {
-                creep.moveTo(src, {range: 1, visualizePathStyle: {stroke: '#004400'}})
-            }
+            creep.moveTo(src, {range: 1, visualizePathStyle: {stroke: '#004400'}})
+            //if (creep.memory.Hslt && Game.time % 2 === 0) {
+            //    creep.moveTo(deserializePos(creep.memory.Hslt), {range: 0, visualizePathStyle: SHOW_PATHS ? {stroke: '#004400' } : undefined})
+            //} else {
+            //    creep.moveTo(src, {range: 1, visualizePathStyle: {stroke: '#004400'}})
+            //}
             break
         case ERR_INVALID_TARGET:
             console.log('invalid harvest target... really didnt think i would get here', creep.name, JSON.stringify(creep.memory))

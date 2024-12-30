@@ -14,7 +14,7 @@ function getEnergy(type, manifest, creep, amount = null, dryRun = false) {
   }
   let usedReq = manifest.energy[type].find((req, i) => {
     const activeCreeps = Object.keys(req.creeps).length
-    const maxCreeps = req.max || 2
+    const maxCreeps = req.max || 4
     if (req.amount > amount && activeCreeps < maxCreeps) {
       return true
     }
@@ -38,8 +38,17 @@ function freeEnergy(type, manifest, creepName, reqId) {
       return true
     }
   })
-  delete req.creeps[creepName]
-  registerEnergy(manifest, req, req.type)
+  if (req) {
+    if (req?.creeps) {
+      delete req.creeps[creepName]
+    } else {
+      log({reqThrowingError: req})
+    }
+    registerEnergy(manifest, req, req.type)
+  } else {
+    console.log('no req for id', reqId)
+  }
+
 }
 module.exports.freeEnergy = freeEnergy
 module.exports.energy = {
@@ -76,31 +85,30 @@ function deregisterEnergy(manifest, reqId, type = 'dest') {
 }
 module.exports.deregisterEnergy = deregisterEnergy
 function registerEnergy (manifest, req, type = 'dest', perCreepPriCost = .2) {
-    if (!manifest.energy) { manifest.energy = {} }
-    if (!manifest.energy[type]) { manifest.energy[type] = [] }
-    let prevIndex = manifest.energy[type].findIndex(oldReq => oldReq.id === req.id)
-    if (prevIndex !== -1) { // new req registry
-      req = {...manifest.energy[type][prevIndex], ...req}
-    }
-    req.creeps = req.creeps || {}
-    req.cpc = req.cpc || perCreepPriCost
-    req.origPri = req.origPri  || req.pri
+  if (!manifest.energy) { manifest.energy = {} }
+  if (!manifest.energy[type]) { manifest.energy[type] = [] }
+  let prevIndex = manifest.energy[type].findIndex(oldReq => oldReq.id === req.id)
+  if (prevIndex !== -1) {
+    req = {...manifest.energy[type][prevIndex], ...req}
     manifest.energy[type].splice(prevIndex, 1)
+  }
+  req.creeps = req?.creeps || {}
+  req.cpc = req?.cpc || perCreepPriCost
+  req.origPri = req?.origPri  || req?.pri
 
 
-    req.reserved = 0
-    let creepIds = Object.keys(req.creeps)
-    creepIds.forEach(c => {
-        req.reserved = req.reserved + req.creeps[c]
-    })
-    req.pri = req.origPri - (req.cpc * creepIds.length)
-
-    let priIndex = manifest.energy[type].findIndex(oldReq => oldReq.pri < req.pri)
-    if (priIndex === -1) {
-        manifest.energy[type].push(req)
-    } else {
-        manifest.energy[type].splice(priIndex, 0, req)
-    }
+  req.reserved = 0
+  let creepIds = Object.keys(req.creeps)
+  creepIds.forEach(c => {
+      req.reserved = req.reserved + req.creeps[c]
+  })
+  req.pri = req.origPri - (req.cpc * creepIds.length)
+  let priIndex = manifest.energy[type].findIndex(oldReq => oldReq.pri < req.pri)
+  if (priIndex === -1) {
+      manifest.energy[type].push(req)
+  } else {
+      manifest.energy[type].splice(priIndex, 0, req)
+  }
 }
 module.exports.registerEnergy = registerEnergy
 

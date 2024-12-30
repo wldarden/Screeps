@@ -4,76 +4,89 @@ const {registerEnergy} = require('./utils.manifest')
 
 
 function getNodeRunner (nodeType) {
-	switch (nodeType) {
-		case 'src':
-			return {runner: require('node.src')}
-		case STRUCTURE_CONTROLLER:
-			return {runner: require('node.controller')}
-		case STRUCTURE_SPAWN:
-			return {runner: require('node.spawn')}
-		case 'sto':
-			return {runner: require('node.storage')}
-		case STRUCTURE_CONTAINER:
-			return {runner: require('node.container')}
-		case STRUCTURE_EXTENSION:
-			return {runner: require('node.extension')}
-		default:
-			console.log('ERROR: No Node Runner for type: ', nodeType)
-			return {runner: (...args) => {console.log('Null Node Runner')}}
-	}
+  switch (nodeType) {
+    case 'src':
+      return {runner: require('node.src')}
+    case STRUCTURE_CONTROLLER:
+      return {runner: require('node.controller')}
+    case STRUCTURE_SPAWN:
+      return {runner: require('node.spawn')}
+    case 'build':
+      return {runner: require('node.build')}
+    case 'sto':
+      return {runner: require('node.storage')}
+    case STRUCTURE_CONTAINER:
+      return {runner: require('node.container')}
+    case STRUCTURE_EXTENSION:
+      return {runner: require('node.extension')}
+    default:
+      console.log('ERROR: No Node Runner for type: ', nodeType)
+      return {runner: (...args) => {console.log('Null Node Runner')}}
+  }
 }
 module.exports.getNodeRunner = getNodeRunner
 
 function getNodePos (nodeOrId) {
-	let node
-	if (typeof nodeOrId === 'string') {
-		node = Memory.nodes[nodeOrId]
-	} else {
-		node = nodeOrId
-	}
-	switch (node.type) {
-		case 'sto':
-			if (node.pos) {
-				return deserializePos(node.pos)
-			} else {
-				return
-			}
-		case STRUCTURE_CONTAINER:
-		case STRUCTURE_SPAWN:
-		case STRUCTURE_CONTROLLER:
-		case 'src':
-			return Game.getObjectById(node.id)?.pos
-		case 'base':
-		case 'def':
-			return deserializePos(node.pos)
-		default:
-			console.log('Error: could not get position of node: ', node?.id, node?.type, JSON.stringify(node))
-	}
+  let node
+  if (typeof nodeOrId === 'string') {
+    node = Memory.nodes[nodeOrId]
+  } else {
+    node = nodeOrId
+  }
+  switch (node.type) {
+    case 'sto':
+      if (node.pos) {
+        return deserializePos(node.pos)
+      } else {
+        return
+      }
+    case STRUCTURE_CONTAINER:
+    case STRUCTURE_SPAWN:
+    case STRUCTURE_CONTROLLER:
+    case 'src':
+      return Game.getObjectById(node.id)?.pos
+    case 'base':
+    case 'def':
+      return deserializePos(node.pos)
+    default:
+      console.log('Error: could not get position of node: ', node?.id, node?.type, JSON.stringify(node))
+  }
 }
 module.exports.getNodePos = getNodePos
 
 function getNewStorageNodeSiteByBestSrc (node) {
-    let best = {slots: 0, pos: undefined, id: undefined}
-    let nextBest = {slots: 0, pos: undefined, id: undefined}
-    let roomName
-    // find 2 largest nodes, put storage node in mid-point by path.
-    node.children.src.forEach(srcId => {
-        let gameSrc = Game.getObjectById(srcId)
-        let src = Memory.nodes[srcId]
-        if (!src.threat) {
-            const slots =  Object.keys(src.slots).length
-            if (slots > best.slots) {
-                nextBest = best
-                best = {slots, pos: gameSrc.pos, id: src.id}
-                roomName = gameSrc.pos.roomName
-            } else if (slots > nextBest.slots) {
-                nextBest = {slots, pos: gameSrc.pos, id: src.id}
-            }
+  let best = {slots: 0, pos: undefined, id: undefined, ept: 0}
+  let nextBest = {slots: 0, pos: undefined, id: undefined, ept: 0}
+  //let roomName
+  // find 2 largest nodes, put storage node in mid-point by path.
+  node.children.src.forEach(srcId => {
+    let gameSrc = Game.getObjectById(srcId)
+    let src = Memory.nodes[srcId]
+    if (!src.threat) {
+      if (src.ept > nextBest.ept) {
+        if (src.ept > best.ept) {
+          nextBest = best
+          best = {ept: src.ept, pos: gameSrc.pos, id: src.id}
+        } else {
+          nextBest = {ept: src.ept, pos: gameSrc.pos, id: src.id}
         }
-    })
-    let path = best.pos.findPathTo(nextBest.pos, {ignoreCreeps: true})
-    let location = path[Math.ceil(path.length / 2.8)] // get about a third of the way to the closer one but sort of by the biggest one
-    return {x: location.x, y: location.y, roomName: roomName}
+      }
+      //const nSlots =  Object.keys(src.slots).length
+      //if (nSlots > best.slots) {
+      //  nextBest = best
+      //  best = {slots: nSlots, pos: gameSrc.pos, id: src.id}
+      //  roomName = gameSrc.pos.roomName
+      //} else if (nSlots > nextBest.slots) {
+      //  nextBest = {slots: nSlots, pos: gameSrc.pos, id: src.id}
+      //}
+    }
+  })
+  let path = best.pos.findPathTo(nextBest.pos, {ignoreCreeps: true})
+  let location = path[Math.ceil(path.length / 2.8)] // get about a third of the way to the closer one but sort of by the biggest one
+  if (!!location?.x && !!location?.y && !!best.pos.roomName) {
+    return {x: location.x, y: location.y, roomName: best.pos.roomName}
+
+  }
 }
 
 // function findPosByWeightedPath (nodesToService = [], weights = {}, modSrcSlots = true) {
@@ -184,46 +197,49 @@ function getNewStorageNodeSiteByBestSrc (node) {
 // module.exports.findPosToServiceNodes = findPosToServiceNodes
 
 function createNodePosition (parent, type) {
-	switch (type) {
-		case 'sto':
-			// let nodesToService = getChildren(parent, ['src', 'controller', 'spawn'], true)
-			// let nodesToService = getChildren(parent, ['src', 'controller'], true)
-			// const {x, y, roomName} = findPosToServiceNodes(nodesToService, {src: 1, controller: 1, spawn: 0})
-			const {x, y, roomName} = getNewStorageNodeSiteByBestSrc(parent)
-			return new RoomPosition(x,y,roomName)
-			break
-		default:
-			log(node)
-			console.log('Error: do not know how to position this node. log above', node.type, node.id)
-	}
+  switch (type) {
+    case 'sto':
+      // let nodesToService = getChildren(parent, ['src', 'controller', 'spawn'], true)
+      // let nodesToService = getChildren(parent, ['src', 'controller'], true)
+      // const {x, y, roomName} = findPosToServiceNodes(nodesToService, {src: 1, controller: 1, spawn: 0})
+      const {x, y, roomName} = getNewStorageNodeSiteByBestSrc(parent)
+      return new RoomPosition(x,y,roomName)
+      break
+    default:
+      log(node)
+      console.log('Error: do not know how to position this node. log above', node.type, node.id)
+  }
 }
 module.exports.createNodePosition = createNodePosition
 
 function registerEnergyState (baseManifest, id, srcPriority = 0, destPriority = 0) {
-	const gameNode = Game.getObjectById(id)
-	// let node = Memory.nodes[id]
-	const energy = gameNode.store.getUsedCapacity(RESOURCE_ENERGY) || 0
-	const capacity = gameNode.store.getCapacity(RESOURCE_ENERGY) || 0
-	const frac = energy / capacity
-	if (energy > 0) {
-		const energyReq = {
-			id: gameNode.id,
-			amount: energy,
-			pri: frac * srcPriority,
-			action: 'withdraw'
-		}
-		registerEnergy(baseManifest, energyReq, 'src')
-	}
+  const gameNode = Game.getObjectById(id)
+  // let node = Memory.nodes[id]
+  const energy = gameNode.store.getUsedCapacity(RESOURCE_ENERGY) || 0
+  const capacity = gameNode.store.getCapacity(RESOURCE_ENERGY) || 0
+  const frac = energy / capacity
+  if (energy > 0) {
+    const energyReq = {
+      id: gameNode.id,
+      amount: energy,
+      pri: frac * srcPriority,
+      action: 'withdraw'
+    }
+    registerEnergy(baseManifest, energyReq, 'src')
+  }
 
-	if (capacity > energy) {
-		const energyReq = {
-			id: gameNode.id,
-			amount: (capacity - energy),
-			pri: (1 - frac) * destPriority,
-			action: 'transfer'
-		}
-		registerEnergy(baseManifest, energyReq, 'dest')
-	}
+
+  if (capacity > energy) {
+    let pri = destPriority + (((1 - frac) * 2) - 1)
+    let node = Memory.nodes[id]
+    const energyReq = {
+      id: gameNode.id,
+      amount: (capacity - energy),
+      pri: pri,
+      action: 'transfer'
+    }
+    registerEnergy(baseManifest, energyReq, 'dest')
+  }
 
 }
 module.exports.registerEnergyState = registerEnergyState
@@ -233,116 +249,140 @@ module.exports.registerEnergyState = registerEnergyState
  *
  * @param node - the node from which to start looking for children
  * @param types - a nodeType or array of nodeTypes to return. leave empty for "all children"
+ * @param filter - a function that take a node, and returns true/false for if it should be included
  * @param asIds - a nodeType or array of nodeTypes to return. leave empty for "all children"
  * @param skipSelf - True: original node arg will not be returned, even if it matches, False: Original node arg can be in array
+ * @param depth - "-1": inf. depth; "1" nodes children only; "2": nodes children and their children only
  * @return {[]} - array of child nodes that match types array, or all children when types is empty
  */
-function getChildren (node, types = [], asIds = false, skipSelf = true) {
-	if (typeof types === 'string') { types = [types] } // make sure types is an array of strings
-	const getAll = types.length === 0
-	const nodeAcc = {nodes: []}
-	applyToChildren(node, nodeAcc, (child, acc) => {
-		if (getAll || types.includes(child.type)) {
-			acc.nodes.push(asIds ? child.id : child)
-		}
-	}, skipSelf)
-	return nodeAcc.nodes
+function getChildren (node, types = [], filter = (child) => true, asIds = false, depth = -1, skipSelf = true) {
+  if (typeof types === 'string') { types = [types] } // make sure types is an array of strings
+  const getAll = types.length === 0
+  let nodeAcc = {nodes: []}
+  if (getAll) {
+    applyToChildren(node, nodeAcc, (child, acc) => {
+      if ((getAll || types.includes(child.type)) && filter(child)) {
+        acc.nodes.push(asIds ? child.id : child)
+      }
+    }, skipSelf, depth)
+  } else {
+    if (!skipSelf && types.includes(node.type) && filter(node)) {
+      nodeAcc.nodes.push(asIds ? node.id : node)
+    }
+    if (depth < 0 || depth > 0) {
+      types.forEach(type => {
+        if (node.children && node.children[type]) {
+          node.children[type].forEach(childId => {
+            nodeAcc.nodes = nodeAcc.nodes.concat(getChildren(Memory.nodes[childId], types, filter, asIds, depth - 1, false))
+          })
+        }
+      })
+    }
+  }
+  return nodeAcc.nodes
 }
 module.exports.getChildren = getChildren
 
-function applyToChildren (node, acc = {}, func = (childNode, acc) => {}, skipSelf = false) {
-	// let node = nodeOrId // if node passed in, set node to node
-	// if (typeof node === 'string') { // if id passed in, get node by id and set it to node
-	// 	node = Memory.nodes[nodeOrId]
-	// }
-	if (!skipSelf) { func(node, acc) }
-	// node = newNode ? newNode : node // if they return something, set node to that.
-	if (node.children) {
-		Object.keys(node.children).forEach(nodeType => {
-			node.children[nodeType].forEach(childId => {
-				applyToChildren(Memory.nodes[childId], acc, func, false)
-			})
-		})
-	}
+function applyToChildren (node, acc = {}, func = (childNode, acc) => {}, skipSelf = false, depth = -1) {
+  // let node = nodeOrId // if node passed in, set node to node
+  // if (typeof node === 'string') { // if id passed in, get node by id and set it to node
+  // 	node = Memory.nodes[nodeOrId]
+  // }
+  if (!skipSelf) { func(node, acc) }
+  // node = newNode ? newNode : node // if they return something, set node to that.
+  if (node.children && (depth < 0 || depth > 0)) {
+    Object.keys(node.children).forEach(nodeType => {
+      node.children[nodeType].forEach(childId => {
+        applyToChildren(Memory.nodes[childId], acc, func, false, depth - 1)
+      })
+    })
+  }
 }
 module.exports.applyToChildren = applyToChildren
 const childRunOrder = ['src', STRUCTURE_CONTROLLER, STRUCTURE_SPAWN, ]
 function runChildren (node, lineage, baseManifest) {
-	if (!node || !node.children) {
-		return
-	}
+  if (!node || !node.children) {
+    return
+  }
 
-	if (node.creeps) {
-		Object.keys(node.creeps).forEach(role => {
-			if (node.creeps[role]) {
-				node.creeps[role] = node.creeps[role].filter(id => !!Game.creeps[id])
-			}
-		})
-	}
+  if (node.creeps) {
+    Object.keys(node.creeps).forEach(role => {
+      if (node.creeps[role]) {
+        node.creeps[role] = node.creeps[role].filter(id => !!Game.creeps[id])
+      }
+    })
+  }
 
-	let childLineage = [...lineage, node.id]
-	for (let nodeType in node.children) {
-		let nodeRunnerDef = getNodeRunner(nodeType)
-		node.children[nodeType].forEach(nodeId => {
-			try {
-				nodeRunnerDef.runner.run(Memory.nodes[nodeId], childLineage, baseManifest)
-			} catch (e) {
-				console.log('Error: failed to run Node children:', e.stack, node.type, node.id, 'child: ', nodeId, Memory.nodes[nodeId].type)
-			}
-		})
-	}
+  let childLineage = [...lineage, node.id]
+  for (let nodeType in node.children) {
+    let nodeRunnerDef = getNodeRunner(nodeType)
+    //let uniqueChildren = []
+    //node.children[nodeType].forEach(id => {
+    //  if (!uniqueChildren.includes(id)) {
+    //    uniqueChildren.push(id)
+    //  }
+    //})
+    //node.children[nodeType] = uniqueChildren
+    node.children[nodeType].forEach(nodeId => {
+      try {
+        nodeRunnerDef.runner.run(Memory.nodes[nodeId], childLineage, baseManifest)
+      } catch (e) {
+        console.log('Error: failed to run Node children:', e.stack, node.type, node.id, 'child: ', nodeId, Memory.nodes[nodeId] && Memory.nodes[nodeId].type)
+      }
+    })
+  }
 
 }
 module.exports.runChildren = runChildren
 
 function getNodeBase (nodeId) {
-	let node = Memory.nodes[nodeId]
-	let count = 0
-	while (node.type !== 'base' && count < 50) {
-		node = Memory.nodes[node.parent]
-		count++
-	}
-	if (!node || count === 50) {
-		log({node})
-		console.log('Error: inf. loop getting node base:', nodeId, count)
-	} else {
-		return node
-	}
+  let node = Memory.nodes[nodeId]
+  let count = 0
+  while (node.type !== 'base' && count < 50) {
+    node = Memory.nodes[node.parent]
+    count++
+  }
+  if (!node || count === 50) {
+    log({node})
+    console.log('Error: inf. loop getting node base:', nodeId, count)
+  } else {
+    return node
+  }
 }
 module.exports.getNodeBase = getNodeBase
 
 function addCreepToNode (nodeId, role, creepName) {
-	let creep = Game.creeps[creepName]
-	if (!creep) {
-		console.log('Error: creep doesnt exist: ', creepName)
-	}
-	if (!Memory.nodes[nodeId].creeps) { Memory.nodes[nodeId].creeps = {} }
-	if (!Memory.nodes[nodeId].creeps[role]) { Memory.nodes[nodeId].creeps[role] = [] }
-	if (creep?.memory?.node && creep?.memory?.node !== nodeId) {
-		// remove creep from node
-		// removeCreepFromNode(nodeId, role, creepName)
-	}
-	Memory.nodes[nodeId].creeps[role].push(creepName) // add creep to new node
+  let creep = Game.creeps[creepName]
+  if (!creep) {
+    console.log('Error: creep doesnt exist: ', creepName)
+  }
+  if (!Memory.nodes[nodeId].creeps) { Memory.nodes[nodeId].creeps = {} }
+  if (!Memory.nodes[nodeId].creeps[role]) { Memory.nodes[nodeId].creeps[role] = [] }
+  if (creep?.memory?.node && creep?.memory?.node !== nodeId) {
+    // remove creep from node
+    // removeCreepFromNode(nodeId, role, creepName)
+  }
+  Memory.nodes[nodeId].creeps[role].push(creepName) // add creep to new node
 }
 
 module.exports.addCreepToNode = addCreepToNode
 
 function getTypeCreeps (node, type) {
-	if (!node.creeps) {
-		node.creeps = {}
-	}
-	if (!node.creeps[type]) {
-		node.creeps[type] = []
-	}
-	return node.creeps[type]
+  if (!node.creeps) {
+    node.creeps = {}
+  }
+  if (!node.creeps[type]) {
+    node.creeps[type] = []
+  }
+  return node.creeps[type]
 }
 module.exports.getTypeCreeps = getTypeCreeps
 
 function getNodeReqs (node) {
-	if (!node.reqs) {
-		node.reqs = []
-	}
-	return node.reqs
+  if (!node.reqs) {
+    node.reqs = []
+  }
+  return node.reqs
 }
 module.exports.getNodeReqs = getNodeReqs
 

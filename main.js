@@ -95,21 +95,20 @@ function getSpawnPath (base, pos) {
 
 function initBaseFromSpawn (spawn) {
   const base = createBaseNode(spawn.room.name)
-  Memory.nodes[base.id] = base
   base.pos = serializePos(spawn.pos)
-
+  Memory.nodes[base.id] = base
   // add building nodes in room
   let structs = spawn.room.find(FIND_MY_STRUCTURES)
   structs.forEach(s => {
     switch (s.structureType) {
       case STRUCTURE_SPAWN:
         let spawnNode = createSpawnNode(s.id)
-        spawnNode.dist = getNodePos(base).findPathTo(getNodePos(spawnNode), {ignoreCreeps: true}).length
+        spawnNode.dist = spawn.pos.findPathTo(getNodePos(spawnNode), {ignoreCreeps: true}).length
         addNodeToParent(spawnNode, base.id)
         break
       case STRUCTURE_CONTROLLER:
         let controllerNode = createControllerNode(s.id)
-        controllerNode.dist = getNodePos(base).findPathTo(getNodePos(controllerNode), {ignoreCreeps: true}).length
+        controllerNode.dist = spawn.pos.findPathTo(getNodePos(controllerNode), {ignoreCreeps: true}).length
         addNodeToParent(controllerNode, base.id)
     }
   })
@@ -120,23 +119,16 @@ function initBaseFromSpawn (spawn) {
     let src = createSrcNode(s.id)
     let slots = getSlotsAround(s.pos)
     slots.forEach(pos => src.slots[pos] = false)
-    src.dist = getNodePos(base).findPathTo(getNodePos(src), {ignoreCreeps: true}).length
+    src.dist = spawn.pos.findPathTo(getNodePos(src), {ignoreCreeps: true}).length
     addNodeToParent(src, base.id)
   })
+
   Memory.manifests[base.id] = {
     requests: {},
-    new: {spawn: [], build: []}, pending: {spawn: [], build: []}, done: {spawn: [], build: []},
-    finance: {},
-    energy: {
-      // container: [],
-      // src: [],
-      // spawn: [],
-      dest: [],
-      src: []
-    },
-    free: {
-      creeps: []
-    }
+    new: {spawn: []}, pending: {spawn: []}, done: {spawn: []},
+    finance: {income: {}, cost: {}, total: {income: 0, cost: 0, balance: 0, reserved: 0}},
+    energy: {dest: [], src: []},
+    free: {creeps: []}
   }
   Memory.bases.push(base.id)
 }

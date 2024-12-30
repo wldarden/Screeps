@@ -1,39 +1,53 @@
 
 const {runChildren, createNodePosition, getChildren} = require('./utils.nodes')
 const {log} = require('./utils.debug')
-const {deserializePos, createContainerNode, addNodeToParent, serializePos} = require('./utils.memory')
-const {createSiteFromRequest} = require('./utils.build')
-
-// function requestContainerSite (node, baseManifest) {
-//   let pos = deserializePos(node.id)
-//   const newReq = {pri: 5, requestor: node.id, opts: {structureType: STRUCTURE_CONTAINER, pos: node.id}}
-//   return createSiteFromRequest(baseManifest, newReq, pos)
-// }
+const {addNodeToParent, serializePos, buildNode} = require('./utils.memory')
 
 
 const maxContainers = 1
 module.exports.run = function (node, lineage = [], baseManifest) {
   try {
     switch (node.stage) {
-      case 0: // find service pos of self
-        if (!node.pos) {
+      default:
+      case 0:
+        if (!node.pos) { // find service pos of self
           let parent = Memory.nodes[node.parent]
           let pos = createNodePosition(parent, 'sto')
           if (pos) {
             node.pos = serializePos(pos)
-            node.stage++
+          }
+        }
+        if (node.pos) { // ensure we have at least 1 built container
+          let containers = getChildren(node, [STRUCTURE_CONTAINER], undefined, false, 1)
+          if (containers.length === 0) { // if no container nodes...
+            let buildNodes = getChildren(node, ['build'], undefined, false, 1)
+            if (buildNodes.length === 0) { // and no container nodes being built...
+              buildNode(node.id, STRUCTURE_CONTAINER, node.pos) // build one
+            }
+          } else if (containers[0].stage === 1) { // if we do have some containers, and they are stage 1 aka built,
+            node.stage = 1 // Storage node init is complete. move to stage 1
           }
         }
         break
-      case 1: // create first container node
-        const containers = getChildren(node, [STRUCTURE_CONTAINER])
-        if (containers.length < maxContainers && containers.every(e => e.stage >= 3)) {
-          let containerNode = createContainerNode(`${node.id}-new-container`, node.pos)
-          addNodeToParent(containerNode, node.id)
-          node.stage++
-        }
+      case 1: // Sto node complete. get children to begin servicing
+        let importantSources = getChildren( // steal parents srcs
+          Memory.nodes[node.parent],
+          ['src'],
+          (child) => (child.threat === 0 && child.type === 'src' && Object.keys(child.slots).length >= 2),
+          false,
+          1
+        )
+        importantSources.forEach(src => {
+          src.stage = 1
+          addNodeToParent(src, node.id)
+        })
+        node.stage++
         break
-      case 2: // wait for container to be built
+      case 2:
+        break
+      case 3:
+        break
+      case 4:
         break
     }
     runChildren(node, lineage, baseManifest)

@@ -55,10 +55,35 @@ function createSiteFromRequest (manifest, request, position) {
 module.exports.createSiteFromRequest = createSiteFromRequest
 
 function findSiteAtPos (pos, structureType) {
+    const EXAMPLE_LOOK_RES = {
+        "room":{
+            "name":"sim",
+            "energyAvailable":222,
+            "energyCapacityAvailable":300,
+            "survivalInfo":{
+                "mode":"survival",
+                "status":"active",
+                "user":"5a36af6766a5f468481beb41",
+                "score":0,
+                "timeToWave":200,
+                "wave":1,
+                "survivalEnabled":true,
+                "invaders":{"bodies":[]}
+            },
+            "visual":{"roomName":"sim"}
+        },
+        "pos":{"x":32, "y":30, "roomName":"sim"},
+        "id":"e8cf2aa7a6acf120cfafae8b",
+        "progress":0,
+        "progressTotal":5000,
+        "structureType":"container",
+        "owner":{"username":"clearc2"},
+        "my":true
+    }
+
     const lookRes = deserializePos(pos).lookFor(LOOK_CONSTRUCTION_SITES)
     if (lookRes?.length) {
         return lookRes.find(item => {
-            log({item})
             return item.structureType === structureType
         })?.id
     }
@@ -68,7 +93,7 @@ function findStrAtPos (pos, structureType) {
     const lookRes = deserializePos(pos).lookFor(LOOK_STRUCTURES)
     if (lookRes?.length) {
         return lookRes.find(item => {
-            log({item})
+            console.log('itemlookRes2:', JSON.stringify(item))
             return item.structureType === structureType
         })?.id
     }

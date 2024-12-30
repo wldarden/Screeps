@@ -1,4 +1,4 @@
-const {runChildren, createNodePosition} = require('./utils.nodes')
+const {runChildren, createNodePosition, getChildren, applyToChildren} = require('./utils.nodes')
 const {log} = require('./utils.debug')
 const {createStorageNode, deserializePos, serializePos, addNodeToParent} = require('./utils.memory')
 const {getReqById, moveReq} = require('./utils.manifest')
@@ -7,6 +7,7 @@ const {getReqById, moveReq} = require('./utils.manifest')
  * FINANCE
  */
 function createIncome (baseManifest) {
+  if (baseManifest?.finance?.total?.reserved) { return } // escape early if already init
   if (!baseManifest.finance) {baseManifest.finance = {} }
   if (!baseManifest.finance.income) { baseManifest.finance.income = {} }
   if (!baseManifest.finance.cost) { baseManifest.finance.cost = {} }
@@ -49,37 +50,40 @@ function collectBuildSiteIds (baseManifest) {
  * BUILDER
  */
 module.exports.runBase = function (node, lineage = []) {
-    try {
-        // let energyManifest = {
-        //     dest: [],
-        //     src: []
-        // }
-        // let node = Memory.nodes[nodeId]
-        log(node, ['BASE_NODE', 'NODE'])
-        // do node things
-        let baseManifest = Memory.manifests[node.id]
+  try {
+    let baseManifest = Memory.manifests[node.id]
 
-        createIncome(baseManifest)
-        runChildren(node, lineage, baseManifest)
-        calcIncome(baseManifest)
-
+    switch (node.stage) {
+      default:
+      case 0:
+        node.stage = 0
         /**
          * CREATE STORAGE NODE WHEN NEEDED
          */
-        if (baseManifest.finance.total.income > 5) { // if good income
-            if (!node.children.sto) { node.children.sto = [] }
-            if (!node.children.sto.length) { // and we have not initialized a storage node
-                let newStorageNode = createStorageNode(`sto-${node.children.sto.length}`) // make the node
-                addNodeToParent(newStorageNode, node.id) // add it to this base
-            }
+        if (baseManifest?.finance?.total?.income && baseManifest.finance.total.income > 5) { // if good income
+          if (!node.children.sto) { node.children.sto = [] }
+          if (!node.children.sto.length) { // and we have not initialized a storage node
+            let newStorageNode = createStorageNode(`sto-${node.children.sto.length}`) // make the node
+            addNodeToParent(newStorageNode, node.id) // add it to this base
+            node.stage = 1
+          }
         }
         /**
          * END CREATE STORAGE NODE WHEN NEEDED
          */
+        break
+      case 1: // has storage node
 
-    } catch(e) {
-        console.log('Error: failed to run Base Node', e.stack, node.id)
+        break
     }
+    runChildren(node, lineage, baseManifest)
+    calcIncome(baseManifest)
+
+
+
+  } catch(e) {
+    console.log('Error: failed to run Base Node', e.stack, node.id)
+  }
 }
 
 

@@ -1,6 +1,8 @@
 const {runChildren, addCreepToNode, getNodeBase, getChildren, registerEnergyState} = require('./utils.nodes')
 const {log} = require('./utils.debug')
-const {deserializeBody, deserializePos, createContainerNode, addNodeToParent, serializePos, createExtensionNode} = require('./utils.memory')
+const {deserializeBody, deserializePos, createContainerNode, addNodeToParent, serializePos, createExtensionNode,
+  buildNode
+} = require('./utils.memory')
 const {assignReq, getMyAssingedRequests, completeReq, getReqCost, deleteReq, registerEnergy, deregisterEnergy,
     getReqById
 } = require('./utils.manifest')
@@ -9,9 +11,6 @@ const {ACTIONS} = require('./actions')
 const {createSiteFromRequest, moveNodeSites} = require('./utils.build')
 
 
-function getNewSpawnJob (node, baseManifest) {
-
-}
 function buildNear (position, structure = STRUCTURE_EXTENSION) {
     const room = Game.rooms[position.roomName]
     var searching = true
@@ -47,54 +46,40 @@ function buildNear (position, structure = STRUCTURE_EXTENSION) {
     }
     return searching ? false : {x: resX, y: resY, roomName: position.roomName} // (false if couldnt, pos if building)
 }
-function requestExtensionSite (node, baseManifest) {
-    // let pos = deserializePos(node.id)
-    let gameNode = Game.getObjectById(node.id)
-    let pos = buildNear(gameNode.pos, STRUCTURE_EXTENSION)
-    if (pos) {
-        const newReq = {
-            pri: 5, requestor: node.id, assignee: [], type: 'new', at: Game.time,
-            opts: { structureType: STRUCTURE_EXTENSION, pos: serializePos(pos) }
-        }
-        return createSiteFromRequest(baseManifest, newReq, pos)
-    }
-}
+
 
 
 module.exports.run = function (node, lineage = [], baseManifest) {
   try {
-    log(node, ['SPAWN_NODE', 'NODE'])
-    if (node.threat) {
-      return // threat spawns are skipped
-    }
+    if (node.threat) { return } // threat nodes are skipped
     const maxExtensions = 4
     switch (node.stage) {
       default:
-      case 0:
+      case 0: // wait for room controller to be upgraded enough that we can build extensions
         let gameNode = Game.getObjectById(node.id)
         if (gameNode.room.controller.level >= 2) {
           node.stage = 1
         }
         break
-      case 1:
-        let extensions = getChildren(node, [STRUCTURE_EXTENSION])
-        const newExtensionId = `${node.id}-new-extension`
-        if (extensions.length < maxExtensions && extensions.every(e => e.stage >= 3)) {
-          if (!extensions.some(id => id === newExtensionId)) { // if we are still building max extensions...
+      case 1: // Build extensions until max reached
+        let extensions = getChildren(node, [STRUCTURE_EXTENSION], undefined, false, 1)
+        if (extensions.length < maxExtensions) { // if no container nodes...
+          let buildNodes = getChildren(
+            node,
+            ['build'],
+            (child) => child.onDoneType === STRUCTURE_EXTENSION,
+            false,
+            1)
+          if (buildNodes.length === 0) { // and no container nodes being built...
             let gameNode = Game.getObjectById(node.id)
             let pos = buildNear(gameNode.pos, STRUCTURE_EXTENSION)
-            if (pos) {
-              let newNode = createExtensionNode(newExtensionId, serializePos(pos))
-              addNodeToParent(newNode, newNode.id)
-            }
-          } else {
-            break
+            buildNode(node.id, STRUCTURE_EXTENSION, pos) // build one
           }
-        } else {
-          node.stage++
+        } else { // if we do have max built extensions, move to next stage
+          node.stage = 2
         }
         break
-      case 2:
+      case 2: // TODO - maybe check if max extensions has changed or something here
         break
 
     }
@@ -111,7 +96,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
      * Spawn
      */
     let gameNode = Game.getObjectById(node.id)
-    if (gameNode.room.energyAvailable > 100) {
+    if (gameNode.room.energyAvailable >= 150) {
       if (!node.jobId && baseManifest?.new?.spawn?.length) {
         let newReqId = baseManifest?.new?.spawn.find(spawnReqId =>
           getReqCost(baseManifest.requests[spawnReqId]) <= gameNode.room.energyCapacityAvailable)
@@ -154,7 +139,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     /**
      * Spawn
      */
-    runChildren(node, lineage)
+    runChildren(node, lineage, baseManifest)
   } catch(e) {
     console.log('Error: failed to run Spawn Node', e.stack, node.id)
   }

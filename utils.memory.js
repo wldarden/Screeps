@@ -1,3 +1,4 @@
+const {PRIORITY} = require('./config')
 
 function serializePos (pos) {
     if (typeof pos === 'string') {
@@ -103,6 +104,7 @@ function createBaseNode (id, parentId = null) {
         id: id,
         type: 'base', // base, outpost, src, spawn, controller, storage, fort,
         pos: '',
+        stage: 0,
         // sub: subType, // STRUCTURE_*,
         children: {
             // src: [],
@@ -115,7 +117,7 @@ function createBaseNode (id, parentId = null) {
 module.exports.createBaseNode = createBaseNode
 
 
-function addNodeToParent (node, parentId, newId) {
+function addNodeToParent (node, parentId, newId, newType) {
     if (!node || !parentId || !node.type) {
         console.log('ERROR: Failed to add node to parent', 'parentId:', parentId, 'node:', JSON.stringify(node))
         return
@@ -130,9 +132,12 @@ function addNodeToParent (node, parentId, newId) {
         delete Memory.nodes[node.id]
         node.id = newId
     }
+    if (newType) {
+      node.type = newType
+    }
     if (!Memory.nodes[parentId].children[node.type]) {
         Memory.nodes[parentId].children[node.type] = [node.id]
-    } else {
+    } else if (!Memory.nodes[parentId].children[node.type].some(cId => cId === node.id)) {
         Memory.nodes[parentId].children[node.type].push(node.id)
     }
     node.parent = parentId
@@ -251,6 +256,8 @@ function createExtensionNode (id, pos) {
     }
 }
 module.exports.createExtensionNode = createExtensionNode
+
+
 function createStorageNode (id) {
     return {
         // ...createNode(parentId, id, 'src')
@@ -268,6 +275,42 @@ function createStorageNode (id) {
     }
 }
 module.exports.createStorageNode = createStorageNode
+
+module.exports.node = {
+    [STRUCTURE_CONTAINER]: {
+        build: () => {
+
+        }
+    },
+}
+
+function createStandardNode () {
+  return {
+    parent: null,
+    id: null,
+    stage: 0,
+    children: {},
+    creeps: {}
+  }
+}
+function buildNode (parentId, nodeType, pos, pri = PRIORITY.BUILD) {
+  pos = serializePos(pos)
+  const constructionNodeId = `${parentId}-new-${nodeType}`
+  let constructionNode
+  switch (nodeType) {
+    case STRUCTURE_CONTAINER:
+      constructionNode = createContainerNode(constructionNodeId, pos)
+      break
+    case STRUCTURE_EXTENSION:
+      constructionNode = createExtensionNode(constructionNodeId, pos)
+      break
+  }
+  constructionNode.onDoneType = nodeType
+  constructionNode.type = 'build'
+  constructionNode.buildPri = pri
+  addNodeToParent(constructionNode, parentId)
+}
+module.exports.buildNode = buildNode
 
 function createStructureMap () {
     return {
