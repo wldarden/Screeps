@@ -55,7 +55,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     }
     runChildren(node, lineage, baseManifest)
   } catch(e) {
-    log(Memory.nodes[node.id], ['ERROR', 'STORAGE_NODE'])
+    log(Memory.nodes[node.id], ['ERROR', 'EXTENSION_NODE'])
     console.log('Error: failed to run Extension Node', e.stack, node.id)
   }
 }

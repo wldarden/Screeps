@@ -15,9 +15,9 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         console.log('Error: container nodes should never be stage 0 right?', node.id, node.parent, node.type)
         break
       case 1: // adding site id to start registering build reqs
-        const parent = Memory.nodes[node.parent]
-        switch (parent.type) {
-          case 'sto':
+        switch (node.subType) {
+          default:
+          case 'log':
             registerEnergyState(baseManifest, node.id, 8, 5)
             break
           case 'src':
@@ -46,7 +46,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         break
       case 3:
         //switch (parent.type) {
-        //  case 'sto':
+        //  case 'log':
         //    registerEnergyState(baseManifest, node.id, 8, 5)
         //    break
         //  case 'src':

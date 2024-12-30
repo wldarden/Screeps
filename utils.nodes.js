@@ -13,8 +13,8 @@ function getNodeRunner (nodeType) {
       return {runner: require('node.spawn')}
     case 'build':
       return {runner: require('node.build')}
-    case 'sto':
-      return {runner: require('node.storage')}
+    case 'log':
+      return {runner: require('node.logistic')}
     case STRUCTURE_CONTAINER:
       return {runner: require('node.container')}
     case STRUCTURE_EXTENSION:
@@ -34,7 +34,7 @@ function getNodePos (nodeOrId) {
     node = nodeOrId
   }
   switch (node.type) {
-    case 'sto':
+    case 'log':
       if (node.pos) {
         return deserializePos(node.pos)
       } else {
@@ -58,7 +58,7 @@ function getNewStorageNodeSiteByBestSrc (node) {
   let best = {slots: 0, pos: undefined, id: undefined, ept: 0}
   let nextBest = {slots: 0, pos: undefined, id: undefined, ept: 0}
   //let roomName
-  // find 2 largest nodes, put storage node in mid-point by path.
+  // find 2 largest nodes, put logistic node in mid-point by path.
   node.children.src.forEach(srcId => {
     let gameSrc = Game.getObjectById(srcId)
     let src = Memory.nodes[srcId]
@@ -198,7 +198,7 @@ function getNewStorageNodeSiteByBestSrc (node) {
 
 function createNodePosition (parent, type) {
   switch (type) {
-    case 'sto':
+    case 'log':
       // let nodesToService = getChildren(parent, ['src', 'controller', 'spawn'], true)
       // let nodesToService = getChildren(parent, ['src', 'controller'], true)
       // const {x, y, roomName} = findPosToServiceNodes(nodesToService, {src: 1, controller: 1, spawn: 0})

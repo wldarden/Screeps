@@ -11,7 +11,7 @@ const ALL_DEBUG_LOG_TYPES = [
 	'SRC_NODE', // log 'src' type nodes
 	'CONTROLLER_NODE',   // log 'controller' type nodes
 	'SPAWN_NODE',   // log 'spawn' type nodes
-	'STORAGE_NODE',   // log 'storage' type nodes
+	'LOGISTIC_NODE',   // log 'storage' type nodes
 	'FORT_NODE',   // log 'fort' type nodes
 	'CREEP_OBJ',  // log all Creeps
 	'CREEP_ROLE_MINE', // log mine role Creeps

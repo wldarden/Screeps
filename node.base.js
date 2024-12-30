@@ -58,21 +58,21 @@ module.exports.runBase = function (node, lineage = []) {
       case 0:
         node.stage = 0
         /**
-         * CREATE STORAGE NODE WHEN NEEDED
+         * CREATE LOGISTIC NODE WHEN NEEDED
          */
         if (baseManifest?.finance?.total?.income && baseManifest.finance.total.income > 5) { // if good income
-          if (!node.children.sto) { node.children.sto = [] }
-          if (!node.children.sto.length) { // and we have not initialized a storage node
-            let newStorageNode = createStorageNode(`sto-${node.children.sto.length}`) // make the node
+          if (!node.children.log) { node.children.log = [] }
+          if (!node.children.log.length) { // and we have not initialized a storage node
+            let newStorageNode = createStorageNode(`log-${node.children.log.length}`) // make the node
             addNodeToParent(newStorageNode, node.id) // add it to this base
             node.stage = 1
           }
         }
         /**
-         * END CREATE STORAGE NODE WHEN NEEDED
+         * END CREATE LOGISTIC NODE WHEN NEEDED
          */
         break
-      case 1: // has storage node
+      case 1: // has logistics node
 
         break
     }

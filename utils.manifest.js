@@ -46,7 +46,6 @@ function freeEnergy(type, manifest, creepName, reqId) {
     }
     registerEnergy(manifest, req, req.type)
   } else {
-    console.log('no req for id', reqId)
   }
 
 }

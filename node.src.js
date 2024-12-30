@@ -2,7 +2,7 @@ const {runChildren, getTypeCreeps, getNodeReqs, getNodePos, getChildren} = requi
 const {log} = require('./utils.debug')
 const {addSpawnRequest, deleteReq} = require('./utils.manifest')
 const {creepPlanInfo, ticksPerSpace} = require('./utils.creep')
-const {serializeBody, createContainerNode, addNodeToParent} = require('./utils.memory')
+const {serializeBody, createContainerNode, addNodeToParent, buildNode} = require('./utils.memory')
 
 function maxSrcMiners (src) {
   if (src.cps) {
@@ -17,6 +17,21 @@ function threatSrc (src, baseManifest) {
     src.reqs.forEach(reqId => { deleteReq(baseManifest, reqId)})
   }
   return true
+}
+
+function myContainerPos (node) {
+  let gameNode = Game.getObjectById(node.id)
+  const parent = Memory.nodes[node.parent]
+  let stoPath = gameNode.pos.findPathTo(getNodePos(parent), {ignoreCreeps: true})
+  if (stoPath?.length) {
+    let pos
+    if (stoPath[0].dx !== 0) {
+      pos = {x: stoPath[0].x + stoPath[0].dx, y: stoPath[0].y, roomName: gameNode.pos.roomName }
+    } else {
+      pos = {x: stoPath[0].x, y: stoPath[0].y + stoPath[0].dy, roomName: gameNode.pos.roomName }
+    }
+    return pos
+  }
 }
 
 function calcSrcROI (plan, dist) {
@@ -34,11 +49,15 @@ function calcSrcROI (plan, dist) {
   return {energyPerTick, creepsPerSlot}
 }
 const plans = {
-  init: {
+  default: {
     plan: [CARRY, MOVE, WORK, CARRY, MOVE],
     role: 'miner',
     saturation: 1
   },
+  containerized: {
+    plan: [WORK, WORK, MOVE, CARRY],
+    role: 'miner',
+  }
 }
 const CONTAINERIZED_PLAN = [WORK, WORK, MOVE, CARRY]
 module.exports.run = function (node, lineage = [], baseManifest) {
@@ -51,49 +70,37 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     const saturation = miners.length / maxMiners
     const nSlots = Object.keys(node.slots).length
     const plannedSaturation = (getNodeReqs(node).length + miners.length) / maxMiners
-    let mode = 'init'
+    let mode = 'default'
     let plan
     switch (node.stage) {
       default:
-      case 0:
         node.stage = 0
-        mode = 'init'
         break
-      case 1: // containerizing
-        plan = plans.init.plan
+      case 0:
+        break
+      case 1: // Begin containerizing
         const parent = Memory.nodes[node.parent]
-        if (parent && parent.type === 'sto') {
-          // do containerization
-          let gameNode = Game.getObjectById(node.id)
-          let stoPath = gameNode.pos.findPathTo(getNodePos(parent), {ignoreCreeps: true})
-          if (stoPath?.length) {
-            let pos
-            if (stoPath[0].dx !== 0) {
-              pos = {x: stoPath[0].x + stoPath[0].dx, y: stoPath[0].y, roomName: gameNode.pos.roomName }
-            } else {
-              pos = {x: stoPath[0].x, y: stoPath[0].y + stoPath[0].dy, roomName: gameNode.pos.roomName }
-            }
-            if (pos) {
-              const containers = getChildren(node, [STRUCTURE_CONTAINER])
-              if (containers.length === 0) {
-                let containerNode = createContainerNode(`${node.id}-new-container`, pos)
-                addNodeToParent(containerNode, node.id)
-                node.stage++
-              }
-            }
+        if (parent && parent.type === 'log') {
+          let pos = myContainerPos(node)
+          if (pos) {
+            buildNode(node.id, STRUCTURE_CONTAINER, pos)
+            node.stage = 2
           }
         }
         break
-      case 2:
-        plan = plans.init.plan
-        const cId = node.children[STORAGE_CONTAINER][0]
-        const contNode = Memory.nodes[cId]
-        if (contNode.stage >= 3) { // container is built and ready.
-            node.stage++
+      case 2:// Wait for containerization to complete
+        let containers = getChildren(node, [STRUCTURE_CONTAINER], undefined, false, 1)
+        if (containers.length) { // we completed our container node. swap places and move to stage 3
+          let cont = containers[0]
+          cont.subType = 'src'
+          addNodeToParent(cont, node.parent) // move container to parent
+          addNodeToParent(node, cont.id) // move this src to container
+          node.dist = 1
+          node.stage = 3
         }
         break
       case 3: // containerized src
-        plan = CONTAINERIZED_PLAN
+        mode = 'containerized'
         break
     }
 
@@ -107,7 +114,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
       const spawnMinerPriority = (1 - saturation) * node.ept
       const newRequest = {
         pri: spawnMinerPriority, requestor: node.id, assignee: [], status: 'new', type: 'spawn',
-        opts: {role: 'miner', plan: serializeBody(plans[mode].plan)}
+        opts: {role: plans[mode].role || 'miner', subRole: plans[mode].subRole, plan: serializeBody(plans[mode].plan)}
       }
       node.reqs.push(addSpawnRequest(baseManifest, newRequest))
     }

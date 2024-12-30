@@ -102,7 +102,7 @@ function createBaseNode (id, parentId = null) {
     return {
         parent: parentId, // undefined || nodeId
         id: id,
-        type: 'base', // base, outpost, src, spawn, controller, storage, fort,
+        type: 'base', // base, outpost, src, spawn, controller, logistic, fort,
         pos: '',
         stage: 0,
         // sub: subType, // STRUCTURE_*,
@@ -146,8 +146,7 @@ function addNodeToParent (node, parentId, newId, newType) {
 module.exports.addNodeToParent = addNodeToParent
 
 // const nodeTypeMap = {
-//     storage: 'sto',
-//     sto: 'sto',
+//     log: 'log',
 //
 //     source: 'src',
 //     src: 'src',
@@ -162,7 +161,7 @@ module.exports.addNodeToParent = addNodeToParent
 // }
 
 const VALID_NODE_TYPES = [
-  'base', 'src', 'fort', 'storage',            // non STRUCTURE_* types
+  'base', 'src', 'fort', 'log',            // non STRUCTURE_* types
   'spawn', 'controller',                       // STRUCTURE_* types
 ]
 function removeNodeFromParent (node, parentId) {
@@ -263,7 +262,7 @@ function createStorageNode (id) {
         // ...createNode(parentId, id, 'src')
         parent: null,
         id: id,
-        type: 'sto',
+        type: 'log',
         stage: 0,
         children: {
             // [STRUCTURE_CONTAINER]: []
