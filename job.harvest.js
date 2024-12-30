@@ -43,28 +43,51 @@
 
 const {ACTIONS, DONE} = require('./actions')
 const {containerized} = require('./utils.source')
+const {log} = require('./utils.debug')
+const {energy} = require('./utils.manifest')
 module.exports.run = function (creep, manifest) {
   try {
-    let base
-    // if (creep.memory.base) {
-    //   base = Memory.bases[creep.memory.base]
-    // } else {
-    //   let ownerNode = Memory.nodes[creep.memory.node]
-    //   if (ownerNode.base) {
-    //     base = Memory.bases[ownerNode.base]
-    //   }
-    // }
     if (creep.store.getFreeCapacity() > 0) {
-      ACTIONS.harvest.start(creep, creep.memory.src)
+      ACTIONS.harvest.start(creep, creep.memory.nodeId)
       return
     } else {
-      let containerId = containerized(creep.memory.src)
-      if (containerId) {
-        ACTIONS.transfer.start(creep, containerId)
-      } else {
-        ACTIONS.transfer.start(creep)
+      if (manifest?.energy?.dest?.length) {
+        let req = energy.getDest(manifest, creep)
+        if (req?.id) {
+          switch (req.action) {
+            case 'build':
+              ACTIONS.build.start(creep, req.id)
+              return
+            case 'transfer':
+            default:
+              ACTIONS.transfer.start(creep, req.id)
+              return
+          }
+        }
       }
-      return
+      // if (manifest?.build?.pending?.length) {
+      //   const priorityReq = manifest?.build?.pending[0]
+      //   if (priorityReq.opts.siteId) {
+      //
+      //     return
+      //   }
+      // }
+      //
+      // ACTIONS.transfer.start(creep)
+      // let containerId = containerized(creep.memory.nodeId)
+      // if (containerId) {
+      //   ACTIONS.transfer.start(creep, containerId)
+      // } else {
+      //   if (manifest?.pending?.build?.length) {
+      //     const priorityReq = manifest.requests[manifest.pending.build[0]]
+      //     if (priorityReq.opts.siteId) {
+      //       ACTIONS.build.start(creep, priorityReq.opts.siteId)
+      //       return
+      //     }
+      //   }
+      //
+      //   ACTIONS.transfer.start(creep)
+      // }
     }
   } catch (e) {
     console.log('Error: couldnt run harvest job', e.stack)

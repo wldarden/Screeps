@@ -23,17 +23,21 @@
 
 const {nextStep} = require('./utils.creep')
 const {ACTIONS} = require('./actions')
-module.exports.run = function (creep) {
+const {energy} = require('./utils.manifest')
+module.exports.run = function (creep, manifest) {
     try {
-        if (creep.store.getFreeCapacity() === 0) {
-            ACTIONS.upgrade.start(creep, creep.memory.node)
+        const energyNeeded = creep.store.getFreeCapacity()
+        if (energyNeeded === 0) {
+            ACTIONS.upgrade.start(creep, creep.memory.nodeId)
         } else {
-            // creep.memory.src = findSrc(controller.pos, creep.getActiveBodyparts(CARRY) * 50, false, false)
-            let controller = Game.getObjectById(creep.memory.node)
-            ACTIONS.fill.start(creep, controller.pos)
+            let energyReq = energy.getSrc(manifest, creep, energyNeeded)
+            if (energyReq) {
+                let target = Game.getObjectById(energyReq.id)
+                ACTIONS.withdraw.start(creep, target.id)
+            }
             return
         }
-        // let base = Memory.bases[creep.memory.base]
+        // let base = Memory.nodes[creep.memory.base]
         // let job = base.jobs[creep.memory.jobId]
         // let step = job.steps[creep.memory.step]
         //

@@ -89,19 +89,7 @@ function makePlan (plan) {
   })
   return body
 }
-function creepPlanInfo (plan) {
-  let partCounts = {}
-  let creepCost = 0
-  plan.forEach(part => {
-    if (!partCounts[part]) {
-      partCounts[part] = 1
-    } else {
-      partCounts[part] += 1 // add part counts to role counts
-    }
-    creepCost += BODYPART_COST[part]
-  })
-  return creepCost//{cost: creepCost, partCounts: partCounts}
-}
+
 
 function shouldBuildExtension (manifest, base, spawnId) {
   let room = Game.rooms[base.name]
@@ -146,16 +134,6 @@ function requestSpawnExtension (manifest, base, spawnId) {
     }
     addBuildRequest(manifest, priorityReq)
   }
-}
-
-function getUniqueName (role) {
-  let i = 0
-  let name = `${role}-${i}`
-  while(Game.creeps[name]) {
-    i++
-    name = `${role}-${i}`
-  }
-  return name
 }
 
 module.exports.run = function (base, manifest) {
@@ -232,7 +210,7 @@ module.exports.run = function (base, manifest) {
               Memory.nodes[priorityReq.mem.node].creeps = []
             }
             Memory.nodes[priorityReq.mem.node].creeps.push(name)
-          } else if (Memory.bases[priorityReq.mem.node]) {
+          } else if (Memory.nodes[priorityReq.mem.node]) {
             console.log('Error: Creep node is a base', name)
           }
           manifest.req.spawn.shift()

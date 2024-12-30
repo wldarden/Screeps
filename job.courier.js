@@ -38,13 +38,13 @@ module.exports.run = function (creep, manifest) {
         //         ACTIONS.withdraw.start(creep, containerId)
         //         return
         //     } else {
-        //         ACTIONS.transfer.start(creep, creep.memory.node)
+        //         ACTIONS.transfer.start(creep, creep.memory.nodeId)
         //         return
         //     }
         // }
         // console.log('Error: bad courier', creep.name, srcId)
         if (creep.store.getUsedCapacity() === 0) {
-            let base = Memory.bases[creep.memory.base]
+            let base = Memory.nodes[creep.memory.base]
             let fullContainerId
             base.sources.find(srcId => {
                 if (containerized(srcId)) {
@@ -63,7 +63,7 @@ module.exports.run = function (creep, manifest) {
                 return
             }
         } else {
-            ACTIONS.transfer.start(creep, creep.memory.node)
+            ACTIONS.transfer.start(creep, creep.memory.nodeId)
             return
         }
 

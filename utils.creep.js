@@ -33,17 +33,24 @@ module.exports.onDestroyCommon = function(name) {
     // }
 }
 
+module.exports.getCreepBaseId = function (creep) {
+    let nodeId = creep.memory.nodeId
+    while(Memory.nodes[nodeId].parent !== null) {
+        nodeId = Memory.nodes[nodeId].parent
+    }
+    return nodeId
+}
 
 function getBaseResourceTarget (base, resource = RESOURCE_ENERGY) {
-    if (Memory.bases[base.name].targets[resource]?.length) {
-        return Memory.bases[base.name].targets[resource][0].id
+    if (Memory.nodes[base.name].targets[resource]?.length) {
+        return Memory.nodes[base.name].targets[resource][0].id
     }
 }
 module.exports.getBaseResourceTarget = getBaseResourceTarget
 
 function validateBaseResourceTarget(base, targetId, resource = RESOURCE_ENERGY) {
     if (targetId) {
-        let trgObj = Memory.bases[base.name].targets[resource].find(trg => trg.id === targetId)
+        let trgObj = Memory.nodes[base.name].targets[resource].find(trg => trg.id === targetId)
         if (trgObj && trgObj.energy > 0) {
             return targetId// current target can still take energy. leave it.
         } else {
@@ -59,7 +66,7 @@ function validateBaseResourceTarget(base, targetId, resource = RESOURCE_ENERGY) 
 module.exports.validatePriorityTarget = function (creep) {
     try {
         let originalTarget = creep.memory.target
-        let base = Memory.bases[creep.memory.base]
+        let base = Memory.nodes[creep.memory.base]
         let res = creep.memory.target
         if (res) {
             res = validateBaseResourceTarget(base, res, RESOURCE_ENERGY)
@@ -99,19 +106,19 @@ function setCreepSrcTrg (creep, newSrcTrg) {
 module.exports.setCreepSrcTrg = setCreepSrcTrg
 
 function addCreepToSource (creep, srcId) {
-    if (Memory.bases[creep.memory.base].sources[srcId]) {
-        if (!Memory.bases[creep.memory.base].sources[srcId].active.some(c => c === creep.name)) {
-            Memory.bases[creep.memory.base].sources[srcId].active.push(creep.name)
+    if (Memory.nodes[creep.memory.base].sources[srcId]) {
+        if (!Memory.nodes[creep.memory.base].sources[srcId].active.some(c => c === creep.name)) {
+            Memory.nodes[creep.memory.base].sources[srcId].active.push(creep.name)
         }
     }
 }
 module.exports.addCreeptoSource = addCreepToSource
 
 function removeCreepFromSource (creep, srcId) {
-    let srcIndex = Memory.bases[creep.memory.base].sources.findIndex(s => s.id === srcId)
+    let srcIndex = Memory.nodes[creep.memory.base].sources.findIndex(s => s.id === srcId)
     if (srcIndex >= 0) {
-        const actList = Memory.bases[creep.memory.base].sources[srcIndex].active
-        Memory.bases[creep.memory.base].sources[srcIndex].active = actList.filter(name => name !== creep.name)
+        const actList = Memory.nodes[creep.memory.base].sources[srcIndex].active
+        Memory.nodes[creep.memory.base].sources[srcIndex].active = actList.filter(name => name !== creep.name)
     }
 }
 module.exports.removeCreepFromSource = removeCreepFromSource
@@ -139,7 +146,7 @@ function nextAction (creep, step) {
 }
 module.exports.nextAction = nextAction
 function nextStep (creep) {
-    // freeSrcSlot(Memory.bases[creep.memory.base], creep.name)
+    // freeSrcSlot(Memory.nodes[creep.memory.base], creep.name)
     creep.memory.step++
     delete creep.memory.actionIndex
     delete creep.memory.dest

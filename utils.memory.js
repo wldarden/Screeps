@@ -28,123 +28,246 @@ function deserializePos (pos) {
     }
 }
 module.exports.deserializePos = deserializePos
-
-module.exports.createSpawn = function (spawn) {
-    return {
-        id: spawn.name,
-        room: spawn.room.name
+function getBodyCost (body) {
+    let total = 0
+    for (let ci = 0; ci < body.length; ci++) {
+        total = total + BODYPART_COST[PART_MAP[body[ci]]]
     }
+    return total
 }
+module.exports.getBodyCost = getBodyCost
 
-module.exports.createJob = function () {
-    return {
-        // group: 'main',
-        // cat: 'mine',
-        // threat: 0,
-        // steps: [
-        //     {id: source.id, type: 'src', action: ['harvest']},
-        //     {id: base.name, type: 'base', action: ['transfer']}
-        //     // {id: base.name, type: 'base', action: ['transfer', 'build', 'upgrade']}
-        // ],
-        // max: bestPlanROI.maxCreeps,
-        // creeps: [],
-        // cost: bestPlanROI.creepCost,
-        // value: bestPlanROI.valuePerCreep,
-        // plan: simplePlans[bestPlanIndex],
-        // reqs: { parts: [WORK, CARRY, MOVE] }
+function serializeBody (body) {
+    if (typeof body === 'string') {
+        return body
     }
-}
-
-function createSourceOwner (source) {
-    try {
-        return {
-            init: true,
-            type: 'src',
-            slots: {},
-            creeps: [],
-            dist: 1,
+    let bodyString = ''
+    body.forEach(part => {
+        switch (part) {
+            case CARRY:
+                bodyString = bodyString + 'C'
+                break
+            case WORK:
+                bodyString = bodyString + 'W'
+                break
+            case MOVE:
+                bodyString = bodyString + 'M'
+                break
         }
-    } catch (e) {
-        console.log('Error Creating Source: ', e.stack)
-    }
+    })
+    return bodyString
 }
-module.exports.createSourceOwner = createSourceOwner
+module.exports.serializeBody = serializeBody
 
-module.exports.createBase = function (room) {
-    try {
-        let base =  {
-            name: room.name,
-            sources: [],
-            creeps: {},
-            structures: createStructureMap(),
-            sites: {
-                structures: [],
-                roads: [],
-                def: []
-            }
-        }
-
-        let structs = room.find(FIND_STRUCTURES)
-        structs.forEach(s => {
-            if (!base.structures[s.structureType]) {
-                base.structures[s.structureType] = [s.id]
-            } else {
-                base.structures[s.structureType].push(s.id)
-            }
-        })
-        return base
-    } catch (e) {
-        console.log('Error createBase( ' + (room?.name ?? 'Undefined Room Name!') + ' ): ', e.stack)
-        Memory.init = false
-    }
+const PART_MAP = {
+    W: WORK,
+    M: MOVE,
+    C: CARRY,
+    [WORK]: WORK,
+    [MOVE]: MOVE,
+    [CARRY]: CARRY
 }
+function deserializeBody (bodyString = '') {
+    if (typeof bodyString !== 'string') {
+        console.log('ERROR: desrializeBody recieved non-string:', JSON.stringify(bodyString))
+        return []
+    }
+    let body = []
+    for (let ci = 0; ci < bodyString.length; ci++) { body.push(PART_MAP[bodyString[ci]]) }
+    return body
+}
+module.exports.deserializeBody = deserializeBody
 
-function createNode (parent, id, type = 'none', subType = '') {
+/**
+ * BaseNode - way to like nodes so that they can distribute and share resources
+ *
+ * Requires:
+ * - src
+ * - spawn
+ * - controller
+ *
+ * Gets:
+ * - new
+ *
+ * Wants:
+ * - Make a new base
+ * - children satisfied
+ *
+ * @param id
+ * @param parentId
+ * @return {{parent: *, children: {}, creeps: {}, id: *, type: string}}
+ */
+function createBaseNode (id, parentId = null) {
     return {
-        parent: parent, // undefined || nodeId
-        type: type, // base, outpost, src, spawn, controller, storage, fort,
-        sub: subType, // STRUCTURE_*,
+        parent: parentId, // undefined || nodeId
         id: id,
-        children: {},
+        type: 'base', // base, outpost, src, spawn, controller, storage, fort,
+        pos: '',
+        // sub: subType, // STRUCTURE_*,
+        children: {
+            // src: [],
+            // [STRUCTURE_SPAWN]: [],
+            // [STRUCTURE_CONTROLLER]: []
+        },
+        creeps: {}
     }
 }
+module.exports.createBaseNode = createBaseNode
 
-module.exports.createBaseNode = function (room) {
-    try {
-        let base =  {
-            structures: createStructureMap(),
-            sites: {
-                structures: [],
-                roads: [],
-                def: []
-            },
 
-            id: room.name,
-            nodeType: 'base',
-            parent: null,
-            nodes: {
-                // strId?
-                // [structureType]: [strId, strId]?
-            },
-            creeps: {
-                // [role]: [cId, cId, cId]
-            }
+function addNodeToParent (node, parentId, newId) {
+    if (!node || !parentId || !node.type) {
+        console.log('ERROR: Failed to add node to parent', 'parentId:', parentId, 'node:', JSON.stringify(node))
+        return
+    }
+    if (node.parent) {
+        if (node.parent === parentId) {
+            console.log('Warning: adding node to parent it was already the child of: node:', node.id, 'parent:', parentId, '(but if newId, ok) newId:', newId)
         }
+        removeNodeFromParent(node, node.parent)
+    }
+    if (newId) { // if we are changing the node id, that happens here after old id has been removed
+        delete Memory.nodes[node.id]
+        node.id = newId
+    }
+    if (!Memory.nodes[parentId].children[node.type]) {
+        Memory.nodes[parentId].children[node.type] = [node.id]
+    } else {
+        Memory.nodes[parentId].children[node.type].push(node.id)
+    }
+    node.parent = parentId
+    Memory.nodes[node.id] = node
+}
+module.exports.addNodeToParent = addNodeToParent
 
-        let structs = room.find(FIND_STRUCTURES)
-        structs.forEach(s => {
-            if (!base.structures[s.structureType]) {
-                base.structures[s.structureType] = [s.id]
-            } else {
-                base.structures[s.structureType].push(s.id)
-            }
-        })
-        return base
-    } catch (e) {
-        console.log('Error createBase( ' + (room?.name ?? 'Undefined Room Name!') + ' ): ', e.stack)
-        Memory.init = false
+// const nodeTypeMap = {
+//     storage: 'sto',
+//     sto: 'sto',
+//
+//     source: 'src',
+//     src: 'src',
+//
+//     [STRUCTURE_SPAWN]: 'spawn', // STRUCTURE_SPAWN is the same thing as 'spawn'
+//
+//     [STRUCTURE_CONTROLLER]: 'controller', // STRUCTURE_CONTROLLER is the same thing as 'controller'
+//     con: 'controller',
+//
+//     frt: 'fort',
+//     fort: 'fort'
+// }
+
+const VALID_NODE_TYPES = [
+  'base', 'src', 'fort', 'storage',            // non STRUCTURE_* types
+  'spawn', 'controller',                       // STRUCTURE_* types
+]
+function removeNodeFromParent (node, parentId) {
+    if (!node || !parentId || !node.type) {
+        console.log('ERROR: Failed to remove node from parent', 'parentId:', parentId, 'node:', JSON.stringify(node))
+        return
+    }
+    if (!Memory.nodes[parentId].children[node.type]) {
+        Memory.nodes[parentId].children[node.type] = []
+    }
+    Memory.nodes[parentId].children[node.type] = Memory.nodes[parentId].children[node.type].filter(id =>  id !== node.id)
+    node.parent = null
+    delete node.dist
+    Memory.nodes[node.id] = node
+}
+module.exports.removeNodeFromParent = removeNodeFromParent
+
+function createSrcNode (id) {
+    return {
+        parent: null,
+        id: id,
+        type: 'src',
+        slots: {},
+        dist: 0,
+        children: {
+            // [STRUCTURE_CONTAINER]: []
+        },
+        creeps: {
+            // courier: [],
+            // miner: [],
+            // builder: []
+        },
+        // sites: []
     }
 }
+module.exports.createSrcNode = createSrcNode
+
+function createSpawnNode (id) {
+    return {
+        parent: null,
+        id: id,
+        type: STRUCTURE_SPAWN,
+        children: {
+            // [STRUCTURE_CONTAINER]: [],
+            // [STRUCTURE_EXTENSION]: []
+        },
+        creeps: {
+            // miner: [],
+            // build: []
+        },
+        // sites: []
+    }
+}
+module.exports.createSpawnNode = createSpawnNode
+
+function createControllerNode (id) {
+    return {
+        parent: null,
+        id: id,
+        type: STRUCTURE_CONTROLLER,
+        children: {
+            // [STRUCTURE_CONTAINER]: []
+        },
+        creeps: {
+            // upgrade: []
+        },
+        // sites: []
+    }
+}
+module.exports.createControllerNode = createControllerNode
+
+function createContainerNode (id, pos) {
+    return {
+        parent: null,
+        id: id,
+        pos: pos,
+        stage: 0,
+        type: STRUCTURE_CONTAINER
+        // children: {}, // shouldn't ever have children...
+    }
+}
+module.exports.createContainerNode = createContainerNode
+
+function createExtensionNode (id, pos) {
+    return {
+        parent: null,
+        id: id,
+        stage: 0,
+        type: STRUCTURE_EXTENSION,
+        pos: pos
+    }
+}
+module.exports.createExtensionNode = createExtensionNode
+function createStorageNode (id) {
+    return {
+        // ...createNode(parentId, id, 'src')
+        parent: null,
+        id: id,
+        type: 'sto',
+        stage: 0,
+        children: {
+            // [STRUCTURE_CONTAINER]: []
+        },
+        creeps: {
+            // upgrade: []
+        },
+        sites: []
+    }
+}
+module.exports.createStorageNode = createStorageNode
 
 function createStructureMap () {
     return {
@@ -153,7 +276,7 @@ function createStructureMap () {
         [STRUCTURE_EXTENSION]: [],
         [STRUCTURE_SPAWN]: [],
         [STRUCTURE_STORAGE]: [],
-        piles: [], // places we dropped energy
+        // piles: [], // places we dropped energy
         // [STRUCTURE_ROAD]: [],
         // [STRUCTURE_WALL]: [],
         // [STRUCTURE_RAMPART]: "rampart",
@@ -172,23 +295,3 @@ function createStructureMap () {
         // [STRUCTURE_INVADER_CORE]: "invaderCore",
     }
 }
-// function createRole () {
-//     try {
-//         return {
-//             parts: {
-//                 [MOVE]: 0,
-//                 [WORK]: 0,
-//                 [CARRY]: 0,
-//                 [ATTACK]: 0,
-//                 [RANGED_ATTACK]: 0,
-//                 [TOUGH]: 0,
-//                 [HEAL]: 0,
-//                 [CLAIM]: 0
-//             },
-//             creeps: []
-//         }
-//     } catch (e) {
-//         console.log('Error Creating RoleCount: ', e.stack)
-//     }
-// }
-// module.exports.createRole = createRole

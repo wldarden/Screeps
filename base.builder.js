@@ -1,5 +1,5 @@
-const {deserializePos, serializePos} = require('./utils.memory')
-const {requestBuilder, hasBuildRequest, hasSpawnRequest} = require('./utils.manifest')
+const {deserializePos} = require('./utils.memory')
+const {requestBuilder, hasSpawnRequest} = require('./utils.manifest')
 
 
 
@@ -33,7 +33,7 @@ module.exports.run = function (base, manifest) {
         const pos = deserializePos(priorityReq.pos)
         const res = room.createConstructionSite(pos.x, pos.y, priorityReq.structureType)
         if (res === 0) {
-          let node = Memory.nodes[priorityReq.node] || Memory.bases[priorityReq.node]
+          let node = Memory.nodes[priorityReq.node] || Memory.nodes[priorityReq.node]
           if (node) {
             if (!node.sites) {
               node.sites = {}

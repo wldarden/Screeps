@@ -1,4 +1,6 @@
 const {deserializePos, serializePos} = require('./utils.memory')
+const {SHOW_PATHS} = require('./config')
+const {energy} = require('./utils.manifest')
 
 
 const defEnergyDestPri = [STRUCTURE_SPAWN, STRUCTURE_EXTENSION, STRUCTURE_CONTAINER]
@@ -271,27 +273,26 @@ module.exports.ACTIONS = ACTIONS
 
 
 function startBuild (creep, siteId) {
-
-    creep.memory.BSite = siteId
+  if (siteId) {
+    creep.memory.Bsite = siteId
     creep.memory.actions.unshift('build')
+  }
 }
-function finishBuild (creep) {
-    delete creep.memory.BSite
-    creep.memory.actions.shift()
+function finishBuild (creep, manifest) {
+  energy.freeDest(manifest, creep.name, creep.memory.Bsite)
+  delete creep.memory.Bsite
+  creep.memory.actions.shift()
 }
 
 function doBuild (creep, manifest) {
     try {
-        if (creep.store.getFreeCapacity() === 0) {
+        if (creep.store.getUsedCapacity() === 0) {
             return DONE
         } else {
-
-
             let target = Game.getObjectById(creep.memory.Bsite)
             if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
                return DONE
             }
-
 
             let actionRes = creep.build(target)
             switch (actionRes) {
@@ -424,20 +425,28 @@ function startWithdraw (creep, structId = undefined, nearPosition, resource = RE
     if (structId) {
         Wtrg = structId
     } else {
-        let newWTrg
-        const validTargets = [STRUCTURE_CONTAINER, STRUCTURE_SPAWN, STRUCTURE_EXTENSION]
-        newWTrg = findEnergySrc(creep, nearPosition, validTargets, resource)
-        if (newWTrg) {
-            Wtrg = newWTrg.id
-        } else {
-            return // wasn't able to find something to withdraw from
-        }
+        console.log('Error: withdraw error loggg', creep.name)
+        // let newWTrg
+        // const validTargets = [STRUCTURE_CONTAINER, STRUCTURE_SPAWN, STRUCTURE_EXTENSION]
+        // newWTrg = findEnergySrc(creep, nearPosition, validTargets, resource)
+        // if (newWTrg) {
+        //     Wtrg = newWTrg.id
+        // } else {
+        //     return // wasn't able to find something to withdraw from
+        // }
     }
+    // manifest.energy.dest.some(d => {
+    //     if (d.id === creep.memory.Tdest) {
+    //         d.active--
+    //         return true
+    //     }
+    // })
     creep.memory.Wtrg = Wtrg
     creep.memory.Wres = resource
     creep.memory.actions.unshift('withdraw')
 }
-function finishWithdraw (creep) {
+function finishWithdraw (creep, manifest) {
+    energy.freeSrc(manifest, creep.name, creep.memory.Wtrg)
     delete creep.memory.Wtrg
     delete creep.memory.Wres
     creep.memory.actions.shift()
@@ -448,6 +457,7 @@ function doWithdraw (creep, manifest) {
         if (creep.memory.wait) {
             if (creep.memory.wait < Game.time) {
                 delete creep.memory.wait
+                return DONE
             } else {
                 return
             }
@@ -497,10 +507,13 @@ function doWithdraw (creep, manifest) {
 function startTransfer (creep, targetsOrId, resource = RESOURCE_ENERGY) {
     let target
     if (!targetsOrId || Array.isArray(targetsOrId)) {
-        target = findEnergyDest(creep, targetsOrId, resource) // find default targets or specificied targets
+        console.log('ERROR: transfer id not done right.', creep.name, targetsOrId)
+        // target = findEnergyDest(creep, targetsOrId, resource) // find default targets or specificied targets
     } else if (typeof targetsOrId === 'string') {
         target = Game.getObjectById(targetsOrId) // try specific target
         if (!target) {
+            console.log('ERROR: transfer id not done right.', creep.name, targetsOrId)
+
             let alt = findEnergyDest(creep, undefined, resource) // fallback to default target
             if (alt?.id && Game.getObjectById(alt?.id)) {
                 target = alt
@@ -512,7 +525,8 @@ function startTransfer (creep, targetsOrId, resource = RESOURCE_ENERGY) {
     creep.memory.Tres = resource
 }
 
-function finishTransfer (creep) {
+function finishTransfer (creep, manifest) {
+    energy.freeSrc(manifest, creep.name, creep.memory.Tdest)
     creep.memory.actions.shift()
     delete creep.memory.Tdest
     delete creep.memory.Tres
@@ -577,7 +591,10 @@ function reserveSrcSlot (creep, srcId) {
     let open
     let creepPos = serializePos(creep.pos)
     if (creepPos in src.slots) {
-        src.slots[creepPos] = creep.name
+        if (src.slots[creepPos] && Game.creeps[src.slots[creepPos]]) {
+            delete Game.creeps[src.slots[creepPos]].Hslt // remove creep reservation that im already standing in
+        }
+        src.slots[creepPos] = creep.name // take it for myself, because im there
         return creepPos
     }
     let found = Object.keys(src.slots).some(sl => {
@@ -661,7 +678,7 @@ function doHarvest (creep, manifest) {
     switch (actionRes) {
         case ERR_NOT_IN_RANGE:
             if (creep.memory.Hslt && Game.time % 2 === 0) {
-                creep.moveTo(deserializePos(creep.memory.Hslt), {range: 0, visualizePathStyle: {stroke: '#004400'}})
+                creep.moveTo(deserializePos(creep.memory.Hslt), {range: 0, visualizePathStyle: SHOW_PATHS ? {stroke: '#004400' } : undefined})
             } else {
                 creep.moveTo(src, {range: 1, visualizePathStyle: {stroke: '#004400'}})
             }
@@ -670,6 +687,11 @@ function doHarvest (creep, manifest) {
             console.log('invalid harvest target... really didnt think i would get here', creep.name, JSON.stringify(creep.memory))
             return DONE
         case OK:
+            let reservedSlot = deserializePos(creep.memory.Hslt)
+            if (creep.pos.x !== reservedSlot.x || creep.pos.y !== reservedSlot.y) {
+                freeSrcSlot(creep.memory.Hslt, creep.memory.Hsrc, creep.name)
+                reserveSrcSlot(creep, creep.memory.Hsrc)
+            }
             break
         default:
             console.log('Error: Unhandled Harvest Action Response: ', creep.name, actionRes, JSON.stringify(creep.memory))
@@ -705,18 +727,14 @@ function doHarvest (creep, manifest) {
     //
 }
 
-function startRecycle (creep, spawnId) {
+function startRecycle (creep) {
     try {
         if (!creep.memory.actions) {
             creep.memory.actions = []
         }
         creep.memory.actions.unshift('recycle')
-        if (spawnId) {
-            creep.memory.Rspn = spawnId
-        } else {
-            let base = Memory.bases[creep.memory.base]
-            creep.memory.Rspn = base.structures[STRUCTURE_SPAWN][0]
-        }
+
+
     } catch (e) {
         console.log('Error: couldnt start recycle job', e.stack)
     }
@@ -727,12 +745,19 @@ function finishRecycle (creep, spawnId) {
 }
 function doRecylce (creep) {
     try {
-        let target = Game.getObjectById(creep.memory.Rspn)
-        let actionRes = target.recycleCreep(creep)
+        let target
+        let actionRes = ERR_NOT_IN_RANGE
+        let base = Memory.nodes[creep.pos.roomName]
+        if (base) {
+            target = Game.getObjectById(base.children.spawn[0])
+            actionRes = target.recycleCreep(creep)
+        } else {
+            target = Game.getObjectById(creep.memory.nodeId)
+            creep.moveTo(target, {range: 1, visualizePathStyle: {stroke: '#BB0000'}})
+        }
         switch (actionRes) {
             case ERR_NOT_IN_RANGE:
                 let moveRes = creep.moveTo(target, {range: 1, visualizePathStyle: {stroke: '#BB0000'}})
-
                 break
             case OK:
                 break

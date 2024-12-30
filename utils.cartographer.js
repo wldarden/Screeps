@@ -35,6 +35,7 @@ module.exports.getSlotsAround = function (pos) {
             }
         }
         return res
+        // return count
     } catch (e) {
         console.log('Error: getSlotsAround', JSON.stringify(pos), e.stack)
     }

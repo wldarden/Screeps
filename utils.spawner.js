@@ -27,10 +27,11 @@ module.exports.getPartCost = function (parts) {
   return Math.min(cost, 1)
 }
 
-module.exports.getUniqueName = function (name) {
+function getUniqueName (role) {
   let i = 0
-  while (Game.creeps[`${name}_${i}`]) {
+  while(Game.creeps[`${role}-${i}`]) {
     i++
   }
-  return `${name}_${i}`
+  return `${role}-${i}`
 }
+module.exports.getUniqueName = getUniqueName

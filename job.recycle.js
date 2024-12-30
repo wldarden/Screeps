@@ -14,7 +14,7 @@
 // Your Room Controller level is insufficient to use this spawn.
 module.exports.run = function (creep) {
     try {
-        let base = Memory.bases[creep.memory.base]
+        let base = Memory.nodes[creep.memory.base]
 
         let target = Game.getObjectById(base.structures[STRUCTURE_SPAWN][0])
 
