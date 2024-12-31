@@ -362,6 +362,26 @@ function getNodeBase (nodeId) {
 }
 module.exports.getNodeBase = getNodeBase
 
+function removeCreepFromNode (nodeId, role, creepName) {
+  let creepMem = Memory.creeps[creepName]
+  if (creepMem) {
+    delete creepMem.nodeId
+  }
+  if (!Memory.nodes[nodeId].creeps || !Memory.nodes[nodeId].creeps[role]) {
+    return // node had no children. no need to delte creep from node
+  }
+  let seen = []
+  Memory.nodes[nodeId].creeps[role].filter(cId => {
+    const isGood = cId !== creepName
+    if (isGood && !seen.includes(cId)) {
+      seen.push(cId)
+    }
+    return isGood
+  })
+  Memory.nodes[nodeId].creeps[role] = seen
+}
+module.exports.removeCreepFromNode = removeCreepFromNode
+
 function addCreepToNode (nodeId, role, creepName) {
   let creep = Game.creeps[creepName]
   if (!creep) {

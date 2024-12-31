@@ -82,7 +82,7 @@ module.exports.runBase = function (node, lineage = []) {
 
 
   } catch(e) {
-    console.log('Error: failed to run Base Node', e.stack, node.id)
+    console.log('Error: failed to run Base Node', e.stack, node.id, e)
   }
 }
 

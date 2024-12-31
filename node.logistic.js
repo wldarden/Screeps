@@ -11,7 +11,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
   try {
     switch (node.stage) {
       default:
-      case 0:
+      case 0: // INIT: 1. POSITION SELF BASED ON PARENT NEEDS; 2. BUILD FIRST CONTAINER
         if (!node.pos) { // find service pos of self
           let parent = Memory.nodes[node.parent]
           let pos = createNodePosition(parent, 'log')
@@ -56,11 +56,38 @@ module.exports.run = function (node, lineage = [], baseManifest) {
             //console.log('todo - redistribute maint now that everything is repaired')
           }
         }
-        let containers = getChildren(node, [STRUCTURE_CONTAINER], undefined, false, 1)
-        if (containers.length) {
+        let logContainers = getChildren(node, [STRUCTURE_CONTAINER], (node) => node.subType !== 'src', false, 1)
+        let srcContainers = getChildren(node, [STRUCTURE_CONTAINER], (node) => node.subType === 'src', false, 1)
+        let allContainers = [...logContainers, ...srcContainers]
+        if (allContainers.length) {
           //const supplySaturation =
           //console.log('maintaining suppliers', containers.length)
-          maintainRoleCreepsForNode(baseManifest, node, 'supplier', containers.length, 2, 10)
+          maintainRoleCreepsForNode(baseManifest, node, 'supplier', allContainers.length, 2, 10)
+
+
+
+          //if (!node.srcToEmpty) {
+          //  node.srcToEmpty = []
+          //}
+          //srcContainers.forEach(src => {
+          //  let gameCon = Game.getObjectById(src.id)
+          //  if (gameCon.store.getUsedCapacity(RESOURCE_ENERGY) > 200) {
+          //    if (!srcToEmpty.includes(src.id)) {
+          //      node.srcToEmpty.push(src.id)
+          //    }
+          //  } else {
+          //    node.srcToEmpty = node.srcToEmpty.filter(sId => sId !== src.id)
+          //  }
+          //})
+          //if (!node.logToFill) {
+          //  node.logToFill = []
+          //}
+          //logContainers.forEach(log => {
+          //
+          //})
+
+
+
 
           //containers.forEach(c => {
           //

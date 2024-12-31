@@ -52,7 +52,7 @@ function buildNear (position, structure = STRUCTURE_EXTENSION) {
 module.exports.run = function (node, lineage = [], baseManifest) {
   try {
     if (node.threat) { return } // threat nodes are skipped
-    const maxExtensions = 4
+    const maxExtensions = 4 // here
     switch (node.stage) {
       default:
       case 0: // wait for room controller to be upgraded enough that we can build extensions
@@ -129,7 +129,6 @@ module.exports.run = function (node, lineage = [], baseManifest) {
             }
 
             let res = gameNode.spawnCreep(deserializeBody(priorityReq.opts.plan), name, mem)
-            console.log('res spawn loggg', res)
             switch (res) {
               case OK:
                 completeReq(baseManifest, priorityReq.id) // add creep to node owner:
@@ -138,14 +137,16 @@ module.exports.run = function (node, lineage = [], baseManifest) {
                 delete node.jobId
                 delete node.waitUntil
                 return true
+              case ERR_BUSY:
+                return false
               case ERR_INVALID_ARGS:
-                console.log('spawn res', res)
                 completeReq(baseManifest, priorityReq.id) // add creep to node owner:
                 deleteReq(baseManifest, priorityReq.id)
                 node.waitUntil = priorityReq.cost
                 return false
               case ERR_NOT_ENOUGH_RESOURCES:
                 node.waitUntil = priorityReq.cost
+                return false
               default:
                 console.log('Error: unhandled spawn res:', res)
                 return false

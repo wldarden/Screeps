@@ -136,7 +136,6 @@ module.exports.run = function (creep, manifest) {
   try {
     const energy = creep.store.getUsedCapacity()
     let logNode = Memory.nodes[creep.memory.nodeId]
-
     if (energy >= 25) {
       let newTrg = findSupplierTrg(creep)
       if (newTrg) {
@@ -151,10 +150,10 @@ module.exports.run = function (creep, manifest) {
         }
                                                       // <= NO SRC && NOT FULL
       }
-      let logNode = Memory.nodes[creep.memory.nodeId]
       creep.moveTo(deserializePos(logNode.pos), {range: 4, visualizePathStyle: {stroke: '#00ff00'}})
       return                    // ^^^ NO DEST && (FULL || NO SRC) => RETURN TO LOGISTIC NODE
     } else {
+
       let newTrg = findSupplierTrg(creep) // get what needs energy now.
       let srcTrg
       let srcType
@@ -169,7 +168,7 @@ module.exports.run = function (creep, manifest) {
           break
         default:                // EMPTY && NO AVAILABLE DEST => FILL FROM [SRC]
         case 'cont':            // EMPTY && AVAILABLE DEST IS LOG => FILL FROM [SRC]
-          findSrcContainer(creep)
+          srcTrg = findSrcContainer(creep)
           srcType = 'src'       // 3 ^^^ EMPTY && (NO AVAILABLE DEST || AVAILABLE DEST IS LOG) => FILL FROM [SRC]
           break
       }

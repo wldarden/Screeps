@@ -47,10 +47,10 @@ function buildRoleCreep (node, role, maxCost = 300) {
       break
     case 'upgrader':
       body = [CARRY, WORK, MOVE]
-      addOns = []
+      addOns = [CARRY, WORK, MOVE]
       baseCost = 200
-      addOnCost = 0
-      addOnCount = 0
+      addOnCost = 200
+      addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
       break
     default:
       body = [CARRY, WORK, MOVE, CARRY, MOVE]
@@ -61,7 +61,7 @@ function buildRoleCreep (node, role, maxCost = 300) {
       break
   }
   if (maxCost > 300) {
-    for (let i = 0; i < addOns; i++) {
+    for (let i = 0; i < addOnCount; i++) {
       body = body.concat(addOns)
     }
   }

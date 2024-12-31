@@ -5,7 +5,7 @@ const {addSpawnRequest} = require('./utils.manifest')
 const {maintainRoleCreepsForNode} = require('./utils.creep')
 
 function maxUpgraderCreeps (node) {
-  return 1
+  return 8
 }
 
 const upgraderSpawnPriority = .2

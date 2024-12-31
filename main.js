@@ -3,7 +3,7 @@ const {createBaseNode, createSrcNode, createSpawnNode, addNodeToParent,
 } = require('./utils.memory')
 const {getSlotsAround} = require('./utils.cartographer')
 const {DONE, ACTIONS} = require('./actions')
-const {getNodeRunner, getNodePos, getNodeBase} = require('./utils.nodes')
+const {getNodeRunner, getNodePos, getNodeBase, addCreepToNode, removeCreepFromNode} = require('./utils.nodes')
 const {runBase} = require('./node.base')
 const {log} = require('./utils.debug')
 
@@ -71,15 +71,25 @@ module.exports.loop = function () {
       }
     }
     // log({energyManifest})
+    //if (Memory.once === 1) {
+    //  const srcNode = Memory.nodes['92bd78551e28957c0a01a6c8']
+    //  const containerId = 'fa0cb79c811985bf4713ae2f'
+    //  addNodeToParent(srcNode, containerId)
+    //  Memory.once++
+    //}
 
-
-    for (let name in Game.creeps) {
+    for (let name in Memory.creeps) {
       let creep = Game.creeps[name]
       if (creep) {
         runCreep(creep)
       } else {
-        console.log('dead creeps', name, creep)
-        //delete Memory.creeps[name]
+        let creepMem = Memory.creeps[name]
+        let manifest = Memory.manifests[creepMem.base]
+        if (creepMem.actions?.length) {
+          creepMem.actions.forEach(a => ACTIONS[a].finish({memory: {...creepMem}, name: name}, manifest))
+        }
+        removeCreepFromNode(creepMem.nodeId, creepMem.role, name)
+        delete Memory.creeps[name]
       }
     }
     // Memory.manifest = manifest

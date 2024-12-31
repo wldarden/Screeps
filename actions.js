@@ -561,20 +561,11 @@ function doTransfer (creep) {
             break
         case ERR_FULL: // dest is full. what should transfer people do?
             if (!creep.memory.wait) {
-                creep.memory.wait = Game.time + 3 // wait some random amount of time
+                creep.memory.wait = Game.time + 1 // wait some random amount of time
             } else { // we were already waiting
                 if (Game.time >= creep.memory.wait) { // waited 3 ticks and still full. find drop site
+                    delete creep.memory.wait
                     return DONE
-                    //// creep.memory.actions.unshift('build')
-                    //if (Math.random() < .2) {
-                    //    creep.drop()
-                    //    delete creep.memory.wait
-                    //    return DONE
-                    //} else {
-                    //    ACTIONS.transfer.start(creep, undefined, resource)
-                    //    delete creep.memory.wait
-                    //    return
-                    //}
                 }
             }
             break

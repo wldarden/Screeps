@@ -5,7 +5,9 @@ const {creepPlanInfo, maintainRoleCreepsForNode} = require('./utils.creep')
 const {addNodeToParent, buildNode} = require('./utils.memory')
 
 function maxSrcMiners (src) {
-  if (src.cps) {
+  if (src.stage === 3) {
+    return Object.keys(src.slots).length
+  } else if (src.cps) {
     return Math.floor(Math.max(src.cps, 1) * Object.keys(src.slots).length)
   } else {
     return Object.keys(src.slots).length
@@ -77,11 +79,18 @@ module.exports.run = function (node, lineage = [], baseManifest) {
       node.ept = energyPerTick
       node.cps = creepsPerSlot
     }
+    //if (node.parent) {
+    //  const parent = Memory.nodes[node.parent]
+    //  if (parent.type === STRUCTURE_CONTAINER) {
+    //    node.stage = 3
+    //  }
+    //}
     switch (node.stage) {
       default:
         node.stage = 0
         break
       case 0:
+
         break
       case 1: // Begin containerizing
         const parent = Memory.nodes[node.parent]
@@ -110,7 +119,6 @@ module.exports.run = function (node, lineage = [], baseManifest) {
           node.stage = 3
           addNodeToParent(cont, node.parent) // move container to parent
           addNodeToParent(node, contId) // move this src to container
-
         }
         break
       case 3: // containerized src

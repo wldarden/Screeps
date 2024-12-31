@@ -170,6 +170,9 @@ function removeNodeFromParent (node, parentId) {
         console.log('ERROR: Failed to remove node from parent', 'parentId:', parentId, 'node:', JSON.stringify(node))
         return
     }
+    if (!Memory.nodes[parentId].children) {
+      Memory.nodes[parentId].children = {}
+    }
     if (!Memory.nodes[parentId].children[node.type]) {
         Memory.nodes[parentId].children[node.type] = []
     }

@@ -53,12 +53,11 @@ module.exports.run = function (creep, manifest) {
     } else {
       if (creep.memory.nodeId) {
         let node = Memory.nodes[creep.memory.nodeId]
-        if (node && node.type === 'src') { // containerized src. only fill local node.
-          let nodeParent = Memory.nodes[node?.id]
+        if (node && node.type === 'src' && node.stage === 3) { // containerized src. only fill local node.
+          let nodeParent = Memory.nodes[node?.parent]
           if (nodeParent) {
             if (nodeParent.type === STRUCTURE_CONTAINER) {
               ACTIONS.transfer.start(creep, node.parent)
-              console.log(creep.name, 'local mining')
               return
             }
           }
