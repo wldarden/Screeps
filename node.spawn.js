@@ -87,7 +87,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     /**
      * Register Energy Src
      */
-    registerEnergyState(baseManifest, node.id, 3, 8)
+    registerEnergyState(baseManifest, node.id, 0, 9)
     /**
      * Register Energy Src
      */
@@ -96,7 +96,8 @@ module.exports.run = function (node, lineage = [], baseManifest) {
      * Spawn
      */
     let gameNode = Game.getObjectById(node.id)
-    if (gameNode.room.energyAvailable >= 150) {
+    baseManifest.spawnCapacity = gameNode.room.energyCapacityAvailable
+    if (!node.waitUntil || gameNode.room.energyAvailable >= node.waitUntil) {
       if (!node.jobId && baseManifest?.new?.spawn?.length) {
         let newReqId = baseManifest?.new?.spawn.find(spawnReqId =>
           getReqCost(baseManifest.requests[spawnReqId]) <= gameNode.room.energyCapacityAvailable)
@@ -113,25 +114,51 @@ module.exports.run = function (node, lineage = [], baseManifest) {
           delete node.jobId
         } else {
           const nodeId = priorityReq.opts.node || priorityReq.requestor
-          const role = priorityReq.opts.role
-          const name = getUniqueName(priorityReq.opts.role)
-          const mem = {
-            memory: {
-              base: getNodeBase(nodeId)?.id,
-              actions: [],
-              role: role ,
-              nodeId: nodeId,
-              ...priorityReq.opts.mem
+          if (Memory.nodes[nodeId]) {
+            const role = priorityReq.opts.role
+            const name = getUniqueName(priorityReq.opts.role)
+
+            const mem = {
+              memory: {
+                base: getNodeBase(nodeId)?.id,
+                actions: [],
+                role: role ,
+                nodeId: nodeId,
+                ...priorityReq.opts.mem
+              }
             }
-          }
-          let res = gameNode.spawnCreep(deserializeBody(priorityReq.opts.plan), name, mem)
-          if (res === OK) {
+
+            let res = gameNode.spawnCreep(deserializeBody(priorityReq.opts.plan), name, mem)
+            console.log('res spawn loggg', res)
+            switch (res) {
+              case OK:
+                completeReq(baseManifest, priorityReq.id) // add creep to node owner:
+                addCreepToNode(nodeId, role, name)
+                deleteReq(baseManifest, priorityReq.id)
+                delete node.jobId
+                delete node.waitUntil
+                return true
+              case ERR_INVALID_ARGS:
+                console.log('spawn res', res)
+                completeReq(baseManifest, priorityReq.id) // add creep to node owner:
+                deleteReq(baseManifest, priorityReq.id)
+                node.waitUntil = priorityReq.cost
+                return false
+              case ERR_NOT_ENOUGH_RESOURCES:
+                node.waitUntil = priorityReq.cost
+              default:
+                console.log('Error: unhandled spawn res:', res)
+                return false
+            }
+
+          } else {
             completeReq(baseManifest, priorityReq.id) // add creep to node owner:
-            addCreepToNode(nodeId, role, name)
+            //addCreepToNode(nodeId, role, name)
             deleteReq(baseManifest, priorityReq.id)
             delete node.jobId
             return true
           }
+
         }
 
       }

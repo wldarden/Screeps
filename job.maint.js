@@ -1,3 +1,4 @@
+
 /**
  * A Harvest Job looks like this:
  *
@@ -46,45 +47,18 @@ const {containerized} = require('./utils.source')
 const {log} = require('./utils.debug')
 const {energy} = require('./utils.manifest')
 module.exports.run = function (creep, manifest) {
-  try {
-    if (creep.store.getFreeCapacity() > 0) {
-      ACTIONS.harvest.start(creep, creep.memory.nodeId)
-      return
-    } else {
-      if (creep.memory.nodeId) {
-        let node = Memory.nodes[creep.memory.nodeId]
-        if (node && node.type === 'src') { // containerized src. only fill local node.
-          let nodeParent = Memory.nodes[node?.id]
-          if (nodeParent) {
-            if (nodeParent.type === STRUCTURE_CONTAINER) {
-              ACTIONS.transfer.start(creep, node.parent)
-              console.log(creep.name, 'local mining')
-              return
+    try {
+        const energyNeeded = creep.store.getFreeCapacity()
+        if (energyNeeded > 0) {
+            let energyReq = energy.getSrc(manifest, creep, energyNeeded)
+            if (energyReq) {
+                let target = Game.getObjectById(energyReq.id)
+                ACTIONS.withdraw.start(creep, target.id)
             }
-          }
-          if (Math.random() < .4 && node?.children?.build?.length) {
-            ACTIONS.build.start(creep, node.children.build[0])
-            return
-          }
+        } else {
+            ACTIONS.upgrade.start(creep)
         }
-      }
-
-      if (manifest?.energy?.dest?.length) {
-        let req = energy.getDest(manifest, creep)
-        if (req?.id) {
-          switch (req.action) {
-            case 'build':
-              ACTIONS.build.start(creep, req.id)
-              return
-            case 'transfer':
-            default:
-              ACTIONS.transfer.start(creep, req.id)
-              return
-          }
-        }
-      }
+    } catch (e) {
+        console.log('Error: couldnt run maint job', creep.name, e.stack)
     }
-  } catch (e) {
-    console.log('Error: couldnt run harvest job', e.stack)
-  }
 }

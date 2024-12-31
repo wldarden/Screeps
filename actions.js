@@ -1,6 +1,6 @@
 const {deserializePos, serializePos} = require('./utils.memory')
 const {SHOW_PATHS} = require('./config')
-const {energy} = require('./utils.manifest')
+const {energy, useEnergyReq} = require('./utils.manifest')
 
 
 const defEnergyDestPri = [STRUCTURE_SPAWN, STRUCTURE_EXTENSION, STRUCTURE_CONTAINER]
@@ -510,6 +510,7 @@ function startTransfer (creep, targetsOrId, resource = RESOURCE_ENERGY) {
         console.log('ERROR: transfer id not done right.', creep.name, targetsOrId)
         // target = findEnergyDest(creep, targetsOrId, resource) // find default targets or specificied targets
     } else if (typeof targetsOrId === 'string') {
+
         target = Game.getObjectById(targetsOrId) // try specific target
         if (!target) {
             console.log('ERROR: transfer id not done right.', creep.name, targetsOrId)
@@ -518,7 +519,11 @@ function startTransfer (creep, targetsOrId, resource = RESOURCE_ENERGY) {
             if (alt?.id && Game.getObjectById(alt?.id)) {
                 target = alt
             }
+        } else {
+
+            //energy.freeDest(manifest, creep.name, creep.memory.Tdest)
         }
+
     }
     creep.memory.actions.unshift('transfer')
     creep.memory.Tdest = target?.id

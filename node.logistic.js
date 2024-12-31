@@ -3,6 +3,7 @@ const {runChildren, createNodePosition, getChildren, getTypeCreeps, getNodeReqs}
 const {log} = require('./utils.debug')
 const {addNodeToParent, serializePos, buildNode, serializeBody} = require('./utils.memory')
 const {addSpawnRequest} = require('./utils.manifest')
+const {maintainRoleCreepsForNode} = require('./utils.creep')
 
 
 const maxContainers = 1
@@ -47,30 +48,36 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         node.stage++
         break
       case 2:
-
-        function buildRoleCreep (role, maxCost) {
-          switch (role) {
-            case 'miner':
-              return [CARRY, WORK, MOVE, CARRY, MOVE]
-            case 'maint':
-              return [CARRY, WORK, CARRY, MOVE, MOVE]
-          }
-        }
-        function maintainRoleCreepsForNode (node, role, desired) {
-          let existingTypeCreeps = getTypeCreeps(node, role)
-          const plannedSaturation = (getNodeReqs(node).length + existingTypeCreeps.length) / desired
-          if (plannedSaturation < 1) {
-            const newRequest = {
-              pri: 5, requestor: node.id, assignee: [], status: 'new', type: 'spawn',
-              opts: {role: role, plan: serializeBody(buildRoleCreep(role))}
-            }
-            node.reqs.push(addSpawnRequest(baseManifest, newRequest))
+        if (!node.repairs) { node.repairs = [] }
+        if (node.repairs?.length) {
+          maintainRoleCreepsForNode(baseManifest, node, 'maint', 1, 1, 2)
+        } else {
+          if (node.creeps?.maint?.length) {
+            //console.log('todo - redistribute maint now that everything is repaired')
           }
         }
         let containers = getChildren(node, [STRUCTURE_CONTAINER], undefined, false, 1)
         if (containers.length) {
-          maintainRoleCreepsForNode(node, 'maint', 1)
+          //const supplySaturation =
+          //console.log('maintaining suppliers', containers.length)
+          maintainRoleCreepsForNode(baseManifest, node, 'supplier', containers.length, 2, 10)
+
+          //containers.forEach(c => {
+          //
+          //  switch (c.subType) {
+          //    case 'src':
+          //      // this container should be emptied to fill others
+          //      break
+          //    default:
+          //    case 'log':
+          //      // this container should be filled from others
+          //
+          //      // this container should be used to fill buildings
+          //      break
+          //  }
+          //})
         }
+        //if ()
         break
       case 3:
         break

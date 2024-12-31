@@ -1,7 +1,7 @@
 const {log} = require('./utils.debug')
 const {getBodyCost} = require('./utils.memory')
 
-function getEnergy(type, manifest, creep, amount = null, dryRun = false) {
+function getEnergy(type, manifest, creep, amount = null, filter, dryRun = false) {
   if (amount === null) {
     switch (type) {
       case 'dest':
@@ -12,10 +12,13 @@ function getEnergy(type, manifest, creep, amount = null, dryRun = false) {
         break
     }
   }
+  const canBuild = creep.getActiveBodyparts(WORK) > 0
   let usedReq = manifest.energy[type].find((req, i) => {
     const activeCreeps = Object.keys(req.creeps).length
     const maxCreeps = req.max || 4
-    if (req.amount > amount && activeCreeps < maxCreeps) {
+    if (filter) {
+      return filter(req)
+    } else if (req.amount > amount && activeCreeps < maxCreeps && (canBuild || req.action !== 'build')) {
       return true
     }
   })
@@ -51,9 +54,9 @@ function freeEnergy(type, manifest, creepName, reqId) {
 }
 module.exports.freeEnergy = freeEnergy
 module.exports.energy = {
-  get: (type, manifest, creep, amount = null, dryRun = false) => getEnergy(type, manifest, creep, amount, dryRun),
-  getSrc: (manifest, creep, amount = null, dryRun = false) => getEnergy('src', manifest, creep, amount, dryRun),
-  getDest: (manifest, creep, amount = null, dryRun = false) => getEnergy('dest', manifest, creep, amount, dryRun),
+  get: (type, manifest, creep, amount = null, dryRun = false) => getEnergy(type, manifest, creep, amount, undefined, dryRun),
+  getSrc: (manifest, creep, amount = null, dryRun = false) => getEnergy('src', manifest, creep, amount, undefined, dryRun),
+  getDest: (manifest, creep, amount = null, filter, dryRun = false) => getEnergy('dest', manifest, creep, amount, filter, dryRun),
   free: (type, manifest, creepName, reqId) => freeEnergy(type, manifest, creepName, reqId),
   freeSrc: (manifest, creepName, reqId) => freeEnergy('src', manifest, creepName, reqId),
   freeDest: (manifest, creepName, reqId) => freeEnergy('dest', manifest, creepName, reqId)
@@ -101,7 +104,7 @@ function registerEnergy (manifest, req, type = 'dest', perCreepPriCost = .2) {
   creepIds.forEach(c => {
       req.reserved = req.reserved + req.creeps[c]
   })
-  req.pri = req.origPri - (req.cpc * creepIds.length)
+  req.pri = Math.max(req.origPri - (req.cpc * creepIds.length), 0)
   let priIndex = manifest.energy[type].findIndex(oldReq => oldReq.pri < req.pri)
   if (priIndex === -1) {
       manifest.energy[type].push(req)

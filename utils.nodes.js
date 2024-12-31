@@ -1,6 +1,6 @@
 const {log} = require('./utils.debug')
-const {deserializePos} = require('./utils.memory')
-const {registerEnergy} = require('./utils.manifest')
+const {deserializePos, addNodeToParent} = require('./utils.memory')
+const {registerEnergy, deregisterEnergy} = require('./utils.manifest')
 
 
 function getNodeRunner (nodeType) {
@@ -218,7 +218,7 @@ function registerEnergyState (baseManifest, id, srcPriority = 0, destPriority = 
   const energy = gameNode.store.getUsedCapacity(RESOURCE_ENERGY) || 0
   const capacity = gameNode.store.getCapacity(RESOURCE_ENERGY) || 0
   const frac = energy / capacity
-  if (energy > 0) {
+  if (energy > 0 && srcPriority > 0) {
     const energyReq = {
       id: gameNode.id,
       amount: energy,
@@ -226,10 +226,12 @@ function registerEnergyState (baseManifest, id, srcPriority = 0, destPriority = 
       action: 'withdraw'
     }
     registerEnergy(baseManifest, energyReq, 'src')
+  } else {
+    deregisterEnergy(baseManifest, id, 'src')
   }
 
 
-  if (capacity > energy) {
+  if (capacity > energy  && destPriority > 0) {
     let pri = destPriority + (((1 - frac) * 2) - 1)
     let node = Memory.nodes[id]
     const energyReq = {
@@ -239,6 +241,8 @@ function registerEnergyState (baseManifest, id, srcPriority = 0, destPriority = 
       action: 'transfer'
     }
     registerEnergy(baseManifest, energyReq, 'dest')
+  } else {
+    deregisterEnergy(baseManifest, id, 'dest')
   }
 
 }
@@ -312,6 +316,13 @@ function runChildren (node, lineage, baseManifest) {
       }
     })
   }
+  //if (node.children.sto) {
+  //  node.children.log = node.children.sto
+  //  node.children.log.forEach(stoId => {
+  //    addNodeToParent(Memory.nodes[stoId], node.id, stoId, 'log')
+  //  })
+  //}
+  //delete node.children.sto
 
   let childLineage = [...lineage, node.id]
   for (let nodeType in node.children) {
@@ -338,7 +349,7 @@ module.exports.runChildren = runChildren
 function getNodeBase (nodeId) {
   let node = Memory.nodes[nodeId]
   let count = 0
-  while (node.type !== 'base' && count < 50) {
+  while (node?.type !== 'base' && count < 50) {
     node = Memory.nodes[node.parent]
     count++
   }
@@ -355,13 +366,22 @@ function addCreepToNode (nodeId, role, creepName) {
   let creep = Game.creeps[creepName]
   if (!creep) {
     console.log('Error: creep doesnt exist: ', creepName)
+  } else {
+    if (creep.memory.nodeId !== nodeId && Memory.nodes[creep.memory.nodeId] && Memory.nodes[creep.memory.nodeId].creeps[creep.memory.role || role]) { // might have already had a node, this could be a transfer
+      Memory.nodes[creep.memory.nodeId].creeps[creep.memory.role || role] = Memory.nodes[creep.memory.nodeId].creeps[creep.memory.role || role].filter(cId => {
+        return cId !== creepName
+      })
+    }
   }
+  creep.memory.nodeId = nodeId
+  creep.memory.role = role
   if (!Memory.nodes[nodeId].creeps) { Memory.nodes[nodeId].creeps = {} }
   if (!Memory.nodes[nodeId].creeps[role]) { Memory.nodes[nodeId].creeps[role] = [] }
-  if (creep?.memory?.node && creep?.memory?.node !== nodeId) {
+  if (creep?.memory?.nodeId && creep?.memory?.nodeId !== nodeId) {
     // remove creep from node
     // removeCreepFromNode(nodeId, role, creepName)
   }
+
   Memory.nodes[nodeId].creeps[role].push(creepName) // add creep to new node
 }
 

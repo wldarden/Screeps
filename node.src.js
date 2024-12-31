@@ -1,8 +1,8 @@
 const {runChildren, getTypeCreeps, getNodeReqs, getNodePos, getChildren} = require('./utils.nodes')
 const {log} = require('./utils.debug')
-const {addSpawnRequest, deleteReq} = require('./utils.manifest')
-const {creepPlanInfo, ticksPerSpace} = require('./utils.creep')
-const {serializeBody, createContainerNode, addNodeToParent, buildNode} = require('./utils.memory')
+const {deleteReq} = require('./utils.manifest')
+const {creepPlanInfo, maintainRoleCreepsForNode} = require('./utils.creep')
+const {addNodeToParent, buildNode} = require('./utils.memory')
 
 function maxSrcMiners (src) {
   if (src.cps) {
@@ -67,11 +67,16 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     }
     const miners = getTypeCreeps(node, 'miner')
     const maxMiners = maxSrcMiners(node)
-    const saturation = miners.length / maxMiners
-    const nSlots = Object.keys(node.slots).length
-    const plannedSaturation = (getNodeReqs(node).length + miners.length) / maxMiners
+    //const saturation = miners.length / maxMiners
+    //const nSlots = Object.keys(node.slots).length
+    //const plannedSaturation = (getNodeReqs(node).length + miners.length) / maxMiners
     let mode = 'default'
     let plan
+    if (node.dist && (!node.ept || !node.cps)) {
+      const {energyPerTick, creepsPerSlot} = calcSrcROI(plans[mode].plan, node.dist)
+      node.ept = energyPerTick
+      node.cps = creepsPerSlot
+    }
     switch (node.stage) {
       default:
         node.stage = 0
@@ -83,20 +88,29 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         if (parent && parent.type === 'log') {
           let pos = myContainerPos(node)
           if (pos) {
-            buildNode(node.id, STRUCTURE_CONTAINER, pos)
+            buildNode(node.id, STRUCTURE_CONTAINER, pos, 6)
             node.stage = 2
           }
         }
         break
       case 2:// Wait for containerization to complete
+        mode = 'containerized'
+        if (node.dist !== 1) {
+          const {energyPerTick, creepsPerSlot} = calcSrcROI(plans[mode].plan, 1)
+          node.dist = 1
+          node.ept = energyPerTick
+          node.cps = creepsPerSlot
+        }
+
         let containers = getChildren(node, [STRUCTURE_CONTAINER], undefined, false, 1)
         if (containers.length) { // we completed our container node. swap places and move to stage 3
           let cont = containers[0]
           cont.subType = 'src'
-          addNodeToParent(cont, node.parent) // move container to parent
-          addNodeToParent(node, cont.id) // move this src to container
-          node.dist = 1
+          const contId = cont.id
           node.stage = 3
+          addNodeToParent(cont, node.parent) // move container to parent
+          addNodeToParent(node, contId) // move this src to container
+
         }
         break
       case 3: // containerized src
@@ -107,17 +121,18 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     /**
      * Everything below here depends on the configs set above.
      */
-    if (plannedSaturation < 1 && node.reqs.length < nSlots) {
-      const {energyPerTick, creepsPerSlot} = calcSrcROI(plans[mode].plan, node.dist)
-      node.ept = energyPerTick
-      node.cps = creepsPerSlot
-      const spawnMinerPriority = (1 - saturation) * node.ept
-      const newRequest = {
-        pri: spawnMinerPriority, requestor: node.id, assignee: [], status: 'new', type: 'spawn',
-        opts: {role: plans[mode].role || 'miner', subRole: plans[mode].subRole, plan: serializeBody(plans[mode].plan)}
-      }
-      node.reqs.push(addSpawnRequest(baseManifest, newRequest))
-    }
+    maintainRoleCreepsForNode(baseManifest, node, plans[mode].role, maxMiners, 2, 8)
+    //if (plannedSaturation < 1 && node.reqs.length < nSlots) {
+    //  const {energyPerTick, creepsPerSlot} = calcSrcROI(plans[mode].plan, node.dist)
+    //  node.ept = energyPerTick
+    //  node.cps = creepsPerSlot
+    //  const spawnMinerPriority = (1 - saturation) * node.ept
+    //  const newRequest = {
+    //    pri: spawnMinerPriority, requestor: node.id, assignee: [], status: 'new', type: 'spawn',
+    //    opts: {role: plans[mode].role , subRole: plans[mode].subRole, plan: serializeBody(plans[mode].plan)}
+    //  }
+    //  node.reqs.push(addSpawnRequest(baseManifest, newRequest))
+    //}
 
 
     // let newReqs = []

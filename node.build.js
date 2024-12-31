@@ -2,9 +2,10 @@
 const {runChildren} = require('./utils.nodes')
 const {log} = require('./utils.debug')
 const {deserializePos, addNodeToParent, removeNodeFromParent} = require('./utils.memory')
-const {registerEnergy, deregisterEnergy} = require('./utils.manifest')
+const {registerEnergy, deregisterEnergy, deleteReq} = require('./utils.manifest')
 const {findSiteAtPos, findStrAtPos} = require('./utils.build')
 const {PRIORITY} = require('./config')
+const {maintainRoleCreepsForNode} = require('./utils.creep')
 
 
 /**
@@ -39,14 +40,15 @@ module.exports.run = function (node, lineage = [], baseManifest) {
               console.log('Error: unhandled createConstructionSite error res: ', res, node.id, pos.x, pos.y, strType, pos.roomName)
           }
         }
-        return
+        break
       case 1: // Register siteId with parent
         let siteId = findSiteAtPos(node.pos, strType)
         if (siteId) { // change self id to siteId, upgrade stage
           addNodeToParent(node, node.parent, siteId)
           node.stage++
+          node.isSiteAt = Game.time + 3
         }
-        return
+        break
       case 2: // Request energy until built. Then register strId with parent and convert to final node type
         let site = Game.getObjectById(node.id)
         if (site){
@@ -62,19 +64,29 @@ module.exports.run = function (node, lineage = [], baseManifest) {
           let strId = findStrAtPos(node.pos, strType)
           if (strId) {
             deregisterEnergy(baseManifest, node.id, 'dest')
+
             //removeNodeFromParent(node, node.parent)
             node.stage = 1
             const newType = node.onDoneType
+            if (newType === STRUCTURE_EXTENSION && baseManifest.new?.spawn?.length) {
+              // extension built... delete existing spawn reqs...?
+              baseManifest.new.spawn.forEach(reqId => deleteReq(baseManifest, reqId))
+            }
             delete node.onDoneType
             delete node.buildPri
             addNodeToParent(node, node.parent, strId, newType)
           }
         }
-        return
+        break
       case 3:
         console.log('Error: build node reached stage 3 and is still a build node: ', node.id, node.type, node.onDoneType, node.stage, node.parent)
         break
     }
+    if (node.stage >= 2 && node.isSiteAt < Game.time) {
+      maintainRoleCreepsForNode(baseManifest, node, 'builder', 1, 1, 7)
+    }
+
+
     runChildren(node, lineage, baseManifest)
   } catch(e) {
     log(Memory.nodes[node.id], ['ERROR', 'CONTAINER_NODE'])

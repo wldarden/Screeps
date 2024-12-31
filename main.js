@@ -30,12 +30,14 @@ const {log} = require('./utils.debug')
 const actionRunners = {
   miner: {runner: require('job.harvest')},
   courier: {runner: require('job.courier')},
-  build: {runner: require('job.build')},
   harvest: {runner: require('job.harvest')},
   recycle: {runner: require('job.recycle')},
   // transfer: {runner: require('job.transfer')},
   upgrader: {runner: require('job.upgrade')},
   upgrade: {runner: require('job.upgrade')},
+  supplier: {runner: require('job.supplier')},
+  builder: {runner: require('job.builder')},
+  maint: {runner: require('job.maint')},
   // withdraw: {runner: require('job.withdraw')},
   // idle: {runner: require('job.idle')},
   // pickup: {runner: require('job.pickup')},
@@ -73,7 +75,12 @@ module.exports.loop = function () {
 
     for (let name in Game.creeps) {
       let creep = Game.creeps[name]
-      runCreep(creep)
+      if (creep) {
+        runCreep(creep)
+      } else {
+        console.log('dead creeps', name, creep)
+        //delete Memory.creeps[name]
+      }
     }
     // Memory.manifest = manifest
   } catch (e) {
@@ -197,9 +204,10 @@ function runCreep (creep) {
           ACTIONS.recycle.start(creep)
         }
       }
-      // if (creep.memory?.actions?.length && creep.memory?.actions[0] === 'withdraw') {
-      //   ACTIONS[creep.memory?.actions[0]].finish(creep)
-      // }
+      //const actionToDelete = 'fill'
+      //if (creep.memory?.actions?.length && creep.memory?.actions[0] === actionToDelete) {
+      //ACTIONS[creep.memory?.actions[0]].finish(creep)
+      //}
 
       if (creep.memory?.actions?.length) { // if the creep has an action in their tmp action array, do it.
         let action = creep.memory?.actions[0]
@@ -226,7 +234,11 @@ function runCreep (creep) {
 
     }
   } catch (e) {
-    console.log('Error: Unknown error for creep named', creep.name, e.stack)
+    if (creep.name.includes('builder')) {
+      creep.memory.role = 'builder'
+
+    }
+    console.log('Error: Unknown error for creep named', creep.name, creep?.memory?.role, creep?.memory?.nodeId, creep?.pos?.x, creep?.pos?.y, e.stack)
   }
 
 }

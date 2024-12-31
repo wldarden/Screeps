@@ -9,7 +9,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         console.log('Error: ext node should never be stage 0 right?', node.type, node.id, node.parent)
         break
       case 1:
-        registerEnergyState(baseManifest, node.id, 0, 7)
+        registerEnergyState(baseManifest, node.id, 0, 8)
         break
       //default:
       //case 0: // finding pos and building
