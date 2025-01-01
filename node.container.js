@@ -18,45 +18,17 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         switch (node.subType) {
           default:
           case 'log':
-            registerEnergyState(baseManifest, node.id, 8, 5)
             break
           case 'src':
-            registerEnergyState(baseManifest, node.id, 4, 1)
             break
         }
         break
       case 2:
-        //let site = Game.getObjectById(node.id)
-        //if (site){
-        //  const frac = site.progress / site.progressTotal // progressTotal is constant.
-        //  const energyReq = {
-        //    id: node.id,
-        //    amount: site.progressTotal - site.progress,
-        //    pri: PRIORITY.BUILD + ((frac * 2) - 1), // modifier is +/-1 based on progress
-        //    action: 'build'
-        //  }
-        //  registerEnergy(baseManifest, energyReq, 'dest')
-        //} else {
-        //  let strId = findStrAtPos(node.pos, strType)
-        //  if (strId) {
-        //    addNodeToParent(node, node.parent, strId)
-        //    node.stage = 3
-        //  }
-        //}
         break
       case 3:
-        //switch (parent.type) {
-        //  case 'log':
-        //    registerEnergyState(baseManifest, node.id, 8, 5)
-        //    break
-        //  case 'src':
-        //    registerEnergyState(baseManifest, node.id, 4, 1)
-        //    break
-        //}
         break
 
     }
-
     runChildren(node, lineage, baseManifest)
   } catch(e) {
       log(Memory.nodes[node.id], ['ERROR', 'CONTAINER_NODE'])

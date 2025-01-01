@@ -45,6 +45,24 @@ const {ACTIONS, DONE} = require('./actions')
 const {containerized} = require('./utils.source')
 const {log} = require('./utils.debug')
 const {energy} = require('./utils.manifest')
+
+function primaryDest (creep, node) {
+  if (node.primaryDest) {
+    return node.primaryDest.some(d => {
+      let gamePrimary = Game.getObjectById(d)
+      if (gamePrimary) {
+        if (gamePrimary.store && gamePrimary.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
+          ACTIONS.transfer.start(creep, d)
+          return true
+        } else if (gamePrimary.progressTotal) {
+          ACTIONS.build.start(creep, d)
+          return true
+        }
+      }
+    })
+  }
+}
+
 module.exports.run = function (creep, manifest) {
   try {
     if (creep.store.getFreeCapacity() > 0) {
@@ -53,32 +71,25 @@ module.exports.run = function (creep, manifest) {
     } else {
       if (creep.memory.nodeId) {
         let node = Memory.nodes[creep.memory.nodeId]
-        if (node && node.type === 'src' && node.stage === 3) { // containerized src. only fill local node.
-          let nodeParent = Memory.nodes[node?.parent]
-          if (nodeParent) {
-            if (nodeParent.type === STRUCTURE_CONTAINER) {
-              ACTIONS.transfer.start(creep, node.parent)
-              return
-            }
-          }
-          if (Math.random() < .4 && node?.children?.build?.length) {
-            ACTIONS.build.start(creep, node.children.build[0])
+        if (primaryDest(creep, node)) {
+          return
+        } else if (node.type === 'src' && node.stage === 3) { // stage 3 src miners will remain at src
+          return
+        } else { // lower stage src miners will travel to destinations
+          let target = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {maxOps: 500, ignoreCreeps: true});
+          if (target) {
+            ACTIONS.build.start(creep, target.id)
             return
           }
-        }
-      }
-
-      if (manifest?.energy?.dest?.length) {
-        let req = energy.getDest(manifest, creep)
-        if (req?.id) {
-          switch (req.action) {
-            case 'build':
-              ACTIONS.build.start(creep, req.id)
-              return
-            case 'transfer':
-            default:
-              ACTIONS.transfer.start(creep, req.id)
-              return
+          target = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
+            maxOps: 500, ignoreCreeps: true,
+            filter: function(object) {
+              return object.store && object.store.getFreeCapacity(RESOURCE_ENERGY)
+            }
+          })
+          if (target) {
+            ACTIONS.transfer.start(creep, target.id)
+            return
           }
         }
       }

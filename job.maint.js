@@ -42,21 +42,42 @@
 // There are no WORK body parts in this creep’s body.
 //
 
-const {ACTIONS, DONE} = require('./actions')
-const {containerized} = require('./utils.source')
-const {log} = require('./utils.debug')
-const {energy} = require('./utils.manifest')
+const {ACTIONS} = require('./actions')
 module.exports.run = function (creep, manifest) {
     try {
-        const energyNeeded = creep.store.getFreeCapacity()
-        if (energyNeeded > 0) {
-            let energyReq = energy.getSrc(manifest, creep, energyNeeded)
-            if (energyReq) {
-                let target = Game.getObjectById(energyReq.id)
-                ACTIONS.withdraw.start(creep, target.id)
-            }
+        if (creep.store.getFreeCapacity() === 0) {
+            ACTIONS.repair.start(creep)
+            //ACTIONS.repair.start(creep, creep.memory.nodeId)
+            //let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+            //    maxOps: 500, ignoreCreeps: true,
+            //    filter: function(gameNode) {
+            //        let node = Memory.nodes[gameNode?.id]
+            //        let res = gameNode.store && node?.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
+            //        if (res) {
+            //            console.log('maint going to ', node?.id, node?.type)
+            //        } else {
+            //            console.log('maint not going to ', node?.id, node?.type)
+            //
+            //        }
+            //        return gameNode.hits < gameNode.hitsTotal
+            //    }
+            //})
+            return
         } else {
-            ACTIONS.upgrade.start(creep)
+            if (creep.memory.nodeId) {
+                let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+                    maxOps: 500, ignoreCreeps: true,
+                    filter: function(gameNode) {
+                        let node = Memory.nodes[gameNode?.id]
+                        let res = gameNode.store && node?.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
+                        return res
+                    }
+                })
+                if (target) {
+                    ACTIONS.withdraw.start(creep, target.id)
+                    return
+                }
+            }
         }
     } catch (e) {
         console.log('Error: couldnt run maint job', creep.name, e.stack)

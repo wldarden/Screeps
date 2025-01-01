@@ -123,8 +123,8 @@ function addNodeToParent (node, parentId, newId, newType) {
         return
     }
     if (node.parent) {
-        if (node.parent === parentId) {
-            console.log('Warning: adding node to parent it was already the child of: node:', node.type, node.id, 'parent:', parentId, '(but if newId, ok) newId:', newId)
+        if (node.parent === parentId && !newId) {
+            console.log('Error: adding node to parent it was already the child of: node:', node.type, node.id, 'parent:', parentId, '(but if newId, ok) newId:', newId)
             console.log('Node parent of above: ', Memory.nodes[node.parent] && Memory.nodes[node.parent].type, node.parent )
         }
         removeNodeFromParent(node, node.parent)
@@ -135,6 +135,9 @@ function addNodeToParent (node, parentId, newId, newType) {
     }
     if (newType) {
       node.type = newType
+    }
+    if (!Memory.nodes[parentId].children) {
+      Memory.nodes[parentId].children = {}
     }
     if (!Memory.nodes[parentId].children[node.type]) {
         Memory.nodes[parentId].children[node.type] = [node.id]

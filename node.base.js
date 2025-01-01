@@ -1,7 +1,7 @@
 const {runChildren, createNodePosition, getChildren, applyToChildren} = require('./utils.nodes')
 const {log} = require('./utils.debug')
 const {createStorageNode, deserializePos, serializePos, addNodeToParent} = require('./utils.memory')
-const {getReqById, moveReq} = require('./utils.manifest')
+const {getReqById} = require('./utils.manifest')
 
 /**
  * FINANCE
@@ -40,7 +40,6 @@ function collectBuildSiteIds (baseManifest) {
         const lookRes = deserializePos(buildReq.opts.pos).lookFor(LOOK_CONSTRUCTION_SITES)
         if (lookRes?.length) {
           buildReq.opts.siteId = lookRes.find(item => item.structureType === buildReq.opts.structureType)?.id
-            // moveReq(baseManifest.build, 'pending', buildReqId, 'do')
         }
       }
     })
@@ -73,9 +72,20 @@ module.exports.runBase = function (node, lineage = []) {
          */
         break
       case 1: // has logistics node
+        if (!node.children?.maint?.length) {
+          addNodeToParent({
+            parent: null,
+            id: 'maint-0',
+            type: 'maint',
+            stage: 0,
+            creeps: {},
+          }, node.id)
+        }
 
         break
     }
+
+    baseManifest.roomEnergyFrac = Game.rooms[node.id].energyAvailable / Game.rooms[node.id].energyCapacityAvailable
     runChildren(node, lineage, baseManifest)
     calcIncome(baseManifest)
 

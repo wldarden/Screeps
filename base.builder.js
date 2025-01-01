@@ -1,5 +1,4 @@
 const {deserializePos} = require('./utils.memory')
-const {requestBuilder, hasSpawnRequest} = require('./utils.manifest')
 
 
 
@@ -23,9 +22,7 @@ module.exports.run = function (base, manifest) {
   const weWantToBuild = true
 
   if (manifest.req?.build?.length && weWantToBuild) { // and have queued build requests
-    if ((!base.creeps?.build || base.creeps?.build?.length < getMaxBuilders(base, manifest)) && !hasSpawnRequest(manifest, base.name)) { // make sure we have builders
-        requestBuilder(manifest, base.name, base.name)
-    }
+
     if (base.creeps?.build?.length > 0) { // if we have builders
       const priorityReq = manifest.req.build[0]
       if (!priorityReq.placed) { // if construction not even started:

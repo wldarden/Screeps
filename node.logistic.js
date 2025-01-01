@@ -2,7 +2,6 @@
 const {runChildren, createNodePosition, getChildren, getTypeCreeps, getNodeReqs} = require('./utils.nodes')
 const {log} = require('./utils.debug')
 const {addNodeToParent, serializePos, buildNode, serializeBody} = require('./utils.memory')
-const {addSpawnRequest} = require('./utils.manifest')
 const {maintainRoleCreepsForNode} = require('./utils.creep')
 
 
@@ -50,7 +49,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
       case 2:
         if (!node.repairs) { node.repairs = [] }
         if (node.repairs?.length) {
-          maintainRoleCreepsForNode(baseManifest, node, 'maint', 1, 1, 2)
+          //maintainRoleCreepsForNode(baseManifest, node, 'maint', 1, 1, 2)
         } else {
           if (node.creeps?.maint?.length) {
             //console.log('todo - redistribute maint now that everything is repaired')

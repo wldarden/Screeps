@@ -1,14 +1,9 @@
-const {runChildren, addCreepToNode, getNodeBase, getChildren, registerEnergyState} = require('./utils.nodes')
+const {runChildren, addCreepToNode, getChildren, registerEnergyState} = require('./utils.nodes')
 const {log} = require('./utils.debug')
-const {deserializeBody, deserializePos, createContainerNode, addNodeToParent, serializePos, createExtensionNode,
-  buildNode
+const {buildNode
 } = require('./utils.memory')
-const {assignReq, getMyAssingedRequests, completeReq, getReqCost, deleteReq, registerEnergy, deregisterEnergy,
-    getReqById
-} = require('./utils.manifest')
-const {getUniqueName} = require('./utils.spawner')
-const {ACTIONS} = require('./actions')
-const {createSiteFromRequest, moveNodeSites} = require('./utils.build')
+const {spawnForNode} = require('./utils.spawner')
+const {completeSpawnReq} = require('./utils.manifest')
 
 
 function buildNear (position, structure = STRUCTURE_EXTENSION) {
@@ -35,6 +30,7 @@ function buildNear (position, structure = STRUCTURE_EXTENSION) {
         // ERR_INVALID_ARGS	  -10 The location is incorrect.
         // ERR_RCL_NOT_ENOUGH	-14 Room Controller Level insufficient. Learn more
         // console.log(res, x,y,'res loggg', JSON.stringify(room.getPositionAt(x,y).lookFor(LOOK_CONSTRUCTION_SITES)[0]))
+        console.log(res, 'build near res')
         if (res === 0) {
             searching = false
             // siteId = room.getPositionAt(x,y).lookFor(LOOK_CONSTRUCTION_SITES)[0].id
@@ -52,7 +48,7 @@ function buildNear (position, structure = STRUCTURE_EXTENSION) {
 module.exports.run = function (node, lineage = [], baseManifest) {
   try {
     if (node.threat) { return } // threat nodes are skipped
-    const maxExtensions = 4 // here
+    const maxExtensions = 5 // here
     switch (node.stage) {
       default:
       case 0: // wait for room controller to be upgraded enough that we can build extensions
@@ -62,8 +58,9 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         }
         break
       case 1: // Build extensions until max reached
+
         let extensions = getChildren(node, [STRUCTURE_EXTENSION], undefined, false, 1)
-        if (extensions.length < maxExtensions) { // if no container nodes...
+        if (extensions.length <= maxExtensions) { // if no container nodes...
           let buildNodes = getChildren(
             node,
             ['build'],
@@ -80,14 +77,16 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         }
         break
       case 2: // TODO - maybe check if max extensions has changed or something here
+
         break
 
     }
 
+    const spawnEnergySrcPri = baseManifest.energy.src.length < 1 ? 1 : 0
     /**
      * Register Energy Src
      */
-    registerEnergyState(baseManifest, node.id, 0, 9)
+    //registerEnergyState(baseManifest, node.id, spawnEnergySrcPri, 9)
     /**
      * Register Energy Src
      */
@@ -96,72 +95,54 @@ module.exports.run = function (node, lineage = [], baseManifest) {
      * Spawn
      */
     let gameNode = Game.getObjectById(node.id)
-    baseManifest.spawnCapacity = gameNode.room.energyCapacityAvailable
-    if (!node.waitUntil || gameNode.room.energyAvailable >= node.waitUntil) {
-      if (!node.jobId && baseManifest?.new?.spawn?.length) {
-        let newReqId = baseManifest?.new?.spawn.find(spawnReqId =>
-          getReqCost(baseManifest.requests[spawnReqId]) <= gameNode.room.energyCapacityAvailable)
-        if (newReqId) {
-          let assigned = assignReq(baseManifest, newReqId, node.id)
-          if (assigned) {
-            node.jobId = assigned
+    baseManifest.spawnCapacity = Object.keys(Memory.creeps)?.length < 5 ? 300 : gameNode.room.energyCapacityAvailable
+    if (node.waitUntilCost > baseManifest.spawnCapacity) {
+      delete node.waitUntilCost
+      delete node.waitUntilTime
+    }
+    if (
+      (!node.waitUntilCost || gameNode.room.energyAvailable >= node.waitUntilCost) &&
+      (!node.waitUntilTime || node.waitUntilTime <= Game.time)
+    ) {
+
+      if (baseManifest?.spawn?.length) {
+        const spawnReqNodeId = baseManifest.spawn[0]
+        if (!Memory.nodes[spawnReqNodeId]) {
+          completeSpawnReq(baseManifest, spawnReqNodeId)
+          delete node.waitUntilCost
+          delete node.waitUntilTime
+          return
+        }
+        const spawnReq = spawnForNode(spawnReqNodeId, baseManifest.spawnCapacity)
+        if (spawnReq) {
+          let res = gameNode.spawnCreep(spawnReq.body, spawnReq.name, {memory: spawnReq.memory})
+          switch (res) {
+            case OK:
+              addCreepToNode(spawnReq.memory.nodeId, spawnReq.memory.role, spawnReq.name)
+              completeSpawnReq(baseManifest, spawnReqNodeId)
+              delete node.waitUntilCost
+              delete node.waitUntilTime
+              break
+            case ERR_BUSY:
+              node.waitUntilTime = Game.time + 5
+              delete node.waitUntilCost
+              break
+            case ERR_INVALID_ARGS:
+              log({spawnReq})
+              console.log('Error: invalid spawn req', spawnReq.name)
+              completeSpawnReq(spawnReqNodeId)
+              delete node.waitUntilCost
+              delete node.waitUntilTime
+              break
+            case ERR_NOT_ENOUGH_RESOURCES:
+              node.waitUntilCost = spawnReq.cost
+              delete node.waitUntilTime
+              break
+            default:
+              console.log('Error: unhandled spawn res:', res)
+              break
           }
         }
-      }
-      if (node.jobId && baseManifest.requests[node.jobId]) {
-        let priorityReq = baseManifest.requests[node.jobId]
-        if (priorityReq.status === 'complete') {
-          delete node.jobId
-        } else {
-          const nodeId = priorityReq.opts.node || priorityReq.requestor
-          if (Memory.nodes[nodeId]) {
-            const role = priorityReq.opts.role
-            const name = getUniqueName(priorityReq.opts.role)
-
-            const mem = {
-              memory: {
-                base: getNodeBase(nodeId)?.id,
-                actions: [],
-                role: role ,
-                nodeId: nodeId,
-                ...priorityReq.opts.mem
-              }
-            }
-
-            let res = gameNode.spawnCreep(deserializeBody(priorityReq.opts.plan), name, mem)
-            switch (res) {
-              case OK:
-                completeReq(baseManifest, priorityReq.id) // add creep to node owner:
-                addCreepToNode(nodeId, role, name)
-                deleteReq(baseManifest, priorityReq.id)
-                delete node.jobId
-                delete node.waitUntil
-                return true
-              case ERR_BUSY:
-                return false
-              case ERR_INVALID_ARGS:
-                completeReq(baseManifest, priorityReq.id) // add creep to node owner:
-                deleteReq(baseManifest, priorityReq.id)
-                node.waitUntil = priorityReq.cost
-                return false
-              case ERR_NOT_ENOUGH_RESOURCES:
-                node.waitUntil = priorityReq.cost
-                return false
-              default:
-                console.log('Error: unhandled spawn res:', res)
-                return false
-            }
-
-          } else {
-            completeReq(baseManifest, priorityReq.id) // add creep to node owner:
-            //addCreepToNode(nodeId, role, name)
-            deleteReq(baseManifest, priorityReq.id)
-            delete node.jobId
-            return true
-          }
-
-        }
-
       }
     }
     /**

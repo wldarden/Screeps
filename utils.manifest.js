@@ -86,7 +86,10 @@ function deregisterEnergy(manifest, reqId, type = 'dest') {
     manifest.energy[type] = manifest.energy[type].filter(oldReq => oldReq.id !== reqId)
 }
 module.exports.deregisterEnergy = deregisterEnergy
-function registerEnergy (manifest, req, type = 'dest', perCreepPriCost = .2) {
+function registerEnergy (manifest, req, type = 'dest', perCreepPriCost = .2, priOverRide) {
+  //if (req.id === 'caca270ca817c261221c3b9f') {
+  //  console.log('req for spawn', req.pri, req.origPri, priOverRide)
+  //}
   if (!manifest.energy) { manifest.energy = {} }
   if (!manifest.energy[type]) { manifest.energy[type] = [] }
   let prevIndex = manifest.energy[type].findIndex(oldReq => oldReq.id === req.id)
@@ -96,7 +99,7 @@ function registerEnergy (manifest, req, type = 'dest', perCreepPriCost = .2) {
   }
   req.creeps = req?.creeps || {}
   req.cpc = req?.cpc || perCreepPriCost
-  req.origPri = req?.origPri  || req?.pri
+  req.origPri = priOverRide || req?.origPri  || req?.pri
 
 
   req.reserved = 0
@@ -105,6 +108,9 @@ function registerEnergy (manifest, req, type = 'dest', perCreepPriCost = .2) {
       req.reserved = req.reserved + req.creeps[c]
   })
   req.pri = Math.max(req.origPri - (req.cpc * creepIds.length), 0)
+  //if (req.id === 'caca270ca817c261221c3b9f') {
+  //  console.log('req for spawn', req.pri, 'orig', req.origPri, 'res', req.reserved, 'over',priOverRide,'cpc', req.cpc, 'crepids',creepIds.length, Math.max(req.origPri - (req.cpc * creepIds.length), 0))
+  //}
   let priIndex = manifest.energy[type].findIndex(oldReq => oldReq.pri < req.pri)
   if (priIndex === -1) {
       manifest.energy[type].push(req)
@@ -141,99 +147,6 @@ function getReqById (manifestSection, id) {
     return manifestSection.find(req => req.id === id)
 }
 module.exports.getReqById = getReqById
-function moveReq (manifestSection, oldType, reqId, newType) {
-    let prevIndex = manifestSection[oldType].findIndex(oldReq => oldReq.id === reqId)
-    let req
-    if (prevIndex !== -1) {
-        req = manifestSection[oldType][prevIndex]
-        req.type = newType
-        manifestSection[oldType].splice(prevIndex, 1)
-        manifestSection[newType] = manifestSection[newType].filter(req => req.id !== req.id)
-    }
-}
-module.exports.moveReq = moveReq
-
-
-// module.exports.registerEnergy = registerEnergy
-// function requestCreep (requestor, role, plan) {
-//     const newRequest = {
-//         pri: 1,
-//         requestor: requestor,
-//         assignee: [],
-//         status: 'new',
-//         role: role,
-//         plan: plan || 'C2W1M2'
-//     }
-//
-// }
-
-function hasBuildRequest (manifest, nodeId, params = {}) {
-    return manifest.req.build.some(r => {
-        return r.node === nodeId && Object.keys(params).every(key => (r[key] && r[key] === params[key])) // params key is in req base and matches
-    })
-}
-module.exports.hasBuildRequest = hasBuildRequest
-
-
-function hasSpawnRequest (manifest, nodeId, params = {}) {
-    return manifest.req.spawn.some(r => {
-        return r.mem.node === nodeId && Object.keys(params).every(key => (
-          (
-            r.mem[key] && r.mem[key] === params[key]) || // params key is in req mem and matches
-            r[key] && r[key] === params[key] // params key is in req base and matches
-          )
-        )
-    })
-}
-module.exports.hasSpawnRequest = hasSpawnRequest
-
-function addRequest (manifest, request, status = 'new') {
-    // const EXAMPLE_SPAWN_REQUEST = {
-    //     pri: 1,
-    //     requestor: srcId,
-    //     assignee: null,
-    //     status: 'new',
-    //     type: 'spawn',
-    //     role: 'miner',
-    //     plan: 'C2W1M2'
-    // }
-
-    if (!request.id) {
-        let i = 0
-        while(manifest.requests[`${request.type}-${request.requestor}-${i}`]) {
-            i++
-        }
-        request.id = `${request.type}-${request.requestor}-${i}`
-    }
-
-
-    manifest.requests[request.id] = request
-    // manifest.requests[`${type}-${request.requestor}`] = request
-    if (!manifest[status]) {
-        manifest[status] = {}
-    }
-    if (!manifest[status][request.type]) {
-        manifest[status][request.type] = []
-    }
-    // manifest.new[request.type] = manifest.new[request.type].filter(id => id !== request.id)
-    // manifest.pending[request.type] = manifest.pending[request.type].filter(id => id !== request.id)
-    manifest[status][request.type] = manifest[status][request.type].filter(id => id !== request.id)
-    let priIndex = manifest[status][request.type].findIndex(oldReqId => {
-        return manifest.requests[oldReqId].pri < request.pri
-    })
-    if (priIndex === -1) {
-        manifest[status][request.type].push(request.id)
-    } else {
-        manifest[status][request.type].splice(priIndex, 0, request.id)
-    }
-    // let requestorNode = Memory.nodes[request.requestor]
-    // if (!requestorNode.reqs) { requestorNode.reqs = [] }
-    // if (!requestorNode.some(reqId => reqId === request.id)) {
-    //     requestorNode.reqs.push(request.id)
-    // }
-    return request.id
-}
-module.exports.addRequest = addRequest
 
 function getReqCost (req) {
     switch (req.type) {
@@ -250,115 +163,20 @@ function getReqCost (req) {
 }
 module.exports.getReqCost = getReqCost
 
-
-
-function requestBuilder (manifest, baseName, nodeId, planObj, memory, priority) {
-    const plan = planObj || {W: 2, C: 1, M: 1}
-    const mem = memory || {
-        base: baseName,
-        node: nodeId,
-        role: 'build'
-    }
-    const pri = priority || 1 // this should be some function of build length, income balance, and saturations
-    addSpawnRequest(manifest, {plan, mem, pri})
+function deleteNodeReqs (manifest, nodeId, type = 'spawn') {
+  if (manifest[type]) {
+    manifest[type] = manifest[type].filter(nId => nId !== nodeId)
+    Memory.nodes[nodeId].spawnReqCount = 0
+  }
 }
-module.exports.requestBuilder = requestBuilder
+module.exports.deleteNodeReqs = deleteNodeReqs
 
-const DEFAULT_BODY_PLAN = {W: 1, C: 2, M: 2}
-function addSpawnRequest (manifest, request) {
-    // const newRequest = {
-    //     pri: 1,
-    //     requestor: srcId,
-    //     assignee: null,
-    //     status: 'new',
-    //     role: 'miner',
-    //     plan: 'C2W1M2'
-    // }
-    return addRequest(manifest, request)
+function completeSpawnReq (baseManifest, nodeId) {
+  let node = Memory.nodes[nodeId]
+  if (node) {
+    node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount - 1 : 0 // decrement the spawnReqCount of the requester node
+  }
+  baseManifest.spawn.shift()
 }
-module.exports.addSpawnRequest = addSpawnRequest
+module.exports.completeSpawnReq = completeSpawnReq
 
-function deleteReq (manifest, requestId) {
-    let request = manifest.requests[requestId]
-    if (manifest && manifest[request.status] && manifest[request.status][request.type]) {
-        manifest[request.status][request.type] = manifest[request.status][request.type].filter(id => id !== request.id)
-    }
-    switch (request.type) {
-        case 'build':
-        case 'spawn':
-            if (Memory.nodes[request.requestor] && Memory.nodes[request.requestor].reqs) {
-                Memory.nodes[request.requestor].reqs = Memory.nodes[request.requestor].reqs.filter(id => id !== request.id)
-            }
-
-    }
-    if (manifest.requests[request.id]) {
-        delete manifest.requests[request.id]
-    }
-}
-module.exports.deleteReq = deleteReq
-
-function addBuildRequest (manifest, request) {
-    // request = {
-    //     node: '',
-    //     structureType: STRUCTURE_CONTAINER,
-    //     pri: 1
-    // }
-    return addRequest(manifest, request)
-}
-module.exports.addBuildRequest = addBuildRequest
-
-function assignReq (manifest, reqId, nodeId) {
-    // if (reqIndex < 0 || !type || !nodeId || !manifest) {
-    //     console.log('Error: assigning req', reqIndex, type, nodeId)
-    //     log(manifest, ['ERROR_REQUEST'])
-    // }
-    let req = manifest.requests[reqId] // get req
-    // if (req.assignee) {
-    //     console.log('Error: already assigned!', reqId, nodeId)
-    //     return false
-    // }
-    manifest.new[req.type] = manifest.new[req.type].filter(id => id !== reqId) // remove from new queue if it exists
-    if (req.assignee) {
-        req.assignee.push(nodeId)
-    } else {
-        req.assignee = [nodeId]
-    }
-    req.status = 'pending'
-    return addRequest(manifest, req, 'pending')
-}
-module.exports.assignReq = assignReq
-
-function completeReq (manifest, reqId, deleteReq = false) {
-    // if (reqIndex < 0 || !type || !nodeId || !manifest) {
-    //     console.log('Error: assigning req', reqIndex, type, nodeId)
-    //     log(manifest, ['ERROR_REQUEST'])
-    // }
-    let req = manifest.requests[reqId] // get req
-    manifest.pending[req.type] = manifest.pending[req.type].filter(id => id !== reqId) // remove from new queue if it exists
-    manifest.new[req.type] = manifest.new[req.type].filter(id => id !== reqId)
-    switch (req.type) {
-        case 'build':
-        case 'spawn':
-            if (Memory.nodes[req.requestor] && Memory.nodes[req.requestor].reqs) {
-                Memory.nodes[req.requestor].reqs = Memory.nodes[req.requestor].reqs.filter(id => id !== req.id)
-            }
-            break
-    }
-    // let req = manifest.new[type].splice(reqIndex, 1)
-    req.status = 'done'
-    if (deleteReq) {
-        return true
-    } else {
-        return addRequest(manifest, req, 'done')
-    }
-}
-module.exports.completeReq = completeReq
-
-// function getMyAssingedRequests (manifest, nodeId, type = 'all') {
-//     let res = []
-//     Object.keys(manifest.pending).forEach(t => {
-//         res = res.concat(manifest.pending[t].filter(req => req.assignee === nodeId))
-//     })
-//     return res
-// }
-// module.exports.getMyAssingedRequests = getMyAssingedRequests

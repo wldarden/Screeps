@@ -238,7 +238,6 @@ module.exports.run = function (creep, manifest) {
     //  let logNode = Memory.nodes[creep.memory.nodeId]
     //  let logParent = Memory.nodes[logNode.parent]
     //  let criticalNodes = getChildren(logParent, ['spawn', STRUCTURE_EXTENSION], (node) => {
-    //    console.log(node.id,'withdraw from :', creep.memory.withdrawTrg)
     //    return node.id !== creep.memory.withdrawTrg
     //  },true)
     //  let trg

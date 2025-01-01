@@ -39,7 +39,6 @@ module.exports.run = function (node, lineage = [], baseManifest) {
       //      pri: PRIORITY.BUILD + ((frac * 2) - 1), // modifier is +/-1 based on progress
       //      action: 'build'
       //    }
-      //    registerEnergy(baseManifest, energyReq, 'dest')
       //  } else {
       //    let strId = findStrAtPos(node.pos, strType)
       //    if (strId) {
@@ -50,7 +49,6 @@ module.exports.run = function (node, lineage = [], baseManifest) {
       //  }
       //  return
       //case 3:
-      //  registerEnergyState(baseManifest, node.id, 0, 7)
       //  return
     }
     runChildren(node, lineage, baseManifest)

@@ -6,6 +6,7 @@ const {DONE, ACTIONS} = require('./actions')
 const {getNodeRunner, getNodePos, getNodeBase, addCreepToNode, removeCreepFromNode} = require('./utils.nodes')
 const {runBase} = require('./node.base')
 const {log} = require('./utils.debug')
+const {destroyCreep} = require('./utils.creep')
 
 // const baseRunners = [
 //   {runner: require('base.creep'), name: 'Creeps', ticks: 1, offset: 0}, // do first so spawns have a chance
@@ -47,19 +48,16 @@ function initMemory () {
   Memory.bases = []
   Memory.nodes = {}
   Memory.manifests = {}
+  Memory.workers = {}
 }
-// const PAUSE = true
 module.exports.loop = function () {
   try {
-    // if (PAUSE) {
-    //   return
-    // }
+
     if (!Memory.nodes) {
       initMemory()
     }
 
     gatherGlobal()
-    // let manifest = Memory.manifest
 
     for (let baseIndex = 0; baseIndex < Memory.bases?.length; baseIndex++) {
       let baseId = Memory.bases[baseIndex]
@@ -70,44 +68,19 @@ module.exports.loop = function () {
         // dead base. destroy
       }
     }
-    // log({energyManifest})
-    //if (Memory.once === 1) {
-    //  const srcNode = Memory.nodes['92bd78551e28957c0a01a6c8']
-    //  const containerId = 'fa0cb79c811985bf4713ae2f'
-    //  addNodeToParent(srcNode, containerId)
-    //  Memory.once++
-    //}
 
     for (let name in Memory.creeps) {
       let creep = Game.creeps[name]
       if (creep) {
         runCreep(creep)
       } else {
-        let creepMem = Memory.creeps[name]
-        let manifest = Memory.manifests[creepMem.base]
-        if (creepMem.actions?.length) {
-          creepMem.actions.forEach(a => ACTIONS[a].finish({memory: {...creepMem}, name: name}, manifest))
-        }
-        removeCreepFromNode(creepMem.nodeId, creepMem.role, name)
-        delete Memory.creeps[name]
+        destroyCreep(name)
       }
     }
     // Memory.manifest = manifest
   } catch (e) {
     console.log('Global Uncaught Error: ', e.stack)
   }
-
-
-  // for(var name in Game.creeps)
-  //   runCreep(Game.creeps[name]);
-
-
-}
-
-function getSpawnPath (base, pos) {
-  let spawn = Game.getObjectById(base.structures[STRUCTURE_SPAWN][0])
-  let path = pos.findPathTo(spawn, {ignoreCreeps: true})
-  return path
 }
 
 function initBaseFromSpawn (spawn) {
@@ -141,10 +114,9 @@ function initBaseFromSpawn (spawn) {
   })
 
   Memory.manifests[base.id] = {
-    requests: {},
-    new: {spawn: []}, pending: {spawn: []}, done: {spawn: []},
     finance: {income: {}, cost: {}, total: {income: 0, cost: 0, balance: 0, reserved: 0}},
     energy: {dest: [], src: []},
+    spawn: [],
     free: {creeps: []}
   }
   Memory.bases.push(base.id)
@@ -207,29 +179,26 @@ function runCreep (creep) {
       }
       let manifest = Memory.manifests[creep.memory.base]
       if (creep.hits < creep.hitsMax) { // creep was attacked!
-        let src = creep.memory.Hsrc
+        let src = creep.memory.nodeId
         let currThreat = Memory.nodes[src].threat
         if (src && creep.memory?.actions?.length && creep.memory?.actions[0] !== 'recycle') {
           Memory.nodes[src].threat = currThreat ? currThreat + 1 : 1
           ACTIONS.recycle.start(creep)
         }
       }
-      //const actionToDelete = 'fill'
-      //if (creep.memory?.actions?.length && creep.memory?.actions[0] === actionToDelete) {
-      //ACTIONS[creep.memory?.actions[0]].finish(creep)
-      //}
 
       if (creep.memory?.actions?.length) { // if the creep has an action in their tmp action array, do it.
         let action = creep.memory?.actions[0]
         if (ACTIONS[action]) {
           switch(ACTIONS[action].do(creep, manifest)) {
             case DONE:
-              ACTIONS[action].finish(creep, manifest) // once this tmp action is done, finish it.
+              ACTIONS.global.finish(creep, manifest, action) // once this tmp action is done, finish it.
               return
             default:
               return
           }
         } else {
+
           actionRunners[action].runner.run(creep, manifest)
         }
       } else if (creep.memory.role) { // creeps that have completed all temporary actions return to their role

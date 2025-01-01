@@ -1,88 +1,29 @@
 const {serializePos, serializeBody} = require('./utils.memory')
-const {getTypeCreeps, getNodeReqs} = require('./utils.nodes')
-const {addSpawnRequest} = require('./utils.manifest')
+const {getTypeCreeps, getNodeReqs, removeCreepFromNode} = require('./utils.nodes')
+const {ACTIONS} = require('./actions')
 
-function buildRoleCreep (node, role, maxCost = 300) {
-  let body = []
-  let addOns = []
-  let addOnCount = 0
-  let baseCost = 0
-  let addOnCost = 0
-  switch (role) {
-    case 'miner':
-      if (node.type === 'src' && node.stage >= 3) {
-        body = [WORK,WORK,CARRY,MOVE]
-        addOns = [CARRY, MOVE]
-        baseCost = 300
-        addOnCost = 100
-        addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
-      } else {
-        body = [CARRY, WORK, MOVE, CARRY, MOVE]
-        addOns = [CARRY, MOVE]
-        baseCost = 300
-        addOnCost = 100
-        addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
-      }
-      break
-    case 'maint':
-      body = [CARRY, WORK, MOVE]
-      addOns = [CARRY, MOVE, WORK]
-      baseCost = 200
-      addOnCost = 200
-      addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
-      break
-    case 'supplier':
-      body = [CARRY, CARRY, CARRY, MOVE, MOVE, MOVE]
-      addOns = [CARRY, MOVE]
-      baseCost = 300
-      addOnCost = 100
-      addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
-      break
-    case 'builder':
-      body = [WORK, WORK, CARRY, MOVE]
-      addOns = [CARRY, MOVE]
-      baseCost = 300
-      addOnCost = 100
-      addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
-      break
-    case 'upgrader':
-      body = [CARRY, WORK, MOVE]
-      addOns = [CARRY, WORK, MOVE]
-      baseCost = 200
-      addOnCost = 200
-      addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
-      break
-    default:
-      body = [CARRY, WORK, MOVE, CARRY, MOVE]
-      addOns = [CARRY, MOVE]
-      baseCost = 300
-      addOnCost = 100
-      addOnCount = Math.floor((maxCost - baseCost) / 100)
-      break
-  }
-  if (maxCost > 300) {
-    for (let i = 0; i < addOnCount; i++) {
-      body = body.concat(addOns)
-    }
-  }
-  const cost = baseCost + (addOnCount * addOnCost)
-  return {body, cost}
-}
-module.exports.buildRoleCreep = buildRoleCreep
 function maintainRoleCreepsForNode (baseManifest, node, role, desired, minPri, maxPri, memOpts = {}) {
+  if (!baseManifest.spawn) { baseManifest.spawn = [] }
   let existingTypeCreeps = getTypeCreeps(node, role)
-  const currentSaturation = existingTypeCreeps.length / desired
-  const plannedSaturation = (getNodeReqs(node).length + existingTypeCreeps.length) / desired
-  if (plannedSaturation < 1) {
-    const priGap = maxPri - minPri
-    const pri = minPri + ((1 - currentSaturation) * priGap)
-    const {body, cost} = buildRoleCreep(node, role, baseManifest.spawnCapacity)
-    const newRequest = {
-      pri: pri, requestor: node.id, assignee: [], status: 'new', type: 'spawn', cost: cost,
-      opts: {role: role, plan: serializeBody(body), ...memOpts}
-    }
-    node.reqs.push(addSpawnRequest(baseManifest, newRequest))
+  let spawnCount = node.spawnReqCount ? node.spawnReqCount : 0
+  if ((existingTypeCreeps.length + spawnCount) < desired) {
+    baseManifest.spawn.push(node.id)
+    node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount + 1 : 1
+    return true
   }
+
+  //let existingTypeCreeps = getTypeCreeps(node, role)
+  //const currentSaturation = existingTypeCreeps.length / desired
+  //const plannedSaturation = (getNodeReqs(node).length + existingTypeCreeps.length) / desired
+  //if (plannedSaturation < 1) {
+  //  const priGap = maxPri - minPri
+  //  const pri = minPri + ((1 - currentSaturation) * priGap)
+  //  const {body, cost} = buildRoleCreep(node, role, baseManifest.spawnCapacity)
+  //  const newRequest = {
+  //    pri: pri, requestor: node.id, assignee: [], status: 'new', type: 'spawn', cost: cost,
+  //    opts: {role: role, plan: serializeBody(body), ...memOpts}
+  //  }
+  //}
 }
 module.exports.maintainRoleCreepsForNode = maintainRoleCreepsForNode
 
@@ -95,28 +36,19 @@ function ticksPerSpace (plan, partCounts) {
 }
 module.exports.ticksPerSpace = ticksPerSpace
 
-module.exports.onDestroyCommon = function(name) {
-  // clear from source lists
-  // remove from roles
-  // release jobs
+module.exports.destroyCreep = function(name) {
   let creepMemory = Memory.creeps[name]
-  // if (creepMemory.job) {
-  //     releaseJob(creepMemory.job)
-  // }
-  // let base = Game.bases[creepMemory.base]
-  // if (base) {
-  //     if (creepMemory.srcTrg) { // remove srcTrg claim
-  //         base.sources.some(s => {
-  //             if (s.id === creepMemory.srcTrg) {
-  //                 s.active = s.active.filter(id => id !== creepMemory.name)
-  //                 return true
-  //             }
-  //         })
-  //     }
-  //     let roleObj = base.roles[creepMemory.role]
-  //     roleObj.creeps = base.roles[creepMemory.role].creeps.filter(cId => cId !== creepMemory.name) // remove from role list
-  //     creepMemory.parts.forEach(part => {roleObj[part]--}) // remove part counts
-  // }
+  if (!creepMemory) {
+    let manifest = Memory.manifests[creepMemory.base]
+    if (creepMemory.actions?.length) {
+      const actions = creepMemory.actions
+      actions.forEach(action => {
+        ACTIONS.global.finish({memory: creepMemory, name: name}, manifest, action)
+      })
+    }
+    removeCreepFromNode(creepMemory.nodeId, creepMemory.role, name)
+  }
+  delete Memory.creeps[name]
 }
 
 module.exports.getCreepBaseId = function (creep) {

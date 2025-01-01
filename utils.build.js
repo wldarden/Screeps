@@ -1,15 +1,6 @@
-const {deserializePos, createExtensionNode, addNodeToParent} = require('./utils.memory')
-const {addRequest, registerReq, moveReq, getReqById} = require('./utils.manifest')
-const {log} = require('./utils.debug')
+const {deserializePos} = require('./utils.memory')
+const {registerReq, getReqById} = require('./utils.manifest')
 
-// const newReq = {
-//     pri: 5, requestor: base.name, assignee: [], status: 'new', type: 'build',
-//     opts: {
-//         structureType: STRUCTURE_CONTAINER,
-//         pos: serializePos({x: location.x, y: location.y, roomName}),
-//         createNode: STRUCTURE_CONTAINER
-//     }
-// }
 function moveNodeSites (baseManifest, reqIds) {
     let res
     reqIds.forEach(reqId => {
@@ -17,7 +8,6 @@ function moveNodeSites (baseManifest, reqIds) {
         console.log('new req logggg', req?.id)
         if (req.status === 'new') {
             createSiteFromRequest(baseManifest, req)
-            moveReq(baseManifest.build, 'new', req.id, 'pending')
         } else {
             let pendingReq = getReqById(baseManifest.build.pending, reqId)
             if (pendingReq?.opts?.siteId) {
@@ -45,7 +35,6 @@ function createSiteFromRequest (manifest, request, position) {
         manifest.build = {}
     }
     if (res === 0) {
-        moveReq(manifest.build, 'new', request.id, 'pending')
         return registerReq(manifest.build, request)
     } else {
         request.type = 'new'

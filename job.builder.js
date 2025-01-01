@@ -24,48 +24,38 @@ const {ACTIONS, DONE} = require('./actions')
 const {energy} = require('./utils.manifest')
 const {addCreepToNode} = require('./utils.nodes')
 
-function finishBuild (creep) {
-    delete creep.memory.site
-}
 module.exports.run = function (creep, manifest) {
-    try {
-
-        const energyNeeded = creep.store.getFreeCapacity()
-        if (energyNeeded > 0) {
-            let energyReq = energy.getSrc(manifest, creep, energyNeeded)
-            if (energyReq) {
-                let target = Game.getObjectById(energyReq.id)
-                ACTIONS.withdraw.start(creep, target.id)
-            }
-        } else {
-            let buildSite = Game.getObjectById(creep.memory.nodeId)
-            if (buildSite) {
-                ACTIONS.build.start(creep, creep.memory.nodeId)
-            } else {
-                let newReq = energy.getDest(manifest, creep, null, (req) => req.action === 'build' && (!req.creeps || Object.keys(req.creeps).length < 2))
-                console.log('builder newReq', newReq.id)
-                if (newReq) {
-                    addCreepToNode(newReq.id, 'builder', creep.name)
-                } else {
-                    ACTIONS.recycle.start(creep)
-                    let req = energy.getDest(manifest, creep)
-                    if (req?.id) {
-                        switch (req.action) {
-                            case 'build':
-                                ACTIONS.build.start(creep, req.id)
-                                return
-                            case 'transfer':
-                            default:
-                                ACTIONS.transfer.start(creep, req.id)
-                                return
-                        }
-                    }
-                }
-            }
-        }
-
-    } catch (e) {
-        console.log('Error: couldnt run build job', e.stack)
+  try {
+    if (manifest.spawn.length > 0 && manifest.roomEnergyFrac < .8) {
+      return
     }
+    const energyNeeded = creep.store.getFreeCapacity()
+    if (energyNeeded > 0) {
+      let target = creep.pos.findClosestByPath(FIND_MY_SPAWNS, {maxOps: 500,  ignoreCreeps: true,
+        filter: function(node) {
+          return node.store && node.store.getFreeCapacity(RESOURCE_ENERGY) < 5
+        }});
+      if (target) {
+        ACTIONS.withdraw.start(creep, target.id)
+        return
+      }
+
+    } else {
+      let buildSite = Game.getObjectById(creep.memory.nodeId)
+      if (buildSite && buildSite.progressTotal) {
+        ACTIONS.build.start(creep, creep.memory.nodeId)
+      } else {
+        let target = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {maxOps: 500});
+        if (target) {
+          ACTIONS.build.start(creep, target.id)
+          addCreepToNode(target.id, creep.memory.role, creep.name)
+          return
+        }
+      }
+    }
+
+  } catch (e) {
+    console.log('Error: couldnt run build job', e.stack)
+  }
 }
 

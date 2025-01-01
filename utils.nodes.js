@@ -19,9 +19,11 @@ function getNodeRunner (nodeType) {
       return {runner: require('node.container')}
     case STRUCTURE_EXTENSION:
       return {runner: require('node.extension')}
+    case 'maint':
+      return {runner: require('node.maintenance')}
     default:
       console.log('ERROR: No Node Runner for type: ', nodeType)
-      return {runner: (...args) => {console.log('Null Node Runner')}}
+      return {runner: {run: (...args) => {console.log('Null Node Runner', JSON.stringify(args))}}}
   }
 }
 module.exports.getNodeRunner = getNodeRunner
@@ -225,7 +227,7 @@ function registerEnergyState (baseManifest, id, srcPriority = 0, destPriority = 
       pri: frac * srcPriority,
       action: 'withdraw'
     }
-    registerEnergy(baseManifest, energyReq, 'src')
+    registerEnergy(baseManifest, energyReq, 'src', 0, 9)
   } else {
     deregisterEnergy(baseManifest, id, 'src')
   }
@@ -234,13 +236,33 @@ function registerEnergyState (baseManifest, id, srcPriority = 0, destPriority = 
   if (capacity > energy  && destPriority > 0) {
     let pri = destPriority + (((1 - frac) * 2) - 1)
     let node = Memory.nodes[id]
-    const energyReq = {
-      id: gameNode.id,
-      amount: (capacity - energy),
-      pri: pri,
-      action: 'transfer'
+    let energyReq
+    switch (node.type) {
+      case 'spawn':
+        //console.log('spawn cap and e', capacity, energy, pri)
+        energyReq = {
+          id: gameNode.id,
+          amount: (capacity - energy),
+          pri: 9,
+          action: 'transfer'
+        }
+        registerEnergy(baseManifest, energyReq, 'dest')
+        break
+      default:
+        if (node.type === 'spawn') {
+          pri = 9
+        }
+        energyReq = {
+          id: gameNode.id,
+          amount: (capacity - energy),
+          pri: pri,
+          action: 'transfer'
+        }
+        registerEnergy(baseManifest, energyReq, 'dest')
+        break
     }
-    registerEnergy(baseManifest, energyReq, 'dest')
+
+
   } else {
     deregisterEnergy(baseManifest, id, 'dest')
   }
@@ -334,13 +356,15 @@ function runChildren (node, lineage, baseManifest) {
     //  }
     //})
     //node.children[nodeType] = uniqueChildren
-    node.children[nodeType].forEach(nodeId => {
-      try {
-        nodeRunnerDef.runner.run(Memory.nodes[nodeId], childLineage, baseManifest)
-      } catch (e) {
-        console.log('Error: failed to run Node children:', e.stack, node.type, node.id, 'child: ', nodeId, Memory.nodes[nodeId] && Memory.nodes[nodeId].type)
-      }
-    })
+    if (nodeRunnerDef) {
+      node.children[nodeType].forEach(nodeId => {
+        try {
+          nodeRunnerDef.runner.run(Memory.nodes[nodeId], childLineage, baseManifest)
+        } catch (e) {
+          console.log('Error: failed to run Node children:', e.stack, node.type, node.id, 'child: ', nodeId, Memory.nodes[nodeId] && Memory.nodes[nodeId].type)
+        }
+      })
+    }
   }
 
 }
@@ -364,44 +388,47 @@ module.exports.getNodeBase = getNodeBase
 
 function removeCreepFromNode (nodeId, role, creepName) {
   let creepMem = Memory.creeps[creepName]
+  if (nodeId !== creepMem?.nodeId) {
+    console.log('Error: removing creep from node it wasnt a part of', nodeId, creepMem?.nodeId)
+  }
   if (creepMem) {
     delete creepMem.nodeId
   }
-  if (!Memory.nodes[nodeId].creeps || !Memory.nodes[nodeId].creeps[role]) {
-    return // node had no children. no need to delte creep from node
-  }
-  let seen = []
-  Memory.nodes[nodeId].creeps[role].filter(cId => {
-    const isGood = cId !== creepName
-    if (isGood && !seen.includes(cId)) {
-      seen.push(cId)
+  if (
+    Memory.nodes[nodeId] && // and the prev node exists
+    Memory.nodes[nodeId].creeps
+  ) {
+    if (!role) {
+      Object.keys(Memory.nodes[nodeId].creeps).forEach(r => {
+        Memory.nodes[nodeId].creeps[r] = Memory.nodes[nodeId].creeps[r].filter(cId => cId !== creepName) // remove creep from old node and role
+      })
+    } else if (Memory.nodes[nodeId].creeps[role]) {
+      Memory.nodes[nodeId].creeps[role] = Memory.nodes[nodeId].creeps[role].filter(cId => cId !== creepName) // remove creep from old node and role
     }
-    return isGood
-  })
-  Memory.nodes[nodeId].creeps[role] = seen
+  }
 }
 module.exports.removeCreepFromNode = removeCreepFromNode
 
 function addCreepToNode (nodeId, role, creepName) {
   let creep = Game.creeps[creepName]
-  if (!creep) {
-    console.log('Error: creep doesnt exist: ', creepName)
-  } else {
-    if (creep.memory.nodeId !== nodeId && Memory.nodes[creep.memory.nodeId] && Memory.nodes[creep.memory.nodeId].creeps[creep.memory.role || role]) { // might have already had a node, this could be a transfer
-      Memory.nodes[creep.memory.nodeId].creeps[creep.memory.role || role] = Memory.nodes[creep.memory.nodeId].creeps[creep.memory.role || role].filter(cId => {
-        return cId !== creepName
-      })
+  if (creep) {
+    if (
+
+      creep.memory.nodeId && creep.memory.role &&
+      (creep.memory.nodeId !== nodeId || (role && creep.memory.role !== role))
+    ) {
+      removeCreepFromNode(creep.memory.nodeId, creep.memory.role, creep.name)
     }
-  }
-  creep.memory.nodeId = nodeId
-  creep.memory.role = role
-  if (!Memory.nodes[nodeId].creeps) { Memory.nodes[nodeId].creeps = {} }
-  if (!Memory.nodes[nodeId].creeps[role]) { Memory.nodes[nodeId].creeps[role] = [] }
-  if (creep?.memory?.nodeId && creep?.memory?.nodeId !== nodeId) {
-    // remove creep from node
-    // removeCreepFromNode(nodeId, role, creepName)
+    if (!role && creep.memory.role) {
+      role = creep.memory.role
+    }
+    // add to new node
+    creep.memory.nodeId = nodeId
+    creep.memory.role = role
   }
 
+  if (!Memory.nodes[nodeId].creeps) { Memory.nodes[nodeId].creeps = {} }
+  if (!Memory.nodes[nodeId].creeps[role]) { Memory.nodes[nodeId].creeps[role] = [] }
   Memory.nodes[nodeId].creeps[role].push(creepName) // add creep to new node
 }
 
