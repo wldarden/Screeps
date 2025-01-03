@@ -1,10 +1,6 @@
 
-const {runChildren, registerEnergyState} = require('./utils.nodes')
+const {runChildren} = require('./utils.nodes')
 const {log} = require('./utils.debug')
-const {deserializePos, addNodeToParent} = require('./utils.memory')
-const { registerEnergy} = require('./utils.manifest')
-const {findSiteAtPos, findStrAtPos} = require('./utils.build')
-const {PRIORITY} = require('./config')
 const {maintainRoleCreepsForNode} = require('./utils.creep')
 
 module.exports.run = function (node, lineage = [], baseManifest) {

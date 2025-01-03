@@ -89,13 +89,14 @@ function findEnergySrc (creep, destPosition, targets = defEnergySrcPri, resource
 
 const DONE = 999
 module.exports.DONE = DONE
-function globalActionStart (actionFunc, creep, trgId, ...args) {
+function globalActionStart (actionFunc, creep, trgId, action, ...args) {
   if (!creep.memory.actions) {
     creep.memory.actions = []
   }
   if (!creep.memory.targets) {
     creep.memory.targets = []
   }
+  //console.log(creep.name, 'added to', trgId, 'for', action)
   addCreepToWorkerList(trgId, creep.name)
   let res = actionFunc(creep, trgId, ...args)
   if (creep.memory.actions?.length) {
@@ -105,17 +106,22 @@ function globalActionStart (actionFunc, creep, trgId, ...args) {
   }
 }
 function addCreepToWorkerList (target, name) {
+  //console.log('add ', name, 'to', target)
   if (!Memory.workers[target]) {
     Memory.workers[target] = [name]
   } else {
-    Memory.workers[target].push(name)
+    if (!Memory.workers[target].includes(name)) {
+      Memory.workers[target].push(name)
+    }
   }
 }
 function removeCreepFromWorkerList (target, name) {
+
   if (Memory.workers[target]) {
     Memory.workers[target].filter((cId) => cId !== name) // remove from global workers list
   }
-  if (Memory.workers[target].length === 0) {
+  //console.log('remove ', name, 'from', target, Memory.workers[target].length)
+  if (Memory.workers[target] && Memory.workers[target].length === 0) {
     delete Memory.workers[target] // delete worker list if the list is now emp
   }
 }
@@ -146,37 +152,37 @@ const ACTIONS = {
   //  finish: finishFill
   //},
   repair: {
-    start: (creep, trgId, ...args) => globalActionStart(startRepair, creep, trgId, ...args),
+    start: (creep, trgId, ...args) => globalActionStart(startRepair, creep, trgId, 'repair', ...args),
     do: doRepair,
     finish: finishRepair
   },
   recycle: {
-    start: (creep, trgId, ...args) => globalActionStart(startRecycle, creep, trgId, ...args),
+    start: (creep, trgId, ...args) => globalActionStart(startRecycle, creep, trgId,'recycle', ...args),
     do: doRecylce,
     finish: finishRecycle
   },
   harvest: {
-    start: (creep, trgId, ...args) => globalActionStart(startHarvest, creep, trgId, ...args),
+    start: (creep, trgId, ...args) => globalActionStart(startHarvest, creep, trgId,'harvest', ...args),
     do: doHarvest,
     finish: finishHarvest
   },
   withdraw: {
-    start: (creep, trgId, ...args) => globalActionStart(startWithdraw, creep, trgId, ...args),
+    start: (creep, trgId, ...args) => globalActionStart(startWithdraw, creep, trgId,'withdraw', ...args),
     do: doWithdraw,
     finish: finishWithdraw
   },
   transfer: {
-    start: (creep, trgId, ...args) => globalActionStart(startTransfer, creep, trgId, ...args),
+    start: (creep, trgId, ...args) => globalActionStart(startTransfer, creep, trgId,'transfer', ...args),
     do: doTransfer,
     finish: finishTransfer
   },
   upgrade: {
-    start: (creep, trgId, ...args) => globalActionStart(startUpgrade, creep, trgId, ...args),
+    start: (creep, trgId, ...args) => globalActionStart(startUpgrade, creep, trgId,'upgrade', ...args),
     do: doUpgrade,
     finish: finishUpgrade
   },
   build: {
-    start: (creep, trgId, ...args) => globalActionStart(startBuild, creep, trgId, ...args),
+    start: (creep, trgId, ...args) => globalActionStart(startBuild, creep, trgId,'build', ...args),
     do: doBuild,
     finish: finishBuild
   }
@@ -523,7 +529,7 @@ function doTransfer (creep) {
       break
     case ERR_FULL: // dest is full. what should transfer people do?
       if (!creep.memory.wait) {
-        creep.memory.wait = Game.time + 2 // wait some random amount of time
+        creep.memory.wait = Game.time + 1 // wait some random amount of time
       } else { // we were already waiting
         if (Game.time >= creep.memory.wait) { // waited 3 ticks and still full. find drop site
           delete creep.memory.wait
@@ -639,7 +645,7 @@ function doHarvest (creep, manifest) {
       }
       break
     case ERR_NOT_IN_RANGE:
-      creep.moveTo(src, {range: 1, visualizePathStyle: {stroke: '#004400'}})
+      creep.moveTo(src, {range: 0, visualizePathStyle: {stroke: '#004400'}})
       break
     case ERR_INVALID_TARGET:
       console.log('invalid harvest target... really didnt think i would get here', creep.name, JSON.stringify(creep.memory))

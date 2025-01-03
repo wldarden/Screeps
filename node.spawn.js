@@ -1,7 +1,6 @@
-const {runChildren, addCreepToNode, getChildren, registerEnergyState} = require('./utils.nodes')
+const {runChildren, addCreepToNode, getChildren, addNodeToParent, registerEnergyState} = require('./utils.nodes')
 const {log} = require('./utils.debug')
-const {buildNode
-} = require('./utils.memory')
+const {serializePos} = require('./utils.memory')
 const {spawnForNode} = require('./utils.spawner')
 const {completeSpawnReq} = require('./utils.manifest')
 
@@ -43,12 +42,12 @@ function buildNear (position, structure = STRUCTURE_EXTENSION) {
     return searching ? false : {x: resX, y: resY, roomName: position.roomName} // (false if couldnt, pos if building)
 }
 
-
-
 module.exports.run = function (node, lineage = [], baseManifest) {
   try {
     if (node.threat) { return } // threat nodes are skipped
-    const maxExtensions = 5 // here
+
+    let gameSp = Game.getObjectById(node.id)
+    //gameSp.pos.getDirectionTo()
     switch (node.stage) {
       default:
       case 0: // wait for room controller to be upgraded enough that we can build extensions
@@ -58,26 +57,44 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         }
         break
       case 1: // Build extensions until max reached
+        let clusters = getChildren(node, ['ec'], undefined, false, 1)
 
-        let extensions = getChildren(node, [STRUCTURE_EXTENSION], undefined, false, 1)
-        if (extensions.length <= maxExtensions) { // if no container nodes...
-          let buildNodes = getChildren(
-            node,
-            ['build'],
-            (child) => child.onDoneType === STRUCTURE_EXTENSION,
-            false,
-            1)
-          if (buildNodes.length === 0) { // and no container nodes being built...
-            let gameNode = Game.getObjectById(node.id)
-            let pos = buildNear(gameNode.pos, STRUCTURE_EXTENSION)
-            buildNode(node.id, STRUCTURE_EXTENSION, pos) // build one
+        if (!clusters?.length) {
+          let gameSpawn = Game.getObjectById(node.id)
+          let extCluster = {
+            id: `spawn-ec`,
+            parent: null,
+            type: 'ec',
+            children: {},
+            creeps: {},
+            stage: 0,
+            pos: serializePos({x: gameSpawn.pos.x + 3, y: gameSpawn.pos.y, roomName: gameSpawn.pos.roomName })
           }
-        } else { // if we do have max built extensions, move to next stage
-          node.stage = 2
+          addNodeToParent(extCluster, node.id)
+          //buildNode( // BUILD EXT CLUSTER
+          //  node.id,
+          //  'ec',
+          //  {x: gameSpawn.pos.x + 3, y: gameSpawn.pos.y, roomName: gameSpawn.pos.roomName }
+          //)
         }
+        //let extensions = getChildren(node, [STRUCTURE_EXTENSION], undefined, false, 1)
+        //if (extensions.length < maxExtensions) { // if no container nodes...
+        //  let buildNodes = getChildren(
+        //    node,
+        //    ['build'],
+        //    (child) => child.onDoneType === STRUCTURE_EXTENSION,
+        //    false,
+        //    1)
+        //  if (buildNodes.length === 0) { // and no container nodes being built...
+        //    let gameNode = Game.getObjectById(node.id)
+        //    let pos = buildNear(gameNode.pos, STRUCTURE_EXTENSION)
+        //    buildNode(node.id, STRUCTURE_EXTENSION, pos) // build one
+        //  }
+        //} else { // if we do have max built extensions, move to next stage
+        //
+        //}
         break
       case 2: // TODO - maybe check if max extensions has changed or something here
-
         break
 
     }
@@ -96,6 +113,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
      */
     let gameNode = Game.getObjectById(node.id)
     baseManifest.spawnCapacity = Object.keys(Memory.creeps)?.length < 5 ? 300 : gameNode.room.energyCapacityAvailable
+    baseManifest.spawnCapacity=300
     if (node.waitUntilCost > baseManifest.spawnCapacity) {
       delete node.waitUntilCost
       delete node.waitUntilTime

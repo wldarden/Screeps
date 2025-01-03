@@ -26,18 +26,34 @@ const {addCreepToNode} = require('./utils.nodes')
 
 module.exports.run = function (creep, manifest) {
   try {
-    if (manifest.spawn.length > 0 && manifest.roomEnergyFrac < .8) {
+
+    const energyNeeded = creep.store.getFreeCapacity()
+    if (creep.store.getUsedCapacity() === 0 && manifest.spawn.length > 0 && manifest.roomEnergyFrac < .8) {
       return
     }
-    const energyNeeded = creep.store.getFreeCapacity()
     if (energyNeeded > 0) {
-      let target = creep.pos.findClosestByPath(FIND_MY_SPAWNS, {maxOps: 500,  ignoreCreeps: true,
-        filter: function(node) {
-          return node.store && node.store.getFreeCapacity(RESOURCE_ENERGY) < 5
-        }});
+      let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+        maxOps: 500, ignoreCreeps: true,
+        filter: function(gameNode) {
+          let node = Memory.nodes[gameNode?.id]
+          let res = gameNode.store && node?.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
+          return res
+        }
+      })
       if (target) {
         ACTIONS.withdraw.start(creep, target.id)
         return
+      }
+
+      if (!target) {
+        target = creep.pos.findClosestByPath(FIND_MY_SPAWNS, {maxOps: 500,  ignoreCreeps: true,
+          filter: function(node) {
+            return node.store && node.store.getFreeCapacity(RESOURCE_ENERGY) < 5
+          }});
+        if (target) {
+          ACTIONS.withdraw.start(creep, target.id)
+          return
+        }
       }
 
     } else {

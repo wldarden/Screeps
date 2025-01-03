@@ -1,11 +1,10 @@
-const {createBaseNode, createSrcNode, createSpawnNode, addNodeToParent,
+const {createBaseNode, createSrcNode, createSpawnNode,
   createControllerNode, serializePos
 } = require('./utils.memory')
 const {getSlotsAround} = require('./utils.cartographer')
 const {DONE, ACTIONS} = require('./actions')
-const {getNodeRunner, getNodePos, getNodeBase, addCreepToNode, removeCreepFromNode} = require('./utils.nodes')
+const {addNodeToParent, getNodePos, getNodeBase} = require('./utils.nodes')
 const {runBase} = require('./node.base')
-const {log} = require('./utils.debug')
 const {destroyCreep} = require('./utils.creep')
 
 // const baseRunners = [

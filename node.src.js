@@ -1,8 +1,7 @@
-const {runChildren, getTypeCreeps, getNodeReqs, getNodePos, getChildren} = require('./utils.nodes')
+const {runChildren, getTypeCreeps, getNodePos, addNodeToParent, getChildren, buildNode} = require('./utils.nodes')
 const {log} = require('./utils.debug')
 const {deleteNodeReqs} = require('./utils.manifest')
 const {creepPlanInfo, maintainRoleCreepsForNode} = require('./utils.creep')
-const {addNodeToParent, buildNode} = require('./utils.memory')
 const {PLANS} = require('./utils.plans')
 
 function maxSrcMiners (src) {
@@ -104,7 +103,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         if (parent && parent.type === 'log') {
           let pos = myContainerPos(node)
           if (pos) {
-            buildNode(node.id, STRUCTURE_CONTAINER, pos, 6)
+            buildNode(node.id, STRUCTURE_CONTAINER, pos, {subType: 'src'})
             node.stage = 2
           }
         }

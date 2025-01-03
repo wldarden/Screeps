@@ -1,4 +1,3 @@
-const {PRIORITY} = require('./config')
 
 function serializePos (pos) {
     if (typeof pos === 'string') {
@@ -117,74 +116,7 @@ function createBaseNode (id, parentId = null) {
 module.exports.createBaseNode = createBaseNode
 
 
-function addNodeToParent (node, parentId, newId, newType) {
-    if (!node || !parentId || !node.type) {
-        console.log('ERROR: Failed to add node to parent', 'parentId:', parentId, 'node:', JSON.stringify(node))
-        return
-    }
-    if (node.parent) {
-        if (node.parent === parentId && !newId) {
-            console.log('Error: adding node to parent it was already the child of: node:', node.type, node.id, 'parent:', parentId, '(but if newId, ok) newId:', newId)
-            console.log('Node parent of above: ', Memory.nodes[node.parent] && Memory.nodes[node.parent].type, node.parent )
-        }
-        removeNodeFromParent(node, node.parent)
-    }
-    if (newId) { // if we are changing the node id, that happens here after old id has been removed
-        delete Memory.nodes[node.id]
-        node.id = newId
-    }
-    if (newType) {
-      node.type = newType
-    }
-    if (!Memory.nodes[parentId].children) {
-      Memory.nodes[parentId].children = {}
-    }
-    if (!Memory.nodes[parentId].children[node.type]) {
-        Memory.nodes[parentId].children[node.type] = [node.id]
-    } else if (!Memory.nodes[parentId].children[node.type].some(cId => cId === node.id)) {
-        Memory.nodes[parentId].children[node.type].push(node.id)
-    }
-    node.parent = parentId
-    Memory.nodes[node.id] = node
-}
-module.exports.addNodeToParent = addNodeToParent
 
-// const nodeTypeMap = {
-//     log: 'log',
-//
-//     source: 'src',
-//     src: 'src',
-//
-//     [STRUCTURE_SPAWN]: 'spawn', // STRUCTURE_SPAWN is the same thing as 'spawn'
-//
-//     [STRUCTURE_CONTROLLER]: 'controller', // STRUCTURE_CONTROLLER is the same thing as 'controller'
-//     con: 'controller',
-//
-//     frt: 'fort',
-//     fort: 'fort'
-// }
-
-const VALID_NODE_TYPES = [
-  'base', 'src', 'fort', 'log',            // non STRUCTURE_* types
-  'spawn', 'controller',                       // STRUCTURE_* types
-]
-function removeNodeFromParent (node, parentId) {
-    if (!node || !parentId || !node.type) {
-        console.log('ERROR: Failed to remove node from parent', 'parentId:', parentId, 'node:', JSON.stringify(node))
-        return
-    }
-    if (!Memory.nodes[parentId].children) {
-      Memory.nodes[parentId].children = {}
-    }
-    if (!Memory.nodes[parentId].children[node.type]) {
-        Memory.nodes[parentId].children[node.type] = []
-    }
-    Memory.nodes[parentId].children[node.type] = Memory.nodes[parentId].children[node.type].filter(id =>  id !== node.id)
-    node.parent = null
-    delete node.dist
-    Memory.nodes[node.id] = node
-}
-module.exports.removeNodeFromParent = removeNodeFromParent
 
 function createSrcNode (id) {
     return {
@@ -299,24 +231,7 @@ function createStandardNode () {
     creeps: {}
   }
 }
-function buildNode (parentId, nodeType, pos, pri = PRIORITY.BUILD) {
-  pos = serializePos(pos)
-  const constructionNodeId = `${parentId}-new-${nodeType}`
-  let constructionNode
-  switch (nodeType) {
-    case STRUCTURE_CONTAINER:
-      constructionNode = createContainerNode(constructionNodeId, pos)
-      break
-    case STRUCTURE_EXTENSION:
-      constructionNode = createExtensionNode(constructionNodeId, pos)
-      break
-  }
-  constructionNode.onDoneType = nodeType
-  constructionNode.type = 'build'
-  constructionNode.buildPri = pri
-  addNodeToParent(constructionNode, parentId)
-}
-module.exports.buildNode = buildNode
+
 
 function createStructureMap () {
     return {

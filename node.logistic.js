@@ -1,7 +1,9 @@
 
-const {runChildren, createNodePosition, getChildren, getTypeCreeps, getNodeReqs} = require('./utils.nodes')
+const {addNodeToParent, runChildren, createNodePosition, getChildren, getTypeCreeps, getNodeReqs, addCreepToNode,
+  buildNode
+} = require('./utils.nodes')
 const {log} = require('./utils.debug')
-const {addNodeToParent, serializePos, buildNode, serializeBody} = require('./utils.memory')
+const {serializePos} = require('./utils.memory')
 const {maintainRoleCreepsForNode} = require('./utils.creep')
 
 
@@ -14,6 +16,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         if (!node.pos) { // find service pos of self
           let parent = Memory.nodes[node.parent]
           let pos = createNodePosition(parent, 'log')
+          //node.extra = pos.extra
           if (pos) {
             node.pos = serializePos(pos)
           }
@@ -23,7 +26,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
           if (containers.length === 0) { // if no container nodes...
             let buildNodes = getChildren(node, ['build'], undefined, false, 1)
             if (buildNodes.length === 0) { // and no container nodes being built...
-              buildNode(node.id, STRUCTURE_CONTAINER, node.pos) // build one
+              buildNode(node.id, STRUCTURE_CONTAINER, node.pos, {subType: 'log'}) // build one
             }
           } else if (containers[0].stage === 1) { // if we do have some containers, and they are stage 1 aka built,
             node.stage = 1 // logistic node init is complete. move to stage 1
@@ -47,63 +50,44 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         node.stage++
         break
       case 2:
-        if (!node.repairs) { node.repairs = [] }
-        if (node.repairs?.length) {
-          //maintainRoleCreepsForNode(baseManifest, node, 'maint', 1, 1, 2)
-        } else {
-          if (node.creeps?.maint?.length) {
-            //console.log('todo - redistribute maint now that everything is repaired')
+        //if (!node.repairs) { node.repairs = [] }
+        //if (node.repairs?.length) {
+        //} else {
+        //  if (node.creeps?.maint?.length) {
+        //    //console.log('todo - redistribute maint now that everything is repaired')
+        //  }
+        //}
+        //node.logContainers = getChildren(node, [STRUCTURE_CONTAINER], (node) => node.subType !== 'src', true, 1)
+        //node.srcContainers = getChildren(node, [STRUCTURE_CONTAINER], (node) => node.subType === 'src', true, 1)
+        //let allContainers = [...node.logContainers, ...node.srcContainers]
+        if (node.srcContainers?.length) {
+          //(node.srcContainers.length + node.logContainers.length)
+          maintainRoleCreepsForNode(baseManifest, node, 'supplier', 2, 2, 10)
+          if (!node.supReqs) {node.supReqs = []}
+          if (node.supReqs?.length) {
+            let mySuppliers = getTypeCreeps(node, 'supplier')
+            while (mySuppliers.length > 0 && node?.supReqs?.length) {
+              addCreepToNode(node.supReqs[0], 'supplier', mySuppliers[0])
+              node.supReqs.shift()
+              mySuppliers = getTypeCreeps(node, 'supplier')
+            }
           }
-        }
-        let logContainers = getChildren(node, [STRUCTURE_CONTAINER], (node) => node.subType !== 'src', false, 1)
-        let srcContainers = getChildren(node, [STRUCTURE_CONTAINER], (node) => node.subType === 'src', false, 1)
-        let allContainers = [...logContainers, ...srcContainers]
-        if (allContainers.length) {
-          //const supplySaturation =
-          //console.log('maintaining suppliers', containers.length)
-          maintainRoleCreepsForNode(baseManifest, node, 'supplier', allContainers.length, 2, 10)
-
-
-
-          //if (!node.srcToEmpty) {
-          //  node.srcToEmpty = []
-          //}
-          //srcContainers.forEach(src => {
-          //  let gameCon = Game.getObjectById(src.id)
-          //  if (gameCon.store.getUsedCapacity(RESOURCE_ENERGY) > 200) {
-          //    if (!srcToEmpty.includes(src.id)) {
-          //      node.srcToEmpty.push(src.id)
+          //let mySuppliers = getTypeCreeps(node, 'supplier')
+          //if (mySuppliers.length > 1 ) {
+          //  let distributed = 0
+          //  const maxDistributed = mySuppliers.length - 1
+          //  for (let i = 0; (i < srcContainers.length) && (distributed < maxDistributed); i++) {
+          //    let src = srcContainers[i]
+          //    console.log(src?.id, 'src container loggg', i, distributed, 'maxDistributed', maxDistributed)
+          //    if (!src.creeps?.supplier?.length) {
+          //      let creepMem = Memory.creeps[mySuppliers[i]]
+          //      addCreepToNode(src.id, 'supplier', mySuppliers[i])
+          //      distributed++
           //    }
-          //  } else {
-          //    node.srcToEmpty = node.srcToEmpty.filter(sId => sId !== src.id)
           //  }
-          //})
-          //if (!node.logToFill) {
-          //  node.logToFill = []
+          //  console.log('Distributed ', distributed, ' suppliers to src nodes from log node')
           //}
-          //logContainers.forEach(log => {
-          //
-          //})
-
-
-
-
-          //containers.forEach(c => {
-          //
-          //  switch (c.subType) {
-          //    case 'src':
-          //      // this container should be emptied to fill others
-          //      break
-          //    default:
-          //    case 'log':
-          //      // this container should be filled from others
-          //
-          //      // this container should be used to fill buildings
-          //      break
-          //  }
-          //})
         }
-        //if ()
         break
       case 3:
         break

@@ -72,17 +72,27 @@ function findLogSrcFor (trgId, nodes) {
     return best
   }
 }
-function findLogDestAmong (nodes) {
+
+function scoreDest (gameNode, fromPos) {
+  let thisCapacity = gameNode.store.getFreeCapacity(RESOURCE_ENERGY)
+  let thisType = Memory.nodes[n].type
+  let thisRange = gameNode.pos.getRangeTo(fromPos, {ignoreCreeps: true})
+  // score = (1 - (range/50)) + (1 - frac)
+}
+function findLogDestAmong (nodes, creep) {
   if (nodes.length) {
     let best
     let bestType
     let bestCapacity = 0
+    let bestRange = 999
     nodes.forEach(n => {
       let gameNode = Game.getObjectById(n)
       if (gameNode) {
         let thisCapacity = gameNode.store.getFreeCapacity(RESOURCE_ENERGY)
         let thisType = Memory.nodes[n].type
-        if (thisCapacity) {
+        let thisRange = gameNode.pos.getRangeTo(creep.pos, {ignoreCreeps: true})
+        //const thisScore = scoreDest(gameNode)
+        if (thisCapacity && thisRange < 1.1 * bestRange) {
           if (
             !best || (
               (thisType === 'spawn' && bestType !== 'spawn' && thisCapacity > 0) || // this is spawn and best is not and this needs energy
@@ -103,22 +113,24 @@ function findLogDestAmong (nodes) {
   }
 }
 
-function findSupplierTrg (creep) {
+function findSupplierTrg (creep, manifest) {
   let trgType
   let logNode = Memory.nodes[creep.memory.nodeId]
   let logParent = Memory.nodes[logNode.parent]
   let logContainers
-  let criticalNodes = getChildren(logParent, ['spawn', STRUCTURE_EXTENSION], undefined,true)
   let trg
-  if (criticalNodes.length) {
-    trg = findLogDestAmong(criticalNodes)
+  if (!trg) {
+    let criticalNodes = getChildren(logParent, ['spawn', STRUCTURE_EXTENSION], undefined,true)
+    trg = findLogDestAmong(criticalNodes, creep)
     trgType = 'struct'
   }
-  if (!trg) {
+  //
+  if (!trg && manifest.spawn.length === 0) {
     logContainers = getChildren(logNode, [STRUCTURE_CONTAINER], (node) => node.subType !== 'src', true)
-    trg = findLogDestAmong(logContainers)
+    trg = findLogDestAmong(logContainers, creep)
     trgType = 'cont'
   }
+
   return trg ? {trg: trg, trgType: trgType} : null
 }
 
@@ -134,55 +146,141 @@ function findSrcContainer (creep) {
 }
 module.exports.run = function (creep, manifest) {
   try {
+    let node = Memory.nodes[creep.memory.nodeId]
     const energy = creep.store.getUsedCapacity()
-    let logNode = Memory.nodes[creep.memory.nodeId]
-    if (energy >= 25) {
-      let newTrg = findSupplierTrg(creep)
-      if (newTrg) {
-        ACTIONS.transfer.start(creep, newTrg.trg)
-      return                    // ^^^ SOME ENERGY && DEST EXISTS => FILL DEST
-      } else if (creep.store.getFreeCapacity()) {     // <= NO DEST ANYWHERE && NOT FULL
-        let srcContainers = getChildren(logNode, [STRUCTURE_CONTAINER], (node) => node.subType === 'src', true)
-        let srcTrg = findLogSrcFor(undefined, srcContainers)
-        if (srcTrg) {
-          ACTIONS.withdraw.start(creep, srcTrg)
-          return                // ^^^ NO DEST ANYWHERE && NOT FULL  => FILL FROM SRC CONTAINER
+    switch (node.type) {
+      case STRUCTURE_CONTAINER:
+        switch (node.subType) {
+          case 'src':
+            if (energy > 0) {
+              // try to go to log
+              let trgId
+              let logParent = Memory.nodes[node.parent]
+              if (logParent.logContainers) {
+                if (logParent.logContainers.length === 1) {
+                  trgId = logParent.logContainers[0]
+                } else {
+                  console.log('Error: TODO - handle multiple logContainers in log node for supplier')
+                  //let trgId = node.logContainers.find(id => {
+                  //  let gameLog = Game.getObjectById(id)
+                  //  if (gameLog.)
+                  //    })
+                }
+
+              }
+              if (!trgId) {
+
+                let criticalNodes = getChildren(logParent, ['spawn', STRUCTURE_EXTENSION], undefined,true)
+                trgId = findLogDestAmong(criticalNodes, creep)
+              }
+              if (trgId) {
+                ACTIONS.transfer.start(creep, trgId)
+                return
+              }
+            } else {
+              //let newTrg = findSupplierTrg(creep, manifest)
+              //if (newTrg && newTrg.trgType !== 'log') {
+              //  ACTIONS.withdraw.start(creep, node.id)
+              //
+              //}
+              ACTIONS.withdraw.start(creep, node.id)
+              break
+            }
+            break
+          default:
+          case 'log':
+            break
         }
-                                                      // <= NO SRC && NOT FULL
-      }
-      creep.moveTo(deserializePos(logNode.pos), {range: 4, visualizePathStyle: {stroke: '#00ff00'}})
-      return                    // ^^^ NO DEST && (FULL || NO SRC) => RETURN TO LOGISTIC NODE
-    } else {
-
-      let newTrg = findSupplierTrg(creep) // get what needs energy now.
-      let srcTrg
-      let srcType
-      switch (newTrg?.trgType) {
-        case 'struct':          // EMPTY && AVAILABLE DEST IS STRUCT => FILL FROM [LOG, SRC]
-          srcTrg = findLogContainer(creep)
-          srcType = 'log'       // 1 ^^^ EMPTY && AVAILABLE DEST IS STRUCT => FILL FROM [LOG]
-          if (!srcTrg) {
-            srcTrg = findSrcContainer(creep)
-            srcType = 'src'     // 2 ^^^ EMPTY && NO LOG SRC => FILL FROM [SRC]
+        break
+      case 'log':
+        if (energy >= 25) {
+          //let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+          //  maxOps: 500, ignoreCreeps: true,
+          //  filter: function(object) {
+          //    console.log('object', object.id)
+          //    return object.store && object.store.getFreeCapacity(RESOURCE_ENERGY) && (object.type === STRUCTURE_SPAWN || object.type === STRUCTURE_EXTENSION)
+          //  }
+          //})
+          //if (target) {
+          //  ACTIONS.transfer.start(creep, target.id)
+          //  return
+          //}
+          let newTrg = findSupplierTrg(creep, manifest)
+          if (newTrg) {
+            ACTIONS.transfer.start(creep, newTrg.trg)
+            return                    // ^^^ SOME ENERGY && DEST EXISTS => FILL DEST
+          } else if (creep.store.getFreeCapacity()) {     // <= NO DEST ANYWHERE && NOT FULL
+            let srcContainers = getChildren(node, [STRUCTURE_CONTAINER], (child) => child.subType === 'src', true)
+            let srcTrg = findLogSrcFor(undefined, srcContainers)
+            if (srcTrg) {
+              ACTIONS.withdraw.start(creep, srcTrg)
+              return                // ^^^ NO DEST ANYWHERE && NOT FULL  => FILL FROM SRC CONTAINER
+            }
+            // <= NO SRC && NOT FULL
           }
-          break
-        default:                // EMPTY && NO AVAILABLE DEST => FILL FROM [SRC]
-        case 'cont':            // EMPTY && AVAILABLE DEST IS LOG => FILL FROM [SRC]
-          srcTrg = findSrcContainer(creep)
-          srcType = 'src'       // 3 ^^^ EMPTY && (NO AVAILABLE DEST || AVAILABLE DEST IS LOG) => FILL FROM [SRC]
-          break
-      }
-      if (srcTrg) {
-        ACTIONS.withdraw.start(creep, srcTrg)
-        return
-      } else {
-        creep.moveTo(deserializePos(logNode.pos), {range: 4, visualizePathStyle: {stroke: '#ff0000'}})
-        return                  // 4 ^^^ EMPTY && NO SRC => MOVE TO SRC NODES
-      }
+          creep.moveTo(deserializePos(node.pos), {range: 4, visualizePathStyle: {stroke: '#00ff00'}})
+          return                    // ^^^ NO DEST && (FULL || NO SRC) => RETURN TO LOGISTIC NODE
+        } else {
 
+          //let newTrg = findSupplierTrg(creep) // get what needs energy now.
+          //let srcTrg
+          //let srcType
+          //switch (newTrg?.trgType) {
+          //  case 'struct':          // EMPTY && AVAILABLE DEST IS STRUCT => FILL FROM [LOG, SRC]
+          //    srcTrg = findLogContainer(creep)
+          //    srcType = 'log'       // 1 ^^^ EMPTY && AVAILABLE DEST IS STRUCT => FILL FROM [LOG]
+          //    if (!srcTrg) {
+          //      srcTrg = findSrcContainer(creep)
+          //      srcType = 'src'     // 2 ^^^ EMPTY && NO LOG SRC => FILL FROM [SRC]
+          //    }
+          //    break
+          //  default:                // EMPTY && NO AVAILABLE DEST => FILL FROM [SRC]
+          //  case 'cont':            // EMPTY && AVAILABLE DEST IS LOG => FILL FROM [SRC]
+          //    srcTrg = findSrcContainer(creep)
+          //    srcType = 'src'       // 3 ^^^ EMPTY && (NO AVAILABLE DEST || AVAILABLE DEST IS LOG) => FILL FROM [SRC]
+          //    break
+          //}
+          let srcTrg = findLogContainer(creep)
+          if (srcTrg) {
+            ACTIONS.withdraw.start(creep, srcTrg)
+            return
+          } else {
+            creep.moveTo(deserializePos(node.pos), {range: 4, visualizePathStyle: {stroke: '#ff0000'}})
+            return                  // 4 ^^^ EMPTY && NO SRC => MOVE TO SRC NODES
+          }
+        }
+        break
     }
+    //if (node.type === STRUCTURE_CONTAINER) {
+    //  if (energy > 0) {
+    //    // try to go to log
+    //    let trgId
+    //    if (node.logContainers) {
+    //      if (node.logContainers.length === 1) {
+    //        trgId = node.logContainers[0]
+    //      } else {
+    //        console.log('Error: TODO - handle multiple logContainers in log node for supplier')
+    //        //let trgId = node.logContainers.find(id => {
+    //        //  let gameLog = Game.getObjectById(id)
+    //        //  if (gameLog.)
+    //        //    })
+    //      }
+    //      if (trgId) {
+    //        ACTIONS.transfer.start(creep, trgId)
+    //      }
+    //    }
+    //  } else {
+    //
+    //  }
+    //}
+
+
+
+
+
 
     return
+
 
     //
     //// find fill trg, then find src for that fill trg.

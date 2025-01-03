@@ -17,6 +17,8 @@
 //       "tough": 10,
 //       "claim": 600
 // },
+const {log} = require('./utils.debug')
+
 function getPartCost (parts) {
   let cost = 0
   parts.forEach(part => {
@@ -80,9 +82,9 @@ function buildRoleCreep (node, role, maxCost = 300) {
       addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
       break
     case 'upgrader':
-      body = [CARRY, WORK, MOVE]
+      body = [CARRY, WORK, MOVE, CARRY, MOVE]
       addOns = [CARRY, WORK, MOVE]
-      baseCost = 200
+      baseCost = 300
       addOnCost = 200
       addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
       break
@@ -134,6 +136,7 @@ function spawnForSrc (node, maxCost = 300) {
       body = body.concat(addOns)
     }
   }
+  //console.log('maxAddons', body)
   return {
     name: getUniqueName(role),
     memory: {role: role, nodeId: node.id},
@@ -144,9 +147,14 @@ function spawnForSrc (node, maxCost = 300) {
 function spawnForNode (id, maxCost = 300) {
   let node = Memory.nodes[id]
   let role
+  //console.log('spawned for node type: ', node.type)
   switch (node.type) {
     case 'src':
-      return spawnForSrc(node)
+      role = 'miner'
+      //let res = spawnForSrc(node)
+      //log({spawnReq: res})
+      //return res
+      break
     case 'build':
       role = 'builder'
       break

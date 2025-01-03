@@ -1,10 +1,9 @@
 
-const {runChildren} = require('./utils.nodes')
+const {runChildren, addNodeToParent} = require('./utils.nodes')
 const {log} = require('./utils.debug')
-const {deserializePos, addNodeToParent} = require('./utils.memory')
-const {registerEnergy, deregisterEnergy, deleteNodeReqs} = require('./utils.manifest')
+const {deserializePos} = require('./utils.memory')
+const { deleteNodeReqs} = require('./utils.manifest')
 const {findSiteAtPos, findStrAtPos} = require('./utils.build')
-const {PRIORITY} = require('./config')
 const {maintainRoleCreepsForNode} = require('./utils.creep')
 
 
@@ -26,11 +25,17 @@ module.exports.run = function (node, lineage = [], baseManifest) {
           let pos = deserializePos(node.pos)
           const res = Game.rooms[pos.roomName].createConstructionSite(pos.x, pos.y, strType)
           switch (res) {
-            case ERR_INVALID_TARGET: // might already have built the thing.
+            case ERR_INVALID_TARGET: // -7 might already have built the thing.
               let siteId = findSiteAtPos(pos, strType)
               if (siteId) { // change self id to siteId, upgrade stage
                 addNodeToParent(node, node.parent, siteId)
                 node.stage = 2
+              } else {
+                siteId = findStrAtPos(pos, strType)
+                if (siteId) {
+                  addNodeToParent(node, node.parent, siteId)
+                  node.stage = 2
+                }
               }
               break
             case OK:
@@ -52,26 +57,21 @@ module.exports.run = function (node, lineage = [], baseManifest) {
       case 2: // Request energy until built. Then register strId with parent and convert to final node type
         let site = Game.getObjectById(node.id)
         if (site){
-          //const frac = site.progress / site.progressTotal // progressTotal is constant.
-          //const energyReq = {
-          //  id: node.id,
-          //  amount: site.progressTotal - site.progress,
-          //  pri: (node.buildPri || PRIORITY.BUILD) + ((frac * 2) - 1), // modifier is +/-1 based on progress
-          //  action: 'build'
-          //}
-          //registerEnergy(baseManifest, energyReq, 'dest')
         } else {
           let strId = findStrAtPos(node.pos, strType)
           if (strId) {
-            deregisterEnergy(baseManifest, node.id, 'dest')
-
             node.stage = 1
             const newType = node.onDoneType
             if (newType === STRUCTURE_EXTENSION && baseManifest.new?.spawn?.length) {
               deleteNodeReqs(baseManifest, node.id, 'spawn')
             }
             delete node.onDoneType
-            delete node.buildPri
+            //delete node.buildPri
+            if (node.nodeParams) {
+              let obj = JSON.parse(node.nodeParams)
+              node = {...node, ...obj}
+            }
+            delete node.nodeParams
             addNodeToParent(node, node.parent, strId, newType)
           }
         }
@@ -81,13 +81,12 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         break
     }
 
-
     if (node.stage >= 2 && baseManifest.roomEnergyFrac > .5 && node.isSiteAt < Game.time && Game.time % 10 === 0) {
       let builders = 0
       while (Memory.creeps[`builders-${builders}`]) {
         builders++
       }
-      if (builders < 3 && !node.spawnReqCount) {
+      if (builders < (Memory.nodes[lineage[0]].stage < 1 ? 1 : 3) && !node.spawnReqCount) {
         maintainRoleCreepsForNode(baseManifest, node, 'builder', 3, 1, 7)
       }
     } else if (baseManifest.roomEnergyFrac < .1) {

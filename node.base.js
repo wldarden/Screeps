@@ -1,6 +1,6 @@
-const {runChildren, createNodePosition, getChildren, applyToChildren} = require('./utils.nodes')
+const {runChildren, createNodePosition, getChildren, applyToChildren, getNewStorageNodeSiteByDest, addNodeToParent} = require('./utils.nodes')
 const {log} = require('./utils.debug')
-const {createStorageNode, deserializePos, serializePos, addNodeToParent} = require('./utils.memory')
+const {createStorageNode, deserializePos, serializePos} = require('./utils.memory')
 const {getReqById} = require('./utils.manifest')
 
 /**
@@ -51,7 +51,6 @@ function collectBuildSiteIds (baseManifest) {
 module.exports.runBase = function (node, lineage = []) {
   try {
     let baseManifest = Memory.manifests[node.id]
-
     switch (node.stage) {
       default:
       case 0:
@@ -59,14 +58,14 @@ module.exports.runBase = function (node, lineage = []) {
         /**
          * CREATE LOGISTIC NODE WHEN NEEDED
          */
-        if (baseManifest?.finance?.total?.income && baseManifest.finance.total.income > 5) { // if good income
-          if (!node.children.log) { node.children.log = [] }
-          if (!node.children.log.length) { // and we have not initialized a storage node
-            let newStorageNode = createStorageNode(`log-${node.children.log.length}`) // make the node
-            addNodeToParent(newStorageNode, node.id) // add it to this base
-            node.stage = 1
-          }
-        }
+        //if (baseManifest?.finance?.total?.income && baseManifest.finance.total.income > 5) { // if good income
+        //  if (!node.children.log) { node.children.log = [] }
+        //  if (!node.children.log.length) { // and we have not initialized a storage node
+        //    let newStorageNode = createStorageNode(`log-${node.children.log.length}`) // make the node
+        //    addNodeToParent(newStorageNode, node.id) // add it to this base
+        //    node.stage = 1
+        //  }
+        //}
         /**
          * END CREATE LOGISTIC NODE WHEN NEEDED
          */
@@ -81,7 +80,7 @@ module.exports.runBase = function (node, lineage = []) {
             creeps: {},
           }, node.id)
         }
-
+        node.stage = 2
         break
     }
 

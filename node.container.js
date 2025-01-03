@@ -1,13 +1,11 @@
 
-const {runChildren, registerEnergyState} = require('./utils.nodes')
+const {runChildren, addCreepToNode} = require('./utils.nodes')
 const {log} = require('./utils.debug')
-const {deserializePos, addNodeToParent} = require('./utils.memory')
-const { registerEnergy} = require('./utils.manifest')
-const {findSiteAtPos, findStrAtPos} = require('./utils.build')
-const {PRIORITY} = require('./config')
 
 const strType = STRUCTURE_CONTAINER
 module.exports.run = function (node, lineage = [], baseManifest) {
+  const maxSuppliers = Math.round(1 + (node.dist / 10))
+
   try {
     switch (node.stage) {
       default:
@@ -20,6 +18,12 @@ module.exports.run = function (node, lineage = [], baseManifest) {
           case 'log':
             break
           case 'src':
+            if ((!node.creeps?.supplier?.length || node.creeps.supplier.length < maxSuppliers) && !Memory.nodes[node.parent].supReqs.some(id => id === node.id)) {
+              Memory.nodes[node.parent].supReqs.push(node.id)
+            } else if (node.creeps?.supplier?.length && node.creeps?.supplier?.length > maxSuppliers) {
+              addCreepToNode(node.parent, 'supplier', node.creeps.supplier[0])
+            }
+
             break
         }
         break

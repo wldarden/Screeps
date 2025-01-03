@@ -1,5 +1,5 @@
 const {log} = require('./utils.debug')
-const {deserializePos, addNodeToParent} = require('./utils.memory')
+const {deserializePos, serializePos, createContainerNode, createExtensionNode} = require('./utils.memory')
 const {registerEnergy, deregisterEnergy} = require('./utils.manifest')
 
 
@@ -21,12 +21,154 @@ function getNodeRunner (nodeType) {
       return {runner: require('node.extension')}
     case 'maint':
       return {runner: require('node.maintenance')}
+    case 'ec':
+      return {runner: require('node.extcluster')}
     default:
       console.log('ERROR: No Node Runner for type: ', nodeType)
       return {runner: {run: (...args) => {console.log('Null Node Runner', JSON.stringify(args))}}}
   }
 }
 module.exports.getNodeRunner = getNodeRunner
+
+function buildNode (parentId, nodeType, pos, nodeParams) {
+  pos = serializePos(pos)
+  const constructionNodeId = `${parentId}-new-${nodeType}`
+  let constructionNode
+  switch (nodeType) {
+    case STRUCTURE_CONTAINER:
+      constructionNode = createContainerNode(constructionNodeId, pos)
+      break
+    case STRUCTURE_EXTENSION:
+      constructionNode = createExtensionNode(constructionNodeId, pos)
+      break
+  }
+  constructionNode.nodeParams = JSON.stringify(nodeParams)
+  constructionNode.onDoneType = nodeType
+  constructionNode.type = 'build'
+  //constructionNode.buildPri = pri
+  addNodeToParent(constructionNode, parentId)
+}
+module.exports.buildNode = buildNode
+
+function addNodeToParent (node, parentId, newId, newType) {
+  if (!node || !parentId || !node.type) {
+    console.log('ERROR: Failed to add node to parent', 'parentId:', parentId, 'node:', JSON.stringify(node))
+    return
+  }
+  if (node.parent) {
+    if (node.parent === parentId && !newId) {
+      console.log('Error: adding node to parent it was already the child of: node:', node.type, node.id, 'parent:', parentId, '(but if newId, ok) newId:', newId)
+      console.log('Node parent of above: ', Memory.nodes[node.parent] && Memory.nodes[node.parent].type, node.parent )
+    }
+    removeNodeFromParent(node, node.parent)
+  }
+  if (newId) { // if we are changing the node id, that happens here after old id has been removed
+    delete Memory.nodes[node.id]
+    node.id = newId
+  }
+  if (newType) {
+    node.type = newType
+  }
+  let parent = Memory.nodes[parentId]
+  switch (parent.type) {
+    case 'log':
+      switch (node.type) {
+        case STRUCTURE_CONTAINER:
+          switch (node.subType) {
+            case 'src':
+              if (!parent.srcContainers) {parent.srcContainers = [node.id]
+              } else if (!parent.srcContainers.some(c => c === node.id)) {
+                parent.srcContainers.push(node.id)
+              }
+              let pPos = getNodePos(parent)
+              let nPos = getNodePos(node)
+              if (nPos && pPos) {
+                node.dist = pPos.findPathTo(nPos, {ignoreCreeps: true})?.length
+              }
+              break
+            default:
+            case 'log':
+              if (!parent.logContainers) {parent.logContainers = [node.id]
+              } else if (!parent.logContainers.some(c => c === node.id)) {
+                parent.logContainers.push(node.id)
+              }
+              break
+          }
+          break
+      }
+      break
+  }
+  if (!Memory.nodes[parentId].children) {
+    Memory.nodes[parentId].children = {}
+  }
+  if (!Memory.nodes[parentId].children[node.type]) {
+    Memory.nodes[parentId].children[node.type] = [node.id]
+  } else if (!Memory.nodes[parentId].children[node.type].some(cId => cId === node.id)) {
+    Memory.nodes[parentId].children[node.type].push(node.id)
+  }
+  node.parent = parentId
+  Memory.nodes[node.id] = node
+}
+module.exports.addNodeToParent = addNodeToParent
+
+// const nodeTypeMap = {
+//     log: 'log',
+//
+//     source: 'src',
+//     src: 'src',
+//
+//     [STRUCTURE_SPAWN]: 'spawn', // STRUCTURE_SPAWN is the same thing as 'spawn'
+//
+//     [STRUCTURE_CONTROLLER]: 'controller', // STRUCTURE_CONTROLLER is the same thing as 'controller'
+//     con: 'controller',
+//
+//     frt: 'fort',
+//     fort: 'fort'
+// }
+
+const VALID_NODE_TYPES = [
+  'base', 'src', 'fort', 'log',            // non STRUCTURE_* types
+  'spawn', 'controller',                       // STRUCTURE_* types
+]
+function removeNodeFromParent (node, parentId) {
+  if (!node || !parentId || !node.type) {
+    console.log('ERROR: Failed to remove node from parent', 'parentId:', parentId, 'node:', JSON.stringify(node))
+    return
+  }
+  if (!Memory.nodes[parentId].children) {
+    Memory.nodes[parentId].children = {}
+  }
+  if (!Memory.nodes[parentId].children[node.type]) {
+    Memory.nodes[parentId].children[node.type] = []
+  }
+  let parent = Memory.nodes[parentId]
+  switch (parent.type) {
+    case 'log':
+      switch (node.type) {
+        case STRUCTURE_CONTAINER:
+          switch (node.subType) {
+            case 'src':
+              if (parent.srcContainers) {
+                parent.srcContainers = parent.srcContainers.filter(c => c === node.id)
+              }
+              break
+            default:
+            case 'log':
+              if (parent.logContainers) {
+                parent.logContainers = parent.logContainers.filter(c => c === node.id)
+              }
+              break
+          }
+          break
+      }
+      break
+  }
+  Memory.nodes[parentId].children[node.type] = Memory.nodes[parentId].children[node.type].filter(id =>  id !== node.id)
+  node.parent = null
+  delete node.dist
+  Memory.nodes[node.id] = node
+}
+module.exports.removeNodeFromParent = removeNodeFromParent
 
 function getNodePos (nodeOrId) {
   let node
@@ -65,12 +207,12 @@ function getNewStorageNodeSiteByBestSrc (node) {
     let gameSrc = Game.getObjectById(srcId)
     let src = Memory.nodes[srcId]
     if (!src.threat) {
-      if (src.ept > nextBest.ept) {
-        if (src.ept > best.ept) {
+      if ((src.ept * Object.keys(src.slots).length) > nextBest.ept) {
+        if ((src.ept * Object.keys(src.slots).length) > best.ept) {
           nextBest = best
-          best = {ept: src.ept, pos: gameSrc.pos, id: src.id}
+          best = {ept: src.ept * Object.keys(src.slots).length, pos: gameSrc.pos, id: src.id}
         } else {
-          nextBest = {ept: src.ept, pos: gameSrc.pos, id: src.id}
+          nextBest = {ept: src.ept * Object.keys(src.slots).length, pos: gameSrc.pos, id: src.id}
         }
       }
       //const nSlots =  Object.keys(src.slots).length
@@ -84,7 +226,7 @@ function getNewStorageNodeSiteByBestSrc (node) {
     }
   })
   let path = best.pos.findPathTo(nextBest.pos, {ignoreCreeps: true})
-  let location = path[Math.ceil(path.length / 2.8)] // get about a third of the way to the closer one but sort of by the biggest one
+  let location = path[Math.ceil(path.length / 2)]
   if (!!location?.x && !!location?.y && !!best.pos.roomName) {
     return {x: location.x, y: location.y, roomName: best.pos.roomName}
 
@@ -197,14 +339,30 @@ function getNewStorageNodeSiteByBestSrc (node) {
 // 	return {x, y, roomName}
 // }
 // module.exports.findPosToServiceNodes = findPosToServiceNodes
-
+function getNewStorageNodeSiteByDest (parent) {
+  let importantChildren = getChildren(parent, [STRUCTURE_SPAWN, STRUCTURE_CONTROLLER], undefined, true)
+  let gameNode1 = Game.getObjectById(importantChildren[0])
+  let gameNode2 = Game.getObjectById(importantChildren[1])
+  let path = gameNode1.pos.findPathTo(gameNode2.pos, {ignoreCreeps: true})
+  let midPoint1 = path[Math.round(path.length / 2)]
+  const {x, y, roomName} = getNewStorageNodeSiteByBestSrc(parent)
+  //node.extra = extra
+  let midConsumers = new RoomPosition(midPoint1.x, midPoint1.y, roomName)
+  let midProducers = new RoomPosition(x, y, roomName)
+  let midPath = midConsumers.findPathTo(midProducers, {ignoreCreeps: true})
+  let final = midPath[Math.round(midPath.length / 4)]
+  return {x: final.x, y: final.y, roomName: roomName}
+}
+module.exports.getNewStorageNodeSiteByDest = getNewStorageNodeSiteByDest
 function createNodePosition (parent, type) {
   switch (type) {
     case 'log':
       // let nodesToService = getChildren(parent, ['src', 'controller', 'spawn'], true)
       // let nodesToService = getChildren(parent, ['src', 'controller'], true)
       // const {x, y, roomName} = findPosToServiceNodes(nodesToService, {src: 1, controller: 1, spawn: 0})
-      const {x, y, roomName} = getNewStorageNodeSiteByBestSrc(parent)
+      return {x, y, roomName} = getNewStorageNodeSiteByDest(parent)
+      //node.extra = extra
+      //const {x, y, roomName} = getNewStorageNodeSiteByBestSrc(parent)
       return new RoomPosition(x,y,roomName)
       break
     default:
@@ -270,6 +428,26 @@ function registerEnergyState (baseManifest, id, srcPriority = 0, destPriority = 
 }
 module.exports.registerEnergyState = registerEnergyState
 
+function getPrimarySrc (node) {
+  if (typeof node === 'string') {
+    node = Memory.nodes[node]
+  }
+  let src
+  let srcAction = 'withdraw'
+  switch (node.type) {
+    case 'base':
+      src = node.children.spawn[0]
+      break
+  }
+  if (src && srcAction) {
+    return {trg: src, action: srcAction}
+  } else if (node.parent) {
+      return getPrimarySrc(node.parent)
+  } else {
+    return false
+  }
+}
+module.exports.getPrimarySrc = getPrimarySrc
 /**
  * getChildren(node, types, includeSelf) => array of nodes
  *
