@@ -24,23 +24,7 @@
 const {nextStep} = require('./utils.creep')
 const {ACTIONS} = require('./actions')
 const {energy} = require('./utils.manifest')
-const {getPrimarySrc} = require('./utils.nodes')
-
-
-function primarySrc (creep, node) {
-  if (node.primarySrc) {
-    console.log('node.primary', node.primarySrc, node.type)
-    return node.primarySrc.some(d => {
-      let gamePrimary = Game.getObjectById(d)
-      if (gamePrimary) {
-        if (gamePrimary.store && gamePrimary.store.getUsedCapacity(RESOURCE_ENERGY) > 0) {
-          ACTIONS.withdraw.start(creep, d)
-          return true
-        }
-      }
-    })
-  }
-}
+const {getSrcNode} = require('./utils.nodes')
 
 module.exports.run = function (creep, manifest) {
   try {
@@ -62,42 +46,15 @@ module.exports.run = function (creep, manifest) {
     //}
 
 
-
-    if (creep.store.getFreeCapacity() === 0) {
+    const energy = creep.store.getUsedCapacity()
+    if (energy) {
       ACTIONS.upgrade.start(creep, creep.memory.nodeId)
       return
     } else {
-      if (creep.memory.nodeId) {
-        let node = Memory.nodes[creep.memory.nodeId]
-        //let srcNode
-        //let testNode = node
-        //while (!srcNode && node.parent) {
-        //  let parent = Memory.nodes[testNode.parent]
-        //
-        //}
-        let srcInfo = getPrimarySrc(node)
-        if (srcInfo) {
-          ACTIONS[srcInfo.action].start(creep, srcInfo.trg)
-        }
-        //else if (node.type === 'src' && node.stage === 3) { // stage 3 src miners will remain at src
-        //    return
-        //} else { // lower stage src miners will travel to destinations
-        //    let target = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {maxOps: 500, ignoreCreeps: true});
-        //    if (target) {
-        //        ACTIONS.build.start(creep, target.id)
-        //        return
-        //    }
-        //    target = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-        //        maxOps: 500, ignoreCreeps: true,
-        //        filter: function(object) {
-        //            return object.store && object.store.getFreeCapacity(RESOURCE_ENERGY)
-        //        }
-        //    })
-        //    if (target) {
-        //        ACTIONS.transfer.start(creep, target.id)
-        //        return
-        //    }
-        //}
+      let node = Memory.nodes[creep.memory.nodeId]
+      let trgInfo = getSrcNode(node, creep, {energyNeeded: energy, minEnergyNeeded: energy, canWork: true})
+      if (trgInfo?.trg) {
+        ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
       }
     }
 

@@ -62,7 +62,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         //let allContainers = [...node.logContainers, ...node.srcContainers]
         if (node.srcContainers?.length) {
           //(node.srcContainers.length + node.logContainers.length)
-          maintainRoleCreepsForNode(baseManifest, node, 'supplier', 2, 2, 10)
+          maintainRoleCreepsForNode(baseManifest, node, 'supplier', 2)
           if (!node.supReqs) {node.supReqs = []}
           if (node.supReqs?.length) {
             let mySuppliers = getTypeCreeps(node, 'supplier')

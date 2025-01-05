@@ -1,5 +1,5 @@
 
-const {runChildren, addNodeToParent} = require('./utils.nodes')
+const {runChildren, addNodeToParent, requestEnergyFromParent} = require('./utils.nodes')
 const {log} = require('./utils.debug')
 const {deserializePos} = require('./utils.memory')
 const { deleteNodeReqs} = require('./utils.manifest')
@@ -17,12 +17,13 @@ const {maintainRoleCreepsForNode} = require('./utils.creep')
  */
 module.exports.run = function (node, lineage = [], baseManifest) {
   try {
-    const strType = node.onDoneType
+
     switch (node.stage) {
       default:
       case 0: // Create construction site:
         if (node.pos) {
           let pos = deserializePos(node.pos)
+          const strType = node.onDoneType
           const res = Game.rooms[pos.roomName].createConstructionSite(pos.x, pos.y, strType)
           switch (res) {
             case ERR_INVALID_TARGET: // -7 might already have built the thing.
@@ -47,31 +48,28 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         }
         break
       case 1: // Register siteId with parent
-        let siteId = findSiteAtPos(node.pos, strType)
+        let siteId = findSiteAtPos(node.pos, node.onDoneType)
         if (siteId) { // change self id to siteId, upgrade stage
           addNodeToParent(node, node.parent, siteId)
           node.stage++
-          node.isSiteAt = Game.time + 1
         }
         break
       case 2: // Request energy until built. Then register strId with parent and convert to final node type
         let site = Game.getObjectById(node.id)
-        if (site){
-        } else {
-          let strId = findStrAtPos(node.pos, strType)
+        requestEnergyFromParent(node, baseManifest) // requests energy as site, and deletes req as str
+        if (!site) { // no site found, maybe the str has been built:
+          let strId = findStrAtPos(node.pos, node.onDoneType)
           if (strId) {
-            node.stage = 1
+            deleteNodeReqs(baseManifest, node.id, 'spawn') // delete any build spawn reqs
+            node.stage = 1 // set new structure's stage to 1
             const newType = node.onDoneType
-            if (newType === STRUCTURE_EXTENSION && baseManifest.new?.spawn?.length) {
-              deleteNodeReqs(baseManifest, node.id, 'spawn')
-            }
-            delete node.onDoneType
-            //delete node.buildPri
-            if (node.nodeParams) {
+            if (node.nodeParams) { // add the extra params that were created when build requested
               let obj = JSON.parse(node.nodeParams)
               node = {...node, ...obj}
             }
             delete node.nodeParams
+            delete node.onDoneType
+            delete node.pos
             addNodeToParent(node, node.parent, strId, newType)
           }
         }
@@ -81,16 +79,12 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         break
     }
 
-    if (node.stage >= 2 && baseManifest.roomEnergyFrac > .5 && node.isSiteAt < Game.time && Game.time % 10 === 0) {
-      let builders = 0
-      while (Memory.creeps[`builders-${builders}`]) {
-        builders++
+    if (node.stage >= 2 && baseManifest.baseSrcEnergy && Game.time % 10 === 0) {
+      if (!node.spawnReqCount) {
+        let globalBuilders = Object.keys(Memory.creeps).filter(cId => cId.includes('builders'))?.length
+        const siteBuildersWanted = Math.round(baseManifest.baseSrcEnergy / 1000) - globalBuilders
+        maintainRoleCreepsForNode(baseManifest, node, 'builder', siteBuildersWanted)
       }
-      if (builders < (Memory.nodes[lineage[0]].stage < 1 ? 1 : 3) && !node.spawnReqCount) {
-        maintainRoleCreepsForNode(baseManifest, node, 'builder', 3, 1, 7)
-      }
-    } else if (baseManifest.roomEnergyFrac < .1) {
-      deleteNodeReqs(baseManifest, node.id, 'spawn')
     }
 
 

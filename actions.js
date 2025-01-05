@@ -171,6 +171,11 @@ const ACTIONS = {
     do: doWithdraw,
     finish: finishWithdraw
   },
+  drop: {
+    start: (creep, trgId, ...args) => globalActionStart(startDrop, creep, trgId,'withdraw', ...args),
+    do: doDrop,
+    finish: finishDrop
+  },
   transfer: {
     start: (creep, trgId, ...args) => globalActionStart(startTransfer, creep, trgId,'transfer', ...args),
     do: doTransfer,
@@ -414,6 +419,73 @@ function doUpgrade (creep, manifest) {
   }
 }
 
+function startDrop (creep, trgId = undefined, nearPosition, resource = RESOURCE_ENERGY) {
+  if (!trgId || !Game.getObjectById(trgId)) {
+    return
+  }
+  creep.memory.targets.unshift(trgId)
+  creep.memory.Dres = resource
+  creep.memory.actions.unshift('drop')
+}
+function finishDrop (creep, manifest) {
+  //energy.freeSrc(manifest, creep.name, creep.memory.targets[0])
+  delete creep.memory.Dres
+}
+
+function doDrop (creep, manifest) {
+  try {
+    console.log('I bailed on setting up drop')
+    return DONE
+    if (creep.memory.wait) {
+      if (creep.memory.wait < Game.time) {
+        delete creep.memory.wait
+        return DONE
+      } else {
+        return
+      }
+    }
+    if (creep.store.getFreeCapacity() === 0) {
+      return DONE
+    }
+    let target = Game.getObjectById(creep.memory.targets[0])
+    let actionRes = creep.drop(target, creep.memory.Dres || RESOURCE_ENERGY)
+    switch (actionRes) {
+      case ERR_NOT_IN_RANGE:
+        creep.moveTo(target, {visualizePathStyle: {stroke: '#ff0fff'}})
+        break
+      case ERR_TIRED:
+        console.log('creep says they are tired: ', creep.name)
+        break
+      //case ERR_NOT_ENOUGH_RESOURCES:
+      //  // hybernate a bit maybe?
+      //  if (creep.store.getUsedCapacity() > 0) {
+      //    return DONE
+      //  } else {
+      //    if (!creep.memory.wait) {
+      //      creep.memory.wait = Game.time + 5
+      //    }
+      //  }
+      //  return
+      //case ERR_INVALID_TARGET:
+      //  return DONE
+      //case ERR_FULL:
+      //  return DONE
+      //case ERR_NO_BODYPART:
+      //  return DONE
+      case OK:
+        break
+      default:
+        console.log('creep.memory.targets[0] target loggg', JSON.stringify(target))
+        console.log('creep.memory.Dres loggg', JSON.stringify(creep.memory.Dres))
+
+        console.log('Error: Drop Action Response not handled: ', creep.name, actionRes, creep.memory.targets[0], creep.memory.Dres)
+        break
+    }
+    return actionRes
+  } catch (e) {
+    console.log('Error: couldnt doDrop job', e.stack)
+  }
+}
 
 function startWithdraw (creep, trgId = undefined, nearPosition, resource = RESOURCE_ENERGY) {
   if (!trgId || !Game.getObjectById(trgId)) {
@@ -516,6 +588,9 @@ function doTransfer (creep) {
   }
 
   const target = Game.getObjectById(trgId)
+  if (!target || target.store.getFreeCapacity() === 0) {
+    return DONE
+  }
   let actionRes = creep.transfer(target, resource)
   switch (actionRes) {
     case ERR_NOT_IN_RANGE:
@@ -528,15 +603,7 @@ function doTransfer (creep) {
     case ERR_INVALID_TARGET:
       break
     case ERR_FULL: // dest is full. what should transfer people do?
-      if (!creep.memory.wait) {
-        creep.memory.wait = Game.time + 1 // wait some random amount of time
-      } else { // we were already waiting
-        if (Game.time >= creep.memory.wait) { // waited 3 ticks and still full. find drop site
-          delete creep.memory.wait
-          return DONE
-        }
-      }
-      break
+      return DONE
     case OK:
       break
     default:
@@ -625,12 +692,21 @@ function startHarvest (creep, trgId) {
 function finishHarvest (creep) {
   freeSrcSlot(creep.memory.Hslt, creep.memory.targets[0], creep.name)
   delete creep.memory.Hslt
+  delete creep.memory.wait
 }
 
 function doHarvest (creep, manifest) {
+  if (creep.memory.wait) {
+    if (creep.memory.wait >= Game.time) {
+      return
+    } else {
+      delete creep.memory.wait
+    }
+  }
   if (creep.store.getFreeCapacity() === 0) {
     return DONE
   }
+
   let src = Game.getObjectById(creep.memory.targets[0])
   if (!creep.memory.Hslt) {
     creep.memory.Hslt = reserveSrcSlot(creep, creep.memory.targets[0])
@@ -650,6 +726,13 @@ function doHarvest (creep, manifest) {
     case ERR_INVALID_TARGET:
       console.log('invalid harvest target... really didnt think i would get here', creep.name, JSON.stringify(creep.memory))
       return DONE
+    case ERR_NOT_ENOUGH_RESOURCES:
+      if (creep.store.getUsedCapacity() > 0) {
+        return DONE
+      } else if (src.energy === 0) {
+        creep.memory.wait = Game.time + src.ticksToRegeneration
+      }
+      break
     default:
       console.log('Error: Unhandled Harvest Action Response: ', creep.name, actionRes, JSON.stringify(creep.memory))
       break

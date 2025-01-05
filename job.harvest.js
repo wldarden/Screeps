@@ -42,58 +42,56 @@
 //
 
 const {ACTIONS, DONE} = require('./actions')
-const {containerized} = require('./utils.source')
-const {log} = require('./utils.debug')
-const {energy} = require('./utils.manifest')
-
-function primaryDest (creep, node) {
-  if (node.primaryDest) {
-    return node.primaryDest.some(d => {
-      let gamePrimary = Game.getObjectById(d)
-      if (gamePrimary) {
-        if (gamePrimary.store && gamePrimary.store.getFreeCapacity(RESOURCE_ENERGY) > 0) {
-          ACTIONS.transfer.start(creep, d)
-          return true
-        } else if (gamePrimary.progressTotal) {
-          ACTIONS.build.start(creep, d)
-          return true
-        }
-      }
-    })
-  }
-}
+const {getDestNode} = require('./utils.nodes')
 
 module.exports.run = function (creep, manifest) {
   try {
-    if (creep.store.getFreeCapacity() > 0) {
-      ACTIONS.harvest.start(creep, creep.memory.nodeId)
-      return
-    } else {
-      if (creep.memory.nodeId) {
-        let node = Memory.nodes[creep.memory.nodeId]
-        if (primaryDest(creep, node)) {
-          return
-        } else if (node.type === 'src' && node.stage === 3) { // stage 3 src miners will remain at src
-          return
-        } else { // lower stage src miners will travel to destinations
-          let target = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {maxOps: 500, ignoreCreeps: true});
-          if (target) {
-            ACTIONS.build.start(creep, target.id)
-            return
-          }
-          target = creep.pos.findClosestByPath(FIND_MY_STRUCTURES, {
-            maxOps: 500, ignoreCreeps: true,
-            filter: function(object) {
-              return object.store && object.store.getFreeCapacity(RESOURCE_ENERGY)
-            }
-          })
-          if (target) {
-            ACTIONS.transfer.start(creep, target.id)
-            return
-          }
-        }
+    let node = Memory.nodes[creep.memory.nodeId]
+    let energyNeeded = creep.store.getFreeCapacity()
+    if (energyNeeded === 0) {
+      let trgInfo = getDestNode(node, creep, {canWork: true, minCapacity: 1})
+      if (trgInfo?.trg) {
+        ACTIONS[trgInfo?.action].start(creep, trgInfo?.trg)
       }
     }
+    if (energyNeeded > 0) {
+      ACTIONS.harvest.start(creep, creep.memory.nodeId)
+    }
+
+
+    // {
+    //
+    //  if (creep.memory.nodeId) {
+    //    //let energy = creep.store.getUsedCapacity()
+    //    //let trg = getDestNode(creep.memory.nodeId, energy)
+    //    //if (trg) {
+    //    //  ACTIONS.transfer.start(creep, trg)
+    //    //}
+    //    let node = Memory.nodes[creep.memory.nodeId]
+    //    let trgInfo = getDestNode(creep, node)
+    //    if (primDestRes) {
+    //      return
+    //    } else if (node.type === 'src' && node.stage === 3) { // stage 3 src miners will remain at src
+    //      return
+    //    } else { // lower stage src miners will travel to destinations
+    //      let target = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {maxOps: 500, ignoreCreeps: true});
+    //      if (target) {
+    //        ACTIONS.build.start(creep, target.id)
+    //        return
+    //      }
+    //      target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+    //        maxOps: 500, ignoreCreeps: true,
+    //        filter: function(object) {
+    //          return object.store && object.store.getFreeCapacity(RESOURCE_ENERGY)
+    //        }
+    //      })
+    //      if (target) {
+    //        ACTIONS.transfer.start(creep, target.id)
+    //        return
+    //      }
+    //    }
+    //  }
+    //}
   } catch (e) {
     console.log('Error: couldnt run harvest job', e.stack)
   }

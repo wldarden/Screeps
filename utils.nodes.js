@@ -50,6 +50,192 @@ function buildNode (parentId, nodeType, pos, nodeParams) {
 }
 module.exports.buildNode = buildNode
 
+function deregisterEnergyDest (reqId, node) {
+  if (typeof node === 'string') {
+    node = Memory.nodes[node]
+  }
+  if (node.dests) {
+    delete node.dests[reqId]
+  }
+  if (node.parent) {
+    deregisterEnergyDest(reqId, node.parent)
+  }
+}
+
+function deregisterEnergySrc (reqId, node) {
+  if (typeof node === 'string') {
+    node = Memory.nodes[node]
+  }
+  if (node.srcs && reqId in node.srcs) {
+    delete node.srcs[reqId]
+    if (node.parent) {
+      deregisterEnergySrc(reqId, node.parent)
+    }
+  }
+  //if (node.srcs) {
+  //  delete node.srcs[reqId]
+  //}
+  //if (node.parent) {
+  //  deregisterEnergySrc(reqId, node.parent)
+  //}
+}
+function proxyDestChildren (node, additionalChildren = []) {
+  if (typeof node === 'string') {
+    node = Memory.nodes[node]
+  }
+  let parent
+  if (node.dests) {
+    parent = Memory.nodes[node.parent]
+    Object.keys(node.dests).forEach(id => {
+      let child = Memory.nodes[id]
+      if (child && node.dests[id]) {
+        switch (child.type) {
+          case 'build':
+          case STRUCTURE_CONTAINER:
+            parent.dests[id] = node.dests[id]
+            break
+          default:
+            if (additionalChildren.includes(id)) {
+              parent.dests[id] = node.dests[id]
+            }
+            break
+        }
+      } else {
+        deregisterEnergyDest(id, node.parent)
+      }
+    })
+  }
+}
+function proxySrcChildren(node) {
+  if (typeof node === 'string') { node = Memory.nodes[node] }
+  if (node.srcs) {
+    let parent = Memory.nodes[node.parent]
+    Object.keys(node.srcs).forEach(id => {
+      let child = Memory.nodes[id]
+      if (child && node.srcs[id]) {
+        switch (child.type) {
+          case 'build':
+          case STRUCTURE_CONTAINER:
+            if (!parent.srcs) { parent.srcs = {} }
+            parent.srcs[id] = node.srcs[id]
+            break
+        }
+      } else {
+        deregisterEnergySrc(id, node.parent)
+      }
+    })
+  }
+}
+module.exports.proxySrcChildren = proxySrcChildren
+
+function registerSrcToParent (node, parent, energy) {
+  if (typeof parent === 'string') {
+    parent = Memory.nodes[node.parent]
+  }
+
+  if (!energy && energy !== 0) {
+    let gameNode = Game.getObjectById(node.id)
+    if (gameNode) {
+      energy = gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
+    }
+  }
+  if (!parent.srcs) { parent.srcs = {} }
+  if (energy) {
+    parent.srcs[node.id] = energy
+  } else {
+    delete parent.srcs[node.id]
+  }
+}
+module.exports.registerSrcToParent = registerSrcToParent
+function requestEnergyFromParent (node) {
+  try {
+    if (typeof node === 'string') {
+      node = Memory.nodes[node]
+    }
+    let parent = Memory.nodes[node.parent]
+    if (!parent.dests){
+      parent.dests = {}
+    }
+    switch (node.type) {
+      case 'build':
+        let buildNode = Game.getObjectById(node.id)
+        if (buildNode) {
+          let energyNeeded = buildNode.progressTotal - buildNode.progress
+          if (energyNeeded > 0) {
+            parent.dests[node.id] = energyNeeded
+          } else {
+            deregisterEnergyDest(node.id, parent)
+          }
+        } else {
+          deregisterEnergyDest(node.id, parent)
+        }
+        break
+      case STRUCTURE_CONTAINER:
+      case STRUCTURE_EXTENSION:
+        let gameNode = Game.getObjectById(node.id)
+        if (gameNode) {
+          let energyNeeded = gameNode.store.getFreeCapacity(RESOURCE_ENERGY)
+          if (energyNeeded > 0) {
+            parent.dests[node.id] = energyNeeded
+          } else {
+            //delete parent.dests[node.id]
+            deregisterEnergyDest(node.id, parent)
+
+          }
+        }
+        break
+      case 'ec':
+        //console.log(node.children, node.children[STRUCTURE_EXTENSION]?.length, Memory.nodes[node.children.container[0]],
+        //  Memory.nodes[node.children.container[0]].creeps?.supplier?.length === 0)
+
+        if (node.children,node.children[STRUCTURE_EXTENSION]?.length && Memory.nodes[node.children.container[0]] &&
+          Memory.nodes[node.children.container[0]].creeps?.supplier?.length === 0) {
+          proxyDestChildren(node, node.children[STRUCTURE_EXTENSION])
+        } else {
+          proxyDestChildren(node)
+        }
+
+        // extension clusters will make their container available if all extensions are full (no personal dests) && theres no spawn req in queue
+        if (node.dests && Object.keys(node.dests)?.length === 0) {
+          proxySrcChildren(node)
+        }
+        //if (node.children && node.children[STRUCTURE_CONTAINER] && node.children[STRUCTURE_CONTAINER][0]) {
+        //  let contId = node.children[STRUCTURE_CONTAINER][0]
+        //  let gameNode = Game.getObjectById(contId)
+        //  if (gameNode) {
+        //    let energyNeeded = gameNode.store.getFreeCapacity(RESOURCE_ENERGY)
+        //    if (energyNeeded > 0) {
+        //      parent.dests[contId] = energyNeeded
+        //    } else {
+        //      parent.dests[contId] = 0
+        //    }
+        //  }
+        //}
+        break
+      case STRUCTURE_SPAWN:
+        proxyDestChildren(node)
+        let gameSpawn = Game.getObjectById(node.id)
+        if (gameSpawn) {
+          let energyNeeded = gameSpawn.store.getFreeCapacity(RESOURCE_ENERGY)
+          if (energyNeeded > 0) {
+            parent.dests[node.id] = energyNeeded
+          } else {
+            //delete parent.dests[node.id]
+            deregisterEnergyDest(node.id, parent)
+
+          }
+        }
+        break
+      case 9:
+        break
+    }
+  } catch (e) {
+    console.log('Error: requestEnergyFromParent', node?.id, e.stack)
+  }
+}
+module.exports.requestEnergyFromParent = requestEnergyFromParent
+module.exports.registerDestToParent = requestEnergyFromParent
+
 function addNodeToParent (node, parentId, newId, newType) {
   if (!node || !parentId || !node.type) {
     console.log('ERROR: Failed to add node to parent', 'parentId:', parentId, 'node:', JSON.stringify(node))
@@ -135,38 +321,36 @@ function removeNodeFromParent (node, parentId) {
     console.log('ERROR: Failed to remove node from parent', 'parentId:', parentId, 'node:', JSON.stringify(node))
     return
   }
-  if (!Memory.nodes[parentId].children) {
-    Memory.nodes[parentId].children = {}
-  }
-  if (!Memory.nodes[parentId].children[node.type]) {
-    Memory.nodes[parentId].children[node.type] = []
-  }
-  let parent = Memory.nodes[parentId]
-  switch (parent.type) {
-    case 'log':
-      switch (node.type) {
-        case STRUCTURE_CONTAINER:
-          switch (node.subType) {
-            case 'src':
-              if (parent.srcContainers) {
-                parent.srcContainers = parent.srcContainers.filter(c => c === node.id)
-              }
-              break
-            default:
-            case 'log':
-              if (parent.logContainers) {
-                parent.logContainers = parent.logContainers.filter(c => c === node.id)
+  if (Memory.nodes[parentId]) {
+    if (Memory.nodes[parentId].children && Memory.nodes[parentId].children[node.type]) {
+      let parent = Memory.nodes[parentId]
+      switch (parent.type) {
+        case 'log':
+          switch (node.type) {
+            case STRUCTURE_CONTAINER:
+              switch (node.subType) {
+                case 'src':
+                  if (parent.srcContainers) {
+                    parent.srcContainers = parent.srcContainers.filter(c => c === node.id)
+                  }
+                  break
+                default:
+                case 'log':
+                  if (parent.logContainers) {
+                    parent.logContainers = parent.logContainers.filter(c => c === node.id)
+                  }
+                  break
               }
               break
           }
           break
       }
-      break
+    }
+    Memory.nodes[parentId].children[node.type] = Memory.nodes[parentId].children[node.type].filter(id =>  id !== node.id)
+    Memory.nodes[node.id] = node
+    delete node.dist
   }
-  Memory.nodes[parentId].children[node.type] = Memory.nodes[parentId].children[node.type].filter(id =>  id !== node.id)
   node.parent = null
-  delete node.dist
-  Memory.nodes[node.id] = node
 }
 module.exports.removeNodeFromParent = removeNodeFromParent
 
@@ -372,82 +556,167 @@ function createNodePosition (parent, type) {
 }
 module.exports.createNodePosition = createNodePosition
 
-function registerEnergyState (baseManifest, id, srcPriority = 0, destPriority = 0) {
-  const gameNode = Game.getObjectById(id)
-  // let node = Memory.nodes[id]
-  const energy = gameNode.store.getUsedCapacity(RESOURCE_ENERGY) || 0
-  const capacity = gameNode.store.getCapacity(RESOURCE_ENERGY) || 0
-  const frac = energy / capacity
-  if (energy > 0 && srcPriority > 0) {
-    const energyReq = {
-      id: gameNode.id,
-      amount: energy,
-      pri: frac * srcPriority,
-      action: 'withdraw'
-    }
-    registerEnergy(baseManifest, energyReq, 'src', 0, 9)
-  } else {
-    deregisterEnergy(baseManifest, id, 'src')
-  }
+function evalDest (id) {
 
-
-  if (capacity > energy  && destPriority > 0) {
-    let pri = destPriority + (((1 - frac) * 2) - 1)
-    let node = Memory.nodes[id]
-    let energyReq
-    switch (node.type) {
-      case 'spawn':
-        //console.log('spawn cap and e', capacity, energy, pri)
-        energyReq = {
-          id: gameNode.id,
-          amount: (capacity - energy),
-          pri: 9,
-          action: 'transfer'
-        }
-        registerEnergy(baseManifest, energyReq, 'dest')
-        break
-      default:
-        if (node.type === 'spawn') {
-          pri = 9
-        }
-        energyReq = {
-          id: gameNode.id,
-          amount: (capacity - energy),
-          pri: pri,
-          action: 'transfer'
-        }
-        registerEnergy(baseManifest, energyReq, 'dest')
-        break
-    }
-
-
-  } else {
-    deregisterEnergy(baseManifest, id, 'dest')
-  }
-
-}
-module.exports.registerEnergyState = registerEnergyState
-
-function getPrimarySrc (node) {
-  if (typeof node === 'string') {
-    node = Memory.nodes[node]
-  }
-  let src
-  let srcAction = 'withdraw'
+  const node = Memory.nodes[id]
   switch (node.type) {
+    case STRUCTURE_SPAWN:
+      return {trg: id, action: 'transfer'} // could we make sure that theres not a spawn queue first here?
+    case STRUCTURE_EXTENSION:
+    case STRUCTURE_CONTAINER:
+      return {trg: id, action: 'transfer'}
     case 'base':
-      src = node.children.spawn[0]
+      if (node.children?.spawn && node.children.spawn[0]) {
+        return {trg: node.children.spawn[0], action: 'transfer'}
+      }
       break
-  }
-  if (src && srcAction) {
-    return {trg: src, action: srcAction}
-  } else if (node.parent) {
-      return getPrimarySrc(node.parent)
-  } else {
-    return false
+    case 'build':
+      return {trg: id, action: 'build'}
+    default:
+      console.log('default node.type used for evalDest: ', node.type, id)
+      return {trg: id, action: 'transfer'}
   }
 }
-module.exports.getPrimarySrc = getPrimarySrc
+
+/**
+ *
+ * @param node
+ * @param creep
+ * @param params
+ * @return {{trg: *, action: string}|{trg: *, action: string}|{trg: *, action: string}|{trg: *, action: string}|{trg: *, action: string}|{trg: *, action: string}|*|boolean|boolean}
+ */
+function getDestNode (node, creep, params = {}) {
+  try {
+    const {
+      energy = creep.store.getUsedCapacity(), // how much energy the creep has to give to dest
+      canWork = creep.getActiveBodyparts(WORK), // does creep have work body parts
+      minCapacity // minimum capacity that the dest should have to allow targeting
+    } = params
+    let minDestCapacity = minCapacity || (energy * .5) // (creep.memory.minLoad || .5)
+    if (typeof node === 'string') { node = Memory.nodes[node] }
+    if (node.dests && Object.keys(node.dests).length) { // check srcs obj of node to see if registered energy is here
+      let alternate
+      for (let id in node.dests) {
+        if (id !== creep.memory.nodeId) {
+          if (!Memory.nodes[id]) {
+            console.log('1234 we just tried to get a node Dest that no longer exists. theres logic to delete it, but it may not be needed', id, node.id, node.type)
+            deregisterEnergyDest(id, node) // delete srcs that dont exist anymore
+          } else {
+            const destCap = node.dests[id]
+            if (destCap && (canWork || !NEEDS_WORK[Memory.nodes[id]?.type])) { // if registered src has more than 0 energy:
+              if (destCap > energy) {                                          //   if registered src has more energy than creep needs:
+                const trgInfo = evalDest(id)   // PRIMARY              //     => build trgInfo for src and
+                if (trgInfo) { return trgInfo }                                  //     => return trgInfo
+              } else if (destCap > minDestCapacity) {                             //   Else Src still has energy, if destCap > energy current minDestCapacity,
+                alternate = id                                                   //     => remember it in case there's not a better one
+                minDestCapacity = destCap                          // ALT               //     => raise minSrcEnergy to new best alternate
+              }
+            }
+          }
+        }
+
+      }
+      if (alternate) {
+        const trgInfo = evalDest(alternate)
+        if (trgInfo) { return trgInfo }
+      }
+    }
+    if (node.parent) {
+      return getDestNode(node.parent, creep, params) // this line        // PARENT
+    } else {
+      //console.log('NO DEST FOUND AT ALL. checking piles:', creep.name, creep.pos.x, creep.pos.y, node.type, node.id)
+      //let trg = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {maxOps: 500, ignoreCreeps: true})?.id
+      //if (trg) {
+      //  return {trg: trg, action: 'drop'}                       // PILE
+      //}
+      return false
+    }
+  } catch (e) {
+    console.log('Error: error thrown in getDestNode', node.id, node.type, creep.name, e.stack)
+  }
+}
+module.exports.getDestNode = getDestNode
+
+function evalSrc (id) {
+  const node = Memory.nodes[id]
+  switch (node.type) {
+    case STRUCTURE_SPAWN:
+      return {trg: node.children.spawn[0], action: 'withdraw'}
+    case STRUCTURE_CONTAINER:
+      return {trg: id, action: 'withdraw'}
+    case 'base':
+      if (node.children?.spawn && node.children.spawn[0]) {
+        return {trg: node.children.spawn[0], action: 'withdraw'}
+      }
+      break
+    case 'src':
+      return {trg: id, action: 'harvest'}
+    default:
+      console.log('default node.type used for evalSrc: ', node.type, id)
+      return {trg: id, action: 'withdraw'}
+  }
+}
+
+const NEEDS_WORK = {
+  src: true,
+  build: true
+}
+
+/**
+ *
+ * @param node
+ * @param creep
+ * @param params
+ * @return {{trg: *, action: string}|{trg: *, action: string}|{trg: *, action: string}|{trg: *, action: string}|{trg: *, action: string}|*|{trg: *, action: string}|boolean|boolean}
+ */
+function getSrcNode (node, creep, params = {}) {
+  try {
+    const {
+      energyNeeded = creep.store.getFreeCapacity(),
+      canWork = creep.getActiveBodyparts(WORK),
+      minEnergyNeeded
+    } = params
+    let minSrcEnergy = minEnergyNeeded || (energyNeeded * .5) // (creep.memory.minLoad || .5)
+    if (typeof node === 'string') { node = Memory.nodes[node] }
+    if (node.srcs  && Object.keys(node.srcs).length) { // check srcs obj of node to see if registered energyNeeded is here
+      let alternate
+      for (let id in node.srcs) {
+        if (!Memory.nodes[id]) {
+            console.log('1234 we just tried to get a node src that no longer exists. theres logic to delete it, but it may not be needed', id, node.id, node.type)
+            deregisterEnergySrc(id, node) // delete srcs that dont exist anymore
+        } else {
+          const srcEnergy = node.srcs[id]
+          if (srcEnergy && (canWork || !NEEDS_WORK[Memory.nodes[id]?.type])) { // if registered src has more than 0 energy:
+            if (srcEnergy > energyNeeded) {                                          //   if registered src has more energyNeeded than creep needs:
+              const trgInfo = evalSrc(id)                 //     => build trgInfo for src and
+              if (trgInfo) { return trgInfo }                                  //     => return trgInfo
+            } else if (srcEnergy > minSrcEnergy) {                             //   Else Src still has energy, if srcEnergy > energyNeeded current minSrcEnergy,
+              alternate = id                                                   //     => remember it in case there's not a better one
+              minSrcEnergy = srcEnergy                                         //     => raise minSrcEnergy to new best alternate
+            }
+          }
+        }
+      }
+      if (alternate) {
+        const trgInfo = evalSrc(alternate)
+        if (trgInfo) { return trgInfo }
+      }
+    }
+    if (node.parent) {
+      return getSrcNode(node.parent, creep, params) // this line
+    } else {
+      console.log('NO SOURCE FOUND AT ALL. checking dropped sources:', creep.name, creep.pos.x, creep.pos.y, node.type, node.id)
+      let trg = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {maxOps: 500, ignoreCreeps: true})?.id
+      if (trg) {
+        return {trg: trg, action: 'pickup'}
+      }
+      return false
+    }
+  } catch (e) {
+    console.log('Error: error thrown in getSrcNode', node.id, node.type, creep.name, e.stack)
+  }
+}
+module.exports.getSrcNode = getSrcNode
 /**
  * getChildren(node, types, includeSelf) => array of nodes
  *
@@ -613,12 +882,15 @@ function addCreepToNode (nodeId, role, creepName) {
 module.exports.addCreepToNode = addCreepToNode
 
 function getTypeCreeps (node, type) {
-  if (!node.creeps) {
-    node.creeps = {}
+  if (!node.creeps || !node.creeps[type]) {
+    return []
   }
-  if (!node.creeps[type]) {
-    node.creeps[type] = []
-  }
+  //if (!node.creeps) {
+  //  node.creeps = {}
+  //}
+  //if (!node.creeps[type]) {
+  //  node.creeps[type] = []
+  //}
   return node.creeps[type]
 }
 module.exports.getTypeCreeps = getTypeCreeps

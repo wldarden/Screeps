@@ -1,29 +1,24 @@
 const {serializePos, serializeBody} = require('./utils.memory')
 const {getTypeCreeps, getNodeReqs, removeCreepFromNode} = require('./utils.nodes')
 const {ACTIONS} = require('./actions')
+const {deleteNodeReqs} = require('./utils.manifest')
 
-function maintainRoleCreepsForNode (baseManifest, node, role, desired, minPri, maxPri, memOpts = {}) {
-  if (!baseManifest.spawn) { baseManifest.spawn = [] }
-  let existingTypeCreeps = getTypeCreeps(node, role)
-  let spawnCount = node.spawnReqCount ? node.spawnReqCount : 0
-  if ((existingTypeCreeps.length + spawnCount) < desired) {
-    baseManifest.spawn.push(node.id)
+function maintainRoleCreepsForNode (baseManifest, node, role, desired) {
+  const currCount = getTypeCreeps(node, role).length
+  const spawnCount = node.spawnReqCount ? node.spawnReqCount : 0
+  const totalCount = currCount + spawnCount
+  if (totalCount < desired) {
     node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount + 1 : 1
-    return true
+    switch (node.type) {
+      case 'src':
+        //return baseManifest.spawn.unshift(node.id)
+        return  baseManifest.spawn.push(node.id)
+      default:
+        return baseManifest.spawn.push(node.id)
+    }
+  } else if (spawnCount && totalCount > desired) {
+    deleteNodeReqs(baseManifest, node.id,'spawn')
   }
-
-  //let existingTypeCreeps = getTypeCreeps(node, role)
-  //const currentSaturation = existingTypeCreeps.length / desired
-  //const plannedSaturation = (getNodeReqs(node).length + existingTypeCreeps.length) / desired
-  //if (plannedSaturation < 1) {
-  //  const priGap = maxPri - minPri
-  //  const pri = minPri + ((1 - currentSaturation) * priGap)
-  //  const {body, cost} = buildRoleCreep(node, role, baseManifest.spawnCapacity)
-  //  const newRequest = {
-  //    pri: pri, requestor: node.id, assignee: [], status: 'new', type: 'spawn', cost: cost,
-  //    opts: {role: role, plan: serializeBody(body), ...memOpts}
-  //  }
-  //}
 }
 module.exports.maintainRoleCreepsForNode = maintainRoleCreepsForNode
 
@@ -46,6 +41,7 @@ module.exports.destroyCreep = function(name) {
         ACTIONS.global.finish({memory: creepMemory, name: name}, manifest, action)
       })
     }
+    console.log('ERROR destroy creep ERROR: I need this nodeId', creepMemory.nodeId, JSON.stringify(creepMemory))
     removeCreepFromNode(creepMemory.nodeId, creepMemory.role, name)
   }
   delete Memory.creeps[name]

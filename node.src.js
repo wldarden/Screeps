@@ -5,6 +5,7 @@ const {creepPlanInfo, maintainRoleCreepsForNode} = require('./utils.creep')
 const {PLANS} = require('./utils.plans')
 
 function maxSrcMiners (src) {
+  return Object.keys(src.slots).length
   if (src.stage === 3) {
     return Object.keys(src.slots).length
   } else if (src.cps) {
@@ -69,7 +70,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     }
     const miners = getTypeCreeps(node, 'miner')
     const maxMiners = maxSrcMiners(node)
-    //const saturation = miners.length / maxMiners
+    const saturation = miners.length / maxMiners
     //const nSlots = Object.keys(node.slots).length
     //const plannedSaturation = (getNodeReqs(node).length + miners.length) / maxMiners
     let mode = 'default'
@@ -90,17 +91,20 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     switch (node.stage) {
       default:
       case 0:
-        if (!node.primaryDest) {
-          let target = Game.getObjectById(node.id).pos.findClosestByPath(FIND_MY_SPAWNS, {maxOps: 500, ignoreCreeps: true})
-          node.primaryDest = [target?.id]
-        }
+        //if (!node.primaryDest) {
+        //  let target = Game.getObjectById(node.id).pos.findClosestByPath(FIND_MY_SPAWNS, {maxOps: 500, ignoreCreeps: true})
+        //  node.primaryDest = [target?.id]
+        //}
         if (parent && parent.type === 'log') {
+          node.stage = 1
+        }
+        if (saturation >= 1 && Object.keys(node.slots).length > 2) {
           node.stage = 1
         }
         break
       case 1: // Begin containerizing
 
-        if (parent && parent.type === 'log') {
+        if (parent) {
           let pos = myContainerPos(node)
           if (pos) {
             buildNode(node.id, STRUCTURE_CONTAINER, pos, {subType: 'src'})
@@ -117,20 +121,20 @@ module.exports.run = function (node, lineage = [], baseManifest) {
           node.cps = creepsPerSlot
         }
         if (node.children?.build?.length) {
-          cleanPrimaryDests(node)
-          node.children.build.forEach(b => {
-            if (!node.primaryDest.includes(b)) {
-              if (node.dist > 10) {
-                node.primaryDest.unshift(b)
-              } else {
-                node.primaryDest.push(b)
-              }
-            }
-          })
+          //cleanPrimaryDests(node)
+          //node.children.build.forEach(b => {
+          //  if (!node.primaryDest.includes(b)) {
+          //    if (node.dist > 10) {
+          //      node.primaryDest.unshift(b)
+          //    } else {
+          //      node.primaryDest.push(b)
+          //    }
+          //  }
+          //})
         }
         let containers = getChildren(node, [STRUCTURE_CONTAINER], undefined, false, 1)
         if (containers.length) { // we completed our container node. swap places and move to stage 3
-          cleanPrimaryDests(node)
+          //cleanPrimaryDests(node)
           let cont = containers[0]
           cont.subType = 'src'
           const contId = cont.id
@@ -139,13 +143,14 @@ module.exports.run = function (node, lineage = [], baseManifest) {
           node.containerId = contId
           delete node.parent
           addNodeToParent(node, contId) // move this src to container
-          node.primaryDest.unshift(contId)
+          //node.primaryDest.unshift(contId)
         }
         break
       case 3: // containerized src
         if (node.containerId && node.parent !== node.containerId) {
           addNodeToParent(node, node.containerId) // move this src to container
         }
+        //delete node.dests[node.containerId]
         mode = 'containerized'
         break
     }
@@ -153,7 +158,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     /**
      * Everything below here depends on the configs set above.
      */
-    maintainRoleCreepsForNode(baseManifest, node, PLANS.spawn[mode].role, maxMiners, 2, 8)
+    maintainRoleCreepsForNode(baseManifest, node, PLANS.spawn[mode].role, maxMiners)
 
     baseManifest.finance.income[node.id] = node.ept * miners.length
     baseManifest.finance.cost[node.id] = ((300/1500) * miners.length)

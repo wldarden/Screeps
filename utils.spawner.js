@@ -22,6 +22,7 @@ const {log} = require('./utils.debug')
 function getPartCost (parts) {
   let cost = 0
   parts.forEach(part => {
+    //console.log('getting part cost:', part, BODYPART_COST[part], cost)
     cost += BODYPART_COST[part]
   })
   return cost
@@ -47,8 +48,8 @@ function buildRoleCreep (node, role, maxCost = 300) {
   switch (role) {
     case 'miner':
       if (node.type === 'src' && node.stage >= 3) {
-        body = [WORK,WORK,CARRY,MOVE]
-        addOns = [CARRY, MOVE]
+        body = [WORK,CARRY,MOVE,CARRY,MOVE]
+        addOns = [WORK]
         baseCost = 300
         addOnCost = 100
         addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
@@ -83,9 +84,9 @@ function buildRoleCreep (node, role, maxCost = 300) {
       break
     case 'upgrader':
       body = [CARRY, WORK, MOVE, CARRY, MOVE]
-      addOns = [CARRY, WORK, MOVE]
+      addOns = [WORK, MOVE]
       baseCost = 300
-      addOnCost = 200
+      addOnCost = 150
       addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
       break
     default:
@@ -114,7 +115,7 @@ function spawnForSrc (node, maxCost = 300) {
   let maxAddOns = -1
   switch (node.stage) {
     case 3:
-      body = [WORK, WORK, CARRY, MOVE]
+      body = [CARRY, WORK, MOVE, CARRY, MOVE]
       addOns = [WORK]
       maxAddOns = Math.ceil(5 / Object.keys(node.slots)) + 1
       break
@@ -127,19 +128,29 @@ function spawnForSrc (node, maxCost = 300) {
   let baseCost = getPartCost(body)
   let addOnCost = 0
   let count = 0
-  if (addOns.length) {
-    addOnCost = getPartCost(addOns)
+  if (baseCost < maxCost && addOns.length) {
+    addOnCost = getPartCost(addOns) || 0
     count = Math.floor((maxCost - baseCost) / addOnCost)
     //console.log('addOnCost', addOnCost, 'base', baseCost, 'count', Math.floor((maxCost - baseCost) / addOnCost))
     count = maxAddOns === -1 ? count : Math.min(count, maxAddOns)
     for (let i = 0; i < count; i++) {
-      body = body.concat(addOns)
+      body = addOns.concat(body)
     }
   }
   //console.log('maxAddons', body)
+  //return {
+  //  name: getUniqueName(role),
+  //  memory: {role: role, nodeId: node.id},
+  //  body: body,
+  //  cost: baseCost + (addOnCost * count)
+  //}
+  //console.log('final body: ', body, 'cost: ', baseCost + (addOnCost * count), 'role:', role, 'nodeId', node.id, 'maxAddOns:', maxAddOns)
   return {
     name: getUniqueName(role),
-    memory: {role: role, nodeId: node.id},
+    memory: {
+      role: role,
+      nodeId: node.id
+    },
     body: body,
     cost: baseCost + (addOnCost * count)
   }
@@ -151,9 +162,12 @@ function spawnForNode (id, maxCost = 300) {
   switch (node.type) {
     case 'src':
       role = 'miner'
-      //let res = spawnForSrc(node)
+      let res = spawnForSrc(node)
       //log({spawnReq: res})
-      //return res
+      return res
+      break
+    case STRUCTURE_CONTAINER:
+      role = 'supplier'
       break
     case 'build':
       role = 'builder'
@@ -166,6 +180,9 @@ function spawnForNode (id, maxCost = 300) {
       break
     case 'maint':
       role = 'maint'
+      break
+    case 'ec':
+      role = 'supplier'
       break
   }
   if (node && role) {

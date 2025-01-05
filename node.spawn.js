@@ -1,4 +1,4 @@
-const {runChildren, addCreepToNode, getChildren, addNodeToParent, registerEnergyState} = require('./utils.nodes')
+const {runChildren, addCreepToNode, getChildren, addNodeToParent, requestEnergyFromParent} = require('./utils.nodes')
 const {log} = require('./utils.debug')
 const {serializePos} = require('./utils.memory')
 const {spawnForNode} = require('./utils.spawner')
@@ -46,7 +46,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
   try {
     if (node.threat) { return } // threat nodes are skipped
 
-    let gameSp = Game.getObjectById(node.id)
+    //let gameSp = Game.getObjectById(node.id)
     //gameSp.pos.getDirectionTo()
     switch (node.stage) {
       default:
@@ -58,7 +58,6 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         break
       case 1: // Build extensions until max reached
         let clusters = getChildren(node, ['ec'], undefined, false, 1)
-
         if (!clusters?.length) {
           let gameSpawn = Game.getObjectById(node.id)
           let extCluster = {
@@ -68,58 +67,45 @@ module.exports.run = function (node, lineage = [], baseManifest) {
             children: {},
             creeps: {},
             stage: 0,
-            pos: serializePos({x: gameSpawn.pos.x + 3, y: gameSpawn.pos.y, roomName: gameSpawn.pos.roomName })
+            pos: serializePos({x: gameSpawn.pos.x, y: gameSpawn.pos.y, roomName: gameSpawn.pos.roomName })
           }
           addNodeToParent(extCluster, node.id)
+          node.stage = 2
           //buildNode( // BUILD EXT CLUSTER
           //  node.id,
           //  'ec',
           //  {x: gameSpawn.pos.x + 3, y: gameSpawn.pos.y, roomName: gameSpawn.pos.roomName }
           //)
         }
-        //let extensions = getChildren(node, [STRUCTURE_EXTENSION], undefined, false, 1)
-        //if (extensions.length < maxExtensions) { // if no container nodes...
-        //  let buildNodes = getChildren(
-        //    node,
-        //    ['build'],
-        //    (child) => child.onDoneType === STRUCTURE_EXTENSION,
-        //    false,
-        //    1)
-        //  if (buildNodes.length === 0) { // and no container nodes being built...
-        //    let gameNode = Game.getObjectById(node.id)
-        //    let pos = buildNear(gameNode.pos, STRUCTURE_EXTENSION)
-        //    buildNode(node.id, STRUCTURE_EXTENSION, pos) // build one
-        //  }
-        //} else { // if we do have max built extensions, move to next stage
-        //
-        //}
         break
       case 2: // TODO - maybe check if max extensions has changed or something here
         break
 
     }
 
-    const spawnEnergySrcPri = baseManifest.energy.src.length < 1 ? 1 : 0
+    //const spawnEnergySrcPri = baseManifest.energy.src.length < 1 ? 1 : 0
     /**
      * Register Energy Src
      */
-    //registerEnergyState(baseManifest, node.id, spawnEnergySrcPri, 9)
+    requestEnergyFromParent(node, baseManifest)
     /**
      * Register Energy Src
      */
 
     /**
-     * Spawn
+     * SPAWN LOGIC
      */
     let gameNode = Game.getObjectById(node.id)
     baseManifest.spawnCapacity = Object.keys(Memory.creeps)?.length < 5 ? 300 : gameNode.room.energyCapacityAvailable
-    baseManifest.spawnCapacity=300
+    //baseManifest.spawnCapacity=300
+    //console.log('spawn cap info1:', Game.time, 'final spawncap: ', node.waited ? gameNode.room.energyAvailable : baseManifest.spawnCapacity,'node.waited', node.waited, 'node.waitUntilTime', node.waitUntilTime,'node.waitUntilCost',node.waitUntilCost)
+    //console.log('spawn cap info2:', Game.time, 'room.energyAvailable', gameNode.room.energyAvailable, 'baseManifest.spawnCapacity',baseManifest.spawnCapacity, 'room.energyCapacityAvailable', gameNode.room.energyCapacityAvailable)
     if (node.waitUntilCost > baseManifest.spawnCapacity) {
       delete node.waitUntilCost
       delete node.waitUntilTime
     }
     if (
-      (!node.waitUntilCost || gameNode.room.energyAvailable >= node.waitUntilCost) &&
+      (!node.waitUntilCost || gameNode.room.energyAvailable >= node.waitUntilCost || node.waitUntilTime) &&
       (!node.waitUntilTime || node.waitUntilTime <= Game.time)
     ) {
 
@@ -131,19 +117,23 @@ module.exports.run = function (node, lineage = [], baseManifest) {
           delete node.waitUntilTime
           return
         }
-        const spawnReq = spawnForNode(spawnReqNodeId, baseManifest.spawnCapacity)
+        //console.log('attempted spawn', node.serializedReq, 'cost', node.waitUntilCost, gameNode.room.energyAvailable >= node.waitUntilCost, 'time', node.waitUntilTime, node.waitUntilTime <= Game.time)
+        const spawnReq = node.serializedReq ? JSON.parse(node.serializedReq) : spawnForNode(spawnReqNodeId, node.waited ? gameNode.room.energyAvailable : baseManifest.spawnCapacity)
         if (spawnReq) {
           let res = gameNode.spawnCreep(spawnReq.body, spawnReq.name, {memory: spawnReq.memory})
           switch (res) {
             case OK:
               addCreepToNode(spawnReq.memory.nodeId, spawnReq.memory.role, spawnReq.name)
               completeSpawnReq(baseManifest, spawnReqNodeId)
+              delete node.waited
               delete node.waitUntilCost
               delete node.waitUntilTime
+              delete node.serializedReq
               break
             case ERR_BUSY:
-              node.waitUntilTime = Game.time + 5
+              node.waitUntilTime = Game.time + 2
               delete node.waitUntilCost
+              node.serializedReq = JSON.stringify(spawnReq)
               break
             case ERR_INVALID_ARGS:
               log({spawnReq})
@@ -151,10 +141,13 @@ module.exports.run = function (node, lineage = [], baseManifest) {
               completeSpawnReq(spawnReqNodeId)
               delete node.waitUntilCost
               delete node.waitUntilTime
+              delete node.serializedReq
               break
             case ERR_NOT_ENOUGH_RESOURCES:
+              node.serializedReq = JSON.stringify(spawnReq)
               node.waitUntilCost = spawnReq.cost
-              delete node.waitUntilTime
+              node.waited = true
+              node.waitUntilTime = Game.time + 15
               break
             default:
               console.log('Error: unhandled spawn res:', res)
@@ -164,7 +157,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
       }
     }
     /**
-     * Spawn
+     * SPAWN LOGIC END
      */
     runChildren(node, lineage, baseManifest)
   } catch(e) {

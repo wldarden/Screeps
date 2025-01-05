@@ -6,6 +6,7 @@ const {DONE, ACTIONS} = require('./actions')
 const {addNodeToParent, getNodePos, getNodeBase} = require('./utils.nodes')
 const {runBase} = require('./node.base')
 const {destroyCreep} = require('./utils.creep')
+const {log} = require('./utils.debug')
 
 // const baseRunners = [
 //   {runner: require('base.creep'), name: 'Creeps', ticks: 1, offset: 0}, // do first so spawns have a chance
@@ -67,7 +68,6 @@ module.exports.loop = function () {
         // dead base. destroy
       }
     }
-
     for (let name in Memory.creeps) {
       let creep = Game.creeps[name]
       if (creep) {
@@ -114,7 +114,6 @@ function initBaseFromSpawn (spawn) {
 
   Memory.manifests[base.id] = {
     finance: {income: {}, cost: {}, total: {income: 0, cost: 0, balance: 0, reserved: 0}},
-    energy: {dest: [], src: []},
     spawn: [],
     free: {creeps: []}
   }

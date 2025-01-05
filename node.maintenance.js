@@ -26,7 +26,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         //
         //}
         if (baseManifest.spawnCapacity >= 400) {
-            maintainRoleCreepsForNode(baseManifest, node, 'maint', 1, 0,0)
+            maintainRoleCreepsForNode(baseManifest, node, 'maint', 1)
         }
         runChildren(node, lineage, baseManifest)
     } catch(e) {

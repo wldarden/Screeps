@@ -20,31 +20,24 @@ function createIncome (baseManifest) {
 /**
  * FINANCE
  */
-function calcIncome (baseManifest) {
+function calcIncome (baseManifest, node) {
   let total = {income: 0, cost: 0, balance: 0, reserved: 0}
   Object.values(baseManifest.finance.income).forEach(amount => { total.income = total.income + amount })
   Object.values(baseManifest.finance.cost).forEach(amount => { total.cost = total.cost + amount })
   baseManifest.finance.total.income = total.income
   baseManifest.finance.total.cost = total.cost
   baseManifest.finance.total.balance = total.income - total.cost
+  baseManifest.baseSrcEnergy = 0
+  if (node.srcs) {
+    Object.keys(node.srcs).forEach(sId => {
+      baseManifest.baseSrcEnergy = baseManifest.baseSrcEnergy + node.srcs[sId]
+    })
+  }
 }
 /**
  * FINANCE
  */
 
-function collectBuildSiteIds (baseManifest) {
-  if (baseManifest.pending?.build?.length) {
-    baseManifest.pending.build.forEach(buildReqId => {
-      let buildReq = getReqById(baseManifest.build.pending, buildReqId)
-      if (!buildReq.opts.siteId) {
-        const lookRes = deserializePos(buildReq.opts.pos).lookFor(LOOK_CONSTRUCTION_SITES)
-        if (lookRes?.length) {
-          buildReq.opts.siteId = lookRes.find(item => item.structureType === buildReq.opts.structureType)?.id
-        }
-      }
-    })
-  }
-}
 /**
  * BUILDER
  */
@@ -55,6 +48,7 @@ module.exports.runBase = function (node, lineage = []) {
       default:
       case 0:
         node.stage = 0
+        Memory.workers = {}
         /**
          * CREATE LOGISTIC NODE WHEN NEEDED
          */
@@ -86,7 +80,8 @@ module.exports.runBase = function (node, lineage = []) {
 
     baseManifest.roomEnergyFrac = Game.rooms[node.id].energyAvailable / Game.rooms[node.id].energyCapacityAvailable
     runChildren(node, lineage, baseManifest)
-    calcIncome(baseManifest)
+
+    calcIncome(baseManifest, node)
 
 
 

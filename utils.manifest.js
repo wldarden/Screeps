@@ -166,7 +166,7 @@ module.exports.getReqCost = getReqCost
 function deleteNodeReqs (manifest, nodeId, type = 'spawn') {
   if (manifest[type]) {
     manifest[type] = manifest[type].filter(nId => nId !== nodeId)
-    Memory.nodes[nodeId].spawnReqCount = 0
+    delete Memory.nodes[nodeId].spawnReqCount
   }
 }
 module.exports.deleteNodeReqs = deleteNodeReqs
@@ -174,7 +174,11 @@ module.exports.deleteNodeReqs = deleteNodeReqs
 function completeSpawnReq (baseManifest, nodeId) {
   let node = Memory.nodes[nodeId]
   if (node) {
-    node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount - 1 : 0 // decrement the spawnReqCount of the requester node
+    if (node.spawnReqCount > 1) {
+      node.spawnReqCount = node.spawnReqCount - 1
+    } else {
+      delete node.spawnReqCount
+    }
   }
   baseManifest.spawn.shift()
 }
