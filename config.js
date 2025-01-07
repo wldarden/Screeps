@@ -1,8 +1,14 @@
 
+
+module.exports.MIN_ENERGY_UPGRADE = 300
+module.exports.MIN_ENERGY_BUILD = 250
+module.exports.CREEP_MIN_LIFE_TICKS = 40
+
 module.exports.SHOW_PATHS = true
 module.exports.PRIORITY = {
 	BUILD: 5
 }
+
 
 const ALL_DEBUG_LOG_TYPES = [
 	'DEFAULT',

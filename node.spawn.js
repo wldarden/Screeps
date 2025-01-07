@@ -1,53 +1,73 @@
-const {runChildren, addCreepToNode, getChildren, addNodeToParent, requestEnergyFromParent} = require('./utils.nodes')
+const {runChildren, addCreepToNode, getChildren, addNodeToParent, registerDestToParent, registerSrcToParent,
+  deregisterEnergySrc
+} = require('./utils.nodes')
 const {log} = require('./utils.debug')
 const {serializePos} = require('./utils.memory')
 const {spawnForNode} = require('./utils.spawner')
 const {completeSpawnReq} = require('./utils.manifest')
 
-
-function buildNear (position, structure = STRUCTURE_EXTENSION) {
-    const room = Game.rooms[position.roomName]
-    var searching = true
-    const btmLeftX = position.x - 2
-    const btmLeftY = position.y - 2
-    var i = 0
-    let resX
-    let resY
-    let siteId
-    while (searching && i < 20) {
-        // [7, 8, 9]
-        // [3, 4, 5]
-        // [1, 2, 3]
-        const x = btmLeftX + ((i % 3) * 2)
-        const y = btmLeftY + (Math.floor(i / 3) * 2)
-        var res = room.createConstructionSite(x, y, structure);
-
-        // OK	                  0 The operation has been scheduled successfully.
-        // ERR_NOT_OWNER	     -1 The room is claimed or reserved by a hostile player.
-        // ERR_INVALID_TARGET	 -7 The structure cannot be placed at the specified location.
-        // ERR_FULL	           -8 You have too many construction sites. The maximum number of construction sites per player is 100.
-        // ERR_INVALID_ARGS	  -10 The location is incorrect.
-        // ERR_RCL_NOT_ENOUGH	-14 Room Controller Level insufficient. Learn more
-        // console.log(res, x,y,'res loggg', JSON.stringify(room.getPositionAt(x,y).lookFor(LOOK_CONSTRUCTION_SITES)[0]))
-        console.log(res, 'build near res')
-        if (res === 0) {
-            searching = false
-            // siteId = room.getPositionAt(x,y).lookFor(LOOK_CONSTRUCTION_SITES)[0].id
-            resX = x
-            resY = y
-        } else {
-            i++
-        }
-    }
-    return searching ? false : {x: resX, y: resY, roomName: position.roomName} // (false if couldnt, pos if building)
+function doSpawn (node, gameNode, spawnReq, baseManifest) {
+  //console.log('do spawn loggg', node, gameNode, spawnReq, baseManifest)
+  if (!Memory.nodes[spawnReq.memory.nodeId]) {
+    return deleteSpawnReq(baseManifest, node, spawnReq.memory.nodeId)
+  }
+  node.currReqId = spawnReq.memory.nodeId
+  let res = gameNode.spawnCreep(spawnReq.body, spawnReq.name, {memory: spawnReq.memory})
+  //console.log('spawn res logggg', res)
+  switch (res) {
+    case OK:
+      addCreepToNode(spawnReq.memory.nodeId, spawnReq.memory.role, spawnReq.name)
+      return true
+    case ERR_NAME_EXISTS: // -3 - serializedReq has name that already exists. we should redo the req:
+      if (spawnReq) {
+        const maxEnergy = node.waited ? gameNode.room.energyAvailable : baseManifest.spawnCapacity
+        const newReq = spawnForNode(spawnReq.memory.nodeId, maxEnergy)
+        return doSpawn(node, gameNode, newReq, baseManifest)
+      } else {
+        //deleteSpawnReq(baseManifest, node, spawnReq.memory.nodeId) // i dont think this is necessary...
+        return false
+      }
+    case ERR_BUSY:
+      node.waitUntilTime = Game.time + gameNode.spawning.remainingTime
+      delete node.waitUntilCost
+      node.serializedReq = JSON.stringify(spawnReq)
+      break
+    case ERR_INVALID_ARGS:
+      log({spawnReq})
+      console.log('Error: invalid spawn req', spawnReq.name)
+      deleteSpawnReq(baseManifest, node, spawnReq.memory.nodeId)
+      if (baseManifest.spawn.length) {
+        const maxEnergy = node.waited ? gameNode.room.energyAvailable : baseManifest.spawnCapacity
+        const newReq = spawnForNode(baseManifest.spawn[0], maxEnergy)
+        return doSpawn(node, gameNode, newReq, baseManifest)
+      }
+      break
+    case ERR_NOT_ENOUGH_RESOURCES:
+      node.serializedReq = JSON.stringify(spawnReq)
+      node.waitUntilCost = spawnReq.cost
+      if (!node.lastTry) {
+        node.lastTry = Game.time
+      }
+      break
+    default:
+      console.log('Error: unhandled spawn res:', res)
+      break
+  }
+  node.waited = true
+  return false
 }
-
+function deleteSpawnReq (baseManifest, node, id) {
+  completeSpawnReq(baseManifest, id)
+  delete node.waitUntilCost
+  delete node.waitUntilTime
+  delete node.serializedReq
+  delete node.waited
+  delete node.lastTry
+  delete node.currReqId
+}
+const MAX_SPAWN_WAIT_TICKS = 10
 module.exports.run = function (node, lineage = [], baseManifest) {
   try {
-    if (node.threat) { return } // threat nodes are skipped
-
-    //let gameSp = Game.getObjectById(node.id)
-    //gameSp.pos.getDirectionTo()
     switch (node.stage) {
       default:
       case 0: // wait for room controller to be upgraded enough that we can build extensions
@@ -71,23 +91,22 @@ module.exports.run = function (node, lineage = [], baseManifest) {
           }
           addNodeToParent(extCluster, node.id)
           node.stage = 2
-          //buildNode( // BUILD EXT CLUSTER
-          //  node.id,
-          //  'ec',
-          //  {x: gameSpawn.pos.x + 3, y: gameSpawn.pos.y, roomName: gameSpawn.pos.roomName }
-          //)
         }
         break
       case 2: // TODO - maybe check if max extensions has changed or something here
         break
 
     }
-
-    //const spawnEnergySrcPri = baseManifest.energy.src.length < 1 ? 1 : 0
     /**
      * Register Energy Src
      */
-    requestEnergyFromParent(node, baseManifest)
+    let gameNode = Game.getObjectById(node.id)
+    registerDestToParent(node, baseManifest)
+    if (baseManifest?.spawn?.length === 0) {
+      registerSrcToParent(node, node.parent, gameNode.store.getUsedCapacity())
+    } else {
+      deregisterEnergySrc(node.id, node.parent)
+    }
     /**
      * Register Energy Src
      */
@@ -95,67 +114,46 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     /**
      * SPAWN LOGIC
      */
-    let gameNode = Game.getObjectById(node.id)
-    baseManifest.spawnCapacity = Object.keys(Memory.creeps)?.length < 5 ? 300 : gameNode.room.energyCapacityAvailable
-    //baseManifest.spawnCapacity=300
-    //console.log('spawn cap info1:', Game.time, 'final spawncap: ', node.waited ? gameNode.room.energyAvailable : baseManifest.spawnCapacity,'node.waited', node.waited, 'node.waitUntilTime', node.waitUntilTime,'node.waitUntilCost',node.waitUntilCost)
-    //console.log('spawn cap info2:', Game.time, 'room.energyAvailable', gameNode.room.energyAvailable, 'baseManifest.spawnCapacity',baseManifest.spawnCapacity, 'room.energyCapacityAvailable', gameNode.room.energyCapacityAvailable)
-    if (node.waitUntilCost > baseManifest.spawnCapacity) {
-      delete node.waitUntilCost
-      delete node.waitUntilTime
-    }
-    if (
-      (!node.waitUntilCost || gameNode.room.energyAvailable >= node.waitUntilCost || node.waitUntilTime) &&
-      (!node.waitUntilTime || node.waitUntilTime <= Game.time)
-    ) {
 
-      if (baseManifest?.spawn?.length) {
-        const spawnReqNodeId = baseManifest.spawn[0]
-        if (!Memory.nodes[spawnReqNodeId]) {
-          completeSpawnReq(baseManifest, spawnReqNodeId)
-          delete node.waitUntilCost
-          delete node.waitUntilTime
-          return
-        }
-        //console.log('attempted spawn', node.serializedReq, 'cost', node.waitUntilCost, gameNode.room.energyAvailable >= node.waitUntilCost, 'time', node.waitUntilTime, node.waitUntilTime <= Game.time)
-        const spawnReq = node.serializedReq ? JSON.parse(node.serializedReq) : spawnForNode(spawnReqNodeId, node.waited ? gameNode.room.energyAvailable : baseManifest.spawnCapacity)
-        if (spawnReq) {
-          let res = gameNode.spawnCreep(spawnReq.body, spawnReq.name, {memory: spawnReq.memory})
-          switch (res) {
-            case OK:
-              addCreepToNode(spawnReq.memory.nodeId, spawnReq.memory.role, spawnReq.name)
-              completeSpawnReq(baseManifest, spawnReqNodeId)
-              delete node.waited
-              delete node.waitUntilCost
-              delete node.waitUntilTime
-              delete node.serializedReq
-              break
-            case ERR_BUSY:
-              node.waitUntilTime = Game.time + 2
-              delete node.waitUntilCost
-              node.serializedReq = JSON.stringify(spawnReq)
-              break
-            case ERR_INVALID_ARGS:
-              log({spawnReq})
-              console.log('Error: invalid spawn req', spawnReq.name)
-              completeSpawnReq(spawnReqNodeId)
-              delete node.waitUntilCost
-              delete node.waitUntilTime
-              delete node.serializedReq
-              break
-            case ERR_NOT_ENOUGH_RESOURCES:
-              node.serializedReq = JSON.stringify(spawnReq)
-              node.waitUntilCost = spawnReq.cost
-              node.waited = true
-              node.waitUntilTime = Game.time + 15
-              break
-            default:
-              console.log('Error: unhandled spawn res:', res)
-              break
+
+    baseManifest.spawnCapacity = Object.keys(Memory.creeps)?.length < 5 ? 300 : gameNode.room.energyCapacityAvailable
+    if (gameNode.room.energyAvailable >= 300) {
+      //console.log('1111', gameNode.room.energyAvailable >= node.waitUntilCost || node.waitUntilCost > baseManifest.spawnCapacity)
+      if (gameNode.room.energyAvailable >= node.waitUntilCost || node.waitUntilCost > baseManifest.spawnCapacity) {
+        delete node.waitUntilCost
+        delete node.waitUntilTime
+      }
+      //console.log('2222', node.currReqId && (!baseManifest.spawn?.length || !baseManifest.spawn.includes(!node.currReqId)))
+
+      if (node.currReqId && (!baseManifest.spawn?.length || !baseManifest.spawn.includes(!node.currReqId))) { // if saved req no longer exists in queue
+        deleteSpawnReq(baseManifest, node, node.currReqId)
+      }
+      //console.log('3333', baseManifest?.spawn?.length || node.serializedReq)
+
+      if (baseManifest?.spawn?.length || node.serializedReq) { // if there is a saved req or waiting spawn req
+        //console.log('4444', !node.waitUntilTime || node.waitUntilTime <= Game.time)
+
+        if (!node.waitUntilTime || node.waitUntilTime <= Game.time) { // if we arent waiting or we waited the desired time
+          //console.log('5555', !node.waitUntilCost || gameNode.room.energyAvailable >= node.waitUntilCost ||  // if (the energy we want is available) ||
+          //  (node.lastTry && (node.lastTry + MAX_SPAWN_WAIT_TICKS >= Game.time)) )
+
+          if (
+            !node.waitUntilCost || gameNode.room.energyAvailable >= node.waitUntilCost ||  // if (the energy we want is available) ||
+            (node.lastTry && (node.lastTry + MAX_SPAWN_WAIT_TICKS >= Game.time)) // (we've been waiting for more than MAX_SPAWN_WAIT_TICKS)
+          ) {
+
+            const maxEnergy = node.waited ? gameNode.room.energyAvailable : baseManifest.spawnCapacity
+            const spawnReq = node.serializedReq ? JSON.parse(node.serializedReq) : spawnForNode(baseManifest.spawn[0], maxEnergy)
+            //console.log('6666', spawnReq)
+
+            if (spawnReq && doSpawn(node, gameNode, spawnReq, baseManifest)) {
+              deleteSpawnReq(baseManifest, node, spawnReq.memory.nodeId)
+            }
           }
         }
       }
     }
+
     /**
      * SPAWN LOGIC END
      */

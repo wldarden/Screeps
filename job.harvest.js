@@ -43,12 +43,13 @@
 
 const {ACTIONS, DONE} = require('./actions')
 const {getDestNode} = require('./utils.nodes')
+const {CREEP_MIN_LIFE_TICKS} = require('./config')
 
 module.exports.run = function (creep, manifest) {
   try {
     let node = Memory.nodes[creep.memory.nodeId]
     let energyNeeded = creep.store.getFreeCapacity()
-    if (energyNeeded === 0) {
+    if (energyNeeded === 0 || creep.ticksToLive < CREEP_MIN_LIFE_TICKS) {
       let trgInfo = getDestNode(node, creep, {canWork: true, minCapacity: 1})
       if (trgInfo?.trg) {
         ACTIONS[trgInfo?.action].start(creep, trgInfo?.trg)

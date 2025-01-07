@@ -25,6 +25,7 @@ const {nextStep} = require('./utils.creep')
 const {ACTIONS} = require('./actions')
 const {energy} = require('./utils.manifest')
 const {getSrcNode} = require('./utils.nodes')
+const {MIN_ENERGY_UPGRADE} = require('./config')
 
 module.exports.run = function (creep, manifest) {
   try {
@@ -51,10 +52,12 @@ module.exports.run = function (creep, manifest) {
       ACTIONS.upgrade.start(creep, creep.memory.nodeId)
       return
     } else {
-      let node = Memory.nodes[creep.memory.nodeId]
-      let trgInfo = getSrcNode(node, creep, {energyNeeded: energy, minEnergyNeeded: energy, canWork: true})
-      if (trgInfo?.trg) {
-        ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
+      if (manifest.baseSrcEnergy > MIN_ENERGY_UPGRADE) {
+        let node = Memory.nodes[creep.memory.nodeId]
+        let trgInfo = getSrcNode(node, creep, {energyNeeded: energy, minEnergyNeeded: energy, canWork: true})
+        if (trgInfo?.trg) {
+          ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
+        }
       }
     }
 

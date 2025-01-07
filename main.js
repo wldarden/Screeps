@@ -185,21 +185,26 @@ function runCreep (creep) {
         }
       }
 
+      let runRole = true
       if (creep.memory?.actions?.length) { // if the creep has an action in their tmp action array, do it.
         let action = creep.memory?.actions[0]
         if (ACTIONS[action]) {
           switch(ACTIONS[action].do(creep, manifest)) {
             case DONE:
               ACTIONS.global.finish(creep, manifest, action) // once this tmp action is done, finish it.
-              return
+              runRole = true
+              break
             default:
-              return
+              runRole = false
+              break
           }
         } else {
-
+          console.log('secondary action runner...? shouldnt be here?')
           actionRunners[action].runner.run(creep, manifest)
         }
-      } else if (creep.memory.role) { // creeps that have completed all temporary actions return to their role
+      }
+
+      if (creep.memory.role && runRole) { // creeps that have completed all temporary actions return to their role
         actionRunners[creep.memory.role].runner.run(creep, manifest)
       }
 

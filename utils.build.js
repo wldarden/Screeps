@@ -82,7 +82,6 @@ function findStrAtPos (pos, structureType) {
     const lookRes = deserializePos(pos).lookFor(LOOK_STRUCTURES)
     if (lookRes?.length) {
         return lookRes.find(item => {
-            console.log('itemlookRes2:', JSON.stringify(item))
             return item.structureType === structureType
         })?.id
     }

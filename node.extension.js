@@ -1,4 +1,4 @@
-const {runChildren, requestEnergyFromParent} = require('./utils.nodes')
+const {runChildren, registerDestToParent} = require('./utils.nodes')
 const {log} = require('./utils.debug')
 
 module.exports.run = function (node, lineage = [], baseManifest) {
@@ -9,7 +9,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         console.log('Error: ext node should never be stage 0 right?', node.type, node.id, node.parent)
         break
       case 1:
-        requestEnergyFromParent(node, baseManifest)
+        registerDestToParent(node, baseManifest)
         break
       //default:
       //case 0: // finding pos and building

@@ -146,7 +146,9 @@ function findSrcContainer (creep) {
 }
 module.exports.run = function (creep, manifest, node) {
   try {
-    if (creep.memory.wait && Game.time < creep.memory.wait) {
+    if (creep.memory.wait && Game.time >= creep.memory.wait) {
+      return
+    } else {
       delete creep.memory.wait
     }
 
@@ -166,14 +168,17 @@ module.exports.run = function (creep, manifest, node) {
       }
     }
     const energyNeeded = creep.store.getUsedCapacity()
-    trgInfo = getSrcNode(node, creep, {canWork: false, energyNeeded: energyNeeded, minEnergyNeeded: 1})
-    if (trgInfo.trg) {
-      ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
-      return
+    let gameNode = Game.getObjectById(creep.memory.nodeId)
+    if (gameNode.store.getUsedCapacity()) {
+      ACTIONS.withdraw.start(creep, creep.memory.nodeId)
+    } else {
+      trgInfo = getSrcNode(node, creep, {canWork: false, energyNeeded: energyNeeded, minEnergyNeeded: 1})
+      if (trgInfo.trg) {
+        ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
+        return
+      }
     }
-    console.log('supplier unable to find trg', creep.name, energy, trg, trgInfo)
-
   } catch (e) {
-    console.log('Error: couldnt run Supply.Distribute job', e.stack)
+    console.log('Error: couldnt run Supply.dist job', e.stack)
   }
 }

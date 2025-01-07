@@ -1,23 +1,54 @@
 const {serializePos, serializeBody} = require('./utils.memory')
-const {getTypeCreeps, getNodeReqs, removeCreepFromNode} = require('./utils.nodes')
+const {getTypeCreeps, getNodeReqs, removeCreepFromNode, getSrcNode, getDestNode} = require('./utils.nodes')
 const {ACTIONS} = require('./actions')
 const {deleteNodeReqs} = require('./utils.manifest')
 
 function maintainRoleCreepsForNode (baseManifest, node, role, desired) {
   const currCount = getTypeCreeps(node, role).length
-  const spawnCount = node.spawnReqCount ? node.spawnReqCount : 0
+  //delete node.spawnReqCount
+  let spawnCount = 0
+  baseManifest.spawn.forEach(id => {
+    if (id === node.id) {
+      spawnCount++
+    }
+  })
+  node.spawnReqCount = spawnCount
   const totalCount = currCount + spawnCount
+  //if (role === 'supplier' && node.id === '2402caaf2c4b518a982dbf8a' && Game.time %3 === 0) {
+  //  console.log('dist node creeps calc: ', role, 'desired', desired, 'totalCount', totalCount, 'spawnCount',spawnCount, 'currCount',currCount, totalCount < desired)
+  //}
+  //console.log('totalCount < desirec', totalCount < desired, totalCount, desired, spawnCount, role, node.id)
+
   if (totalCount < desired) {
-    node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount + 1 : 1
+
+    //node.spawnReqCount = node.spawnReqCount + 1
+    console.log(node.type, node.subType)
     switch (node.type) {
       case 'src':
+        node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount + 1 : 1
         //return baseManifest.spawn.unshift(node.id)
         return  baseManifest.spawn.push(node.id)
+      case STRUCTURE_CONTAINER:
+        switch (node.subType) {
+          case 'src':
+            let possibleSrc = getDestNode(node.id, undefined, {energy: 100, canWork: false})
+            if (possibleSrc?.trg) {
+              console.log('went ahead with spawn for src container', node.id)
+              node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount + 1 : 1 // only spawn for src node if theres places to go
+              return baseManifest.spawn.push(node.id)
+            } else {
+              console.log('declined to spawn for src container', node.id)
+              return
+            }
+            break
+        }
       default:
+        node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount + 1 : 1
         return baseManifest.spawn.push(node.id)
     }
+
   } else if (spawnCount && totalCount > desired) {
-    deleteNodeReqs(baseManifest, node.id,'spawn')
+    deleteNodeReqs(baseManifest, node,'spawn')
   }
 }
 module.exports.maintainRoleCreepsForNode = maintainRoleCreepsForNode
@@ -33,7 +64,8 @@ module.exports.ticksPerSpace = ticksPerSpace
 
 module.exports.destroyCreep = function(name) {
   let creepMemory = Memory.creeps[name]
-  if (!creepMemory) {
+  if (creepMemory) {
+
     let manifest = Memory.manifests[creepMemory.base]
     if (creepMemory.actions?.length) {
       const actions = creepMemory.actions
@@ -41,7 +73,7 @@ module.exports.destroyCreep = function(name) {
         ACTIONS.global.finish({memory: creepMemory, name: name}, manifest, action)
       })
     }
-    console.log('ERROR destroy creep ERROR: I need this nodeId', creepMemory.nodeId, JSON.stringify(creepMemory))
+    //console.log('ERROR destroy creep ERROR: I need this nodeId', creepMemory.nodeId, JSON.stringify(creepMemory))
     removeCreepFromNode(creepMemory.nodeId, creepMemory.role, name)
   }
   delete Memory.creeps[name]

@@ -76,11 +76,20 @@ function buildRoleCreep (node, role, maxCost = 300) {
       addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
       break
     case 'builder':
-      body = [WORK, WORK, CARRY, MOVE]
-      addOns = [CARRY, MOVE]
-      baseCost = 300
-      addOnCost = 100
-      addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
+      if (node.type === 'build' && Memory.nodes[node.parent] && Memory.nodes[node.parent].type === 'ec') {
+        body = [WORK, WORK, CARRY, MOVE]
+        addOns = [CARRY, MOVE]
+        baseCost = 300
+        addOnCost = 100
+        addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
+      } else {
+        body = [CARRY, MOVE, WORK, CARRY, MOVE]
+        addOns = [WORK, CARRY]
+        baseCost = 300
+        addOnCost = 150
+        addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
+      }
+
       break
     case 'upgrader':
       body = [CARRY, WORK, MOVE, CARRY, MOVE]
@@ -110,14 +119,30 @@ module.exports.buildRoleCreep = buildRoleCreep
 
 function spawnForSrc (node, maxCost = 300) {
   let role = 'miner'
+  //let body
+  //let addOns
+  //if (node.type === 'src' && node.stage >= 3) {
+  //  body = [WORK,CARRY,MOVE,CARRY,MOVE]
+  //  addOns = [WORK]
+  //  baseCost = 300
+  //  addOnCost = 100
+  //  addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
+  //} else {
+  //  body = [CARRY, WORK, MOVE, CARRY, MOVE]
+  //  addOns = [CARRY, MOVE]
+  //  baseCost = 300
+  //  addOnCost = 100
+  //  addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
+  //}
   let body = [CARRY, WORK, MOVE, CARRY, MOVE]
   let addOns = [CARRY, MOVE]
   let maxAddOns = -1
   switch (node.stage) {
     case 3:
-      body = [CARRY, WORK, MOVE, CARRY, MOVE]
-      addOns = [WORK]
-      maxAddOns = Math.ceil(5 / Object.keys(node.slots)) + 1
+      body = [WORK, WORK, CARRY, MOVE]
+      addOns = [WORK, MOVE]
+      maxAddOns = 2
+      //maxAddOns = Math.ceil(5 / Object.keys(node.slots).length) + 1
       break
     case 0:
     case 1:
@@ -126,12 +151,13 @@ function spawnForSrc (node, maxCost = 300) {
       break
   }
   let baseCost = getPartCost(body)
-  let addOnCost = 0
+  let addOnCost = getPartCost(addOns) || 0
   let count = 0
-  if (baseCost < maxCost && addOns.length) {
-    addOnCost = getPartCost(addOns) || 0
+  //console.log(baseCost < maxCost, addOns.length,'maxAddOns', maxAddOns, 'addOnCost', addOnCost, 'base', baseCost, 'count', Math.floor((maxCost - baseCost) / addOnCost))
+
+  if (baseCost <= maxCost && addOns.length) {
+    //addOnCost = getPartCost(addOns) || 0
     count = Math.floor((maxCost - baseCost) / addOnCost)
-    //console.log('addOnCost', addOnCost, 'base', baseCost, 'count', Math.floor((maxCost - baseCost) / addOnCost))
     count = maxAddOns === -1 ? count : Math.min(count, maxAddOns)
     for (let i = 0; i < count; i++) {
       body = addOns.concat(body)
@@ -162,7 +188,7 @@ function spawnForNode (id, maxCost = 300) {
   switch (node.type) {
     case 'src':
       role = 'miner'
-      let res = spawnForSrc(node)
+      let res = spawnForSrc(node, maxCost)
       //log({spawnReq: res})
       return res
       break

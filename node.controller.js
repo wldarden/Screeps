@@ -8,7 +8,10 @@ const MAX_MOD = {
   1: 950
 }
 function maxUpgraderCreeps (node, lineage, baseManifest) {
-  if (baseManifest.baseSrcEnergy) {
+  if (baseManifest.spawnCapacity === 550) {
+    return baseManifest.totalEpt / (baseManifest.baseSrcEnergy > 1000 ? 6 : 18)
+  }
+  if (baseManifest.baseSrcEnergy && baseManifest.totalEpt > 5) {
     //let currentUpgraders = getTypeCreeps(node, 'upgrader')
     return Math.round(baseManifest.baseSrcEnergy / 1000) // this is 1-4 at 2000
     /**
@@ -57,9 +60,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     //}
     const maxUpgraders = maxUpgraderCreeps(node, lineage, baseManifest)
 
-    if (baseManifest.finance.total.income > 3 && baseManifest.finance.total.balance > 0) {
-      maintainRoleCreepsForNode(baseManifest, node, 'upgrader', maxUpgraders)
-    }
+    maintainRoleCreepsForNode(baseManifest, node, 'upgrader', maxUpgraders)
     runChildren(node, lineage)
   } catch(e) {
     log(node)

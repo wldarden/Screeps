@@ -1,5 +1,5 @@
 
-const {runChildren, addNodeToParent, requestEnergyFromParent} = require('./utils.nodes')
+const {runChildren, addNodeToParent, registerDestToParent, deleteNode} = require('./utils.nodes')
 const {log} = require('./utils.debug')
 const {deserializePos} = require('./utils.memory')
 const { deleteNodeReqs} = require('./utils.manifest')
@@ -39,6 +39,9 @@ module.exports.run = function (node, lineage = [], baseManifest) {
                 }
               }
               break
+            case ERR_RCL_NOT_ENOUGH: // -14
+              console.log('Error: tried to build ', node.onDoneType, ' but RCL not high enough. parent: ', node.parent)
+              deleteNode(node, baseManifest)
             case OK:
               node.stage = 1
               break
@@ -56,11 +59,11 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         break
       case 2: // Request energy until built. Then register strId with parent and convert to final node type
         let site = Game.getObjectById(node.id)
-        requestEnergyFromParent(node, baseManifest) // requests energy as site, and deletes req as str
-        if (!site) { // no site found, maybe the str has been built:
+        registerDestToParent(node, baseManifest) // requests energy as site, and deletes req as str
+        if (!site || !site.progress) { // no site found, maybe the str has been built:
           let strId = findStrAtPos(node.pos, node.onDoneType)
           if (strId) {
-            deleteNodeReqs(baseManifest, node.id, 'spawn') // delete any build spawn reqs
+            deleteNodeReqs(baseManifest, node, 'spawn') // delete any build spawn reqs
             node.stage = 1 // set new structure's stage to 1
             const newType = node.onDoneType
             if (node.nodeParams) { // add the extra params that were created when build requested
@@ -76,13 +79,16 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         break
       case 3:
         console.log('Error: build node reached stage 3 and is still a build node: ', node.id, node.type, node.onDoneType, node.stage, node.parent)
+        node.stage = 2
         break
     }
 
     if (node.stage >= 2 && baseManifest.baseSrcEnergy && Game.time % 10 === 0) {
       if (!node.spawnReqCount) {
-        let globalBuilders = Object.keys(Memory.creeps).filter(cId => cId.includes('builders'))?.length
-        const siteBuildersWanted = Math.round(baseManifest.baseSrcEnergy / 1000) - globalBuilders
+        let globalBuilders = Object.keys(Memory.creeps).filter(cId => cId.includes('builder'))?.length
+        const siteBuildersWanted = (Math.round(baseManifest.totalEpt / 4) - globalBuilders) + Math.round(baseManifest.baseSrcEnergy / 2000)
+        //console.log('siteBUildersWanted', node.id, siteBuildersWanted, 'globalBuilders',globalBuilders)
+        //console.log('builder creep rq logg', siteBuildersWanted, 'globalBuilders',globalBuilders)
         maintainRoleCreepsForNode(baseManifest, node, 'builder', siteBuildersWanted)
       }
     }

@@ -45,6 +45,13 @@
 const {ACTIONS} = require('./actions')
 module.exports.run = function (creep, manifest) {
     try {
+        if (creep.memory.wait) {
+            if (creep.memory.wait >= Game.time) {
+                return
+            } else {
+                delete creep.memory.wait
+            }
+        }
         if (creep.store.getFreeCapacity() === 0) {
             ACTIONS.repair.start(creep)
             //ACTIONS.repair.start(creep, creep.memory.nodeId)
@@ -76,6 +83,8 @@ module.exports.run = function (creep, manifest) {
                 if (target) {
                     ACTIONS.withdraw.start(creep, target.id)
                     return
+                } else {
+                    creep.memory.wait = Game.time = 20
                 }
             }
         }

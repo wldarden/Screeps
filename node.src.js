@@ -3,6 +3,7 @@ const {log} = require('./utils.debug')
 const {deleteNodeReqs} = require('./utils.manifest')
 const {creepPlanInfo, maintainRoleCreepsForNode} = require('./utils.creep')
 const {PLANS} = require('./utils.plans')
+const {spawnForNode} = require('./utils.spawner')
 
 function maxSrcMiners (src) {
   return Object.keys(src.slots).length
@@ -16,8 +17,9 @@ function maxSrcMiners (src) {
 }
 
 function threatSrc (node, baseManifest) {
-  if (node.spawnReqCount) {
-    deleteNodeReqs(baseManifest, node.id, 'spawn')
+  if (!node.cleaned) {
+    deleteNodeReqs(baseManifest, node, 'spawn')
+    node.cleaned = true
   }
   return true
 }
@@ -65,36 +67,15 @@ const plans = PLANS.spawn
 
 module.exports.run = function (node, lineage = [], baseManifest) {
   try {
-    if (node.threat) {  // threat nodes are skipped
-      return threatSrc(node, baseManifest)
-    }
+    if (node.threat) { return threatSrc(node, baseManifest) } // threat nodes are skipped
     const miners = getTypeCreeps(node, 'miner')
     const maxMiners = maxSrcMiners(node)
     const saturation = miners.length / maxMiners
-    //const nSlots = Object.keys(node.slots).length
-    //const plannedSaturation = (getNodeReqs(node).length + miners.length) / maxMiners
     let mode = 'default'
-    let plan
-    if (node.dist && (!node.ept || !node.cps)) {
-      const {energyPerTick, creepsPerSlot} = calcSrcROI(PLANS.spawn[mode].body, node.dist)
-      node.ept = energyPerTick
-      node.cps = creepsPerSlot
-    }
-    //if (node.parent) {
-    //  const parent = Memory.nodes[node.parent]
-    //  if (parent.type === STRUCTURE_CONTAINER) {
-    //    node.stage = 3
-    //  }
-    //}
     const parent = Memory.nodes[node.parent]
-
     switch (node.stage) {
       default:
       case 0:
-        //if (!node.primaryDest) {
-        //  let target = Game.getObjectById(node.id).pos.findClosestByPath(FIND_MY_SPAWNS, {maxOps: 500, ignoreCreeps: true})
-        //  node.primaryDest = [target?.id]
-        //}
         if (parent && parent.type === 'log') {
           node.stage = 1
         }
@@ -103,7 +84,6 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         }
         break
       case 1: // Begin containerizing
-
         if (parent) {
           let pos = myContainerPos(node)
           if (pos) {
@@ -114,36 +94,15 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         break
       case 2:// Wait for containerization to complete
         mode = 'containerized'
-        if (node.dist !== 1) {
-          const {energyPerTick, creepsPerSlot} = calcSrcROI(PLANS.spawn[mode].body, 1)
-          node.dist = 1
-          node.ept = energyPerTick
-          node.cps = creepsPerSlot
-        }
-        if (node.children?.build?.length) {
-          //cleanPrimaryDests(node)
-          //node.children.build.forEach(b => {
-          //  if (!node.primaryDest.includes(b)) {
-          //    if (node.dist > 10) {
-          //      node.primaryDest.unshift(b)
-          //    } else {
-          //      node.primaryDest.push(b)
-          //    }
-          //  }
-          //})
-        }
         let containers = getChildren(node, [STRUCTURE_CONTAINER], undefined, false, 1)
         if (containers.length) { // we completed our container node. swap places and move to stage 3
-          //cleanPrimaryDests(node)
           let cont = containers[0]
           cont.subType = 'src'
           const contId = cont.id
           node.stage = 3
           addNodeToParent(cont, node.parent) // move container to parent
           node.containerId = contId
-          delete node.parent
           addNodeToParent(node, contId) // move this src to container
-          //node.primaryDest.unshift(contId)
         }
         break
       case 3: // containerized src
@@ -154,14 +113,19 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         mode = 'containerized'
         break
     }
-
+    if (!node.ept || !node.cps || !node.totalEpt || node.recalcEpt) {
+      const mySpawnReq = spawnForNode(node.id, baseManifest.spawnCapacity)
+      const {energyPerTick, creepsPerSlot} = calcSrcROI(mySpawnReq.body, node.dist)
+      node.ept = energyPerTick
+      node.cps = node.stage === 3 ? 1 : creepsPerSlot
+      const nCreeps = node.creeps?.miner?.length || 0
+      node.totalEpt = nCreeps * energyPerTick
+      delete node.recalcEpt
+    }
     /**
      * Everything below here depends on the configs set above.
      */
     maintainRoleCreepsForNode(baseManifest, node, PLANS.spawn[mode].role, maxMiners)
-
-    baseManifest.finance.income[node.id] = node.ept * miners.length
-    baseManifest.finance.cost[node.id] = ((300/1500) * miners.length)
     runChildren(node, lineage, baseManifest)
 
   } catch(e) {

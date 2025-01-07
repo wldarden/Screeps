@@ -1,6 +1,7 @@
 const {deserializePos, serializePos} = require('./utils.memory')
 const {energy} = require('./utils.manifest')
 const {addCreepToNode} = require('./utils.nodes')
+const {CREEP_MIN_LIFE_TICKS} = require('./config')
 
 const defEnergySrcPri = [STRUCTURE_CONTAINER, STRUCTURE_SPAWN, STRUCTURE_EXTENSION]
 function openSrc (room) {
@@ -118,7 +119,7 @@ function addCreepToWorkerList (target, name) {
 function removeCreepFromWorkerList (target, name) {
 
   if (Memory.workers[target]) {
-    Memory.workers[target].filter((cId) => cId !== name) // remove from global workers list
+    Memory.workers[target].filter((cId) => cId !== name && !!Game.creeps[cId]) // remove from global workers list
   }
   //console.log('remove ', name, 'from', target, Memory.workers[target].length)
   if (Memory.workers[target] && Memory.workers[target].length === 0) {
@@ -197,6 +198,7 @@ module.exports.ACTIONS = ACTIONS
 
 function startBuild (creep, trgId) {
   if (!trgId || !Game.getObjectById(trgId)) {
+    console.log('builder problem right now logggg', trgId)
     trgId = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {maxOps: 500})?.id
   }
   if (trgId) {
@@ -211,36 +213,35 @@ function finishBuild (creep, manifest) {
 
 function doBuild (creep, manifest) {
   try {
-    if (creep.store.getUsedCapacity() === 0) {
-      return DONE
-    } else {
-      let target = Game.getObjectById(creep.memory.targets[0])
-      if (creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0) {
-        return DONE
-      }
+    let target = Game.getObjectById(creep.memory.targets[0])
+    if (
+      !target ||                                         // 1 target no longer exists.
+      creep.store.getUsedCapacity(RESOURCE_ENERGY) === 0 // 2 don't have energy for job anyways
+    ) {
+      return DONE // finish this job to get a new one
+    }
 
-      let actionRes = creep.build(target)
-      switch (actionRes) {
-        case ERR_NOT_OWNER:
-          console.log('Tried to build someone elses site')
-        case ERR_NOT_IN_RANGE:
-          creep.moveTo(target, {visualizePathStyle: {stroke: '#ffffff'}})
-          break
-        case ERR_TIRED:
-          console.log('creep says they are tired: ', creep.name)
-          break
-        case ERR_NOT_ENOUGH_RESOURCES:
-          // hybernate a bit maybe?
-          return DONE
-          break
-        case ERR_INVALID_TARGET:
-          return DONE
-        case OK:
-          break
-        default:
-          console.log('Error: Build Action Response not handled: ', creep.name, JSON.stringify(target), actionRes, JSON.stringify(creep) )
-          break
-      }
+    let actionRes = creep.build(target)
+    switch (actionRes) {
+      case ERR_NOT_OWNER:
+        console.log('Tried to build someone elses site')
+      case ERR_NOT_IN_RANGE:
+        creep.moveTo(target, {visualizePathStyle: {stroke: '#ffffff'}})
+        break
+      case ERR_TIRED:
+        console.log('creep says they are tired: ', creep.name)
+        break
+      case ERR_NOT_ENOUGH_RESOURCES:
+        // hybernate a bit maybe?
+        return DONE
+        break
+      case ERR_INVALID_TARGET:
+        return DONE
+      case OK:
+        break
+      default:
+        console.log('Error: Build Action Response not handled: ', creep.name, JSON.stringify(target), actionRes, JSON.stringify(creep) )
+        break
     }
   } catch (e) {
     console.log('Error: couldnt doBuild job', e.stack, 'site:', creep.memory.targets[0])
@@ -499,6 +500,7 @@ function finishWithdraw (creep, manifest) {
   //energy.freeSrc(manifest, creep.name, creep.memory.targets[0])
   delete creep.memory.Wres
   delete creep.memory.prevResources
+  //delete last
 }
 
 function doWithdraw (creep, manifest) {
@@ -574,9 +576,19 @@ function startTransfer (creep, targetId, resource) {
 
 function finishTransfer (creep, manifest) {
   delete creep.memory.Tres
+  delete creep.memory.waited
+  delete creep.memory.wait
 }
 
 function doTransfer (creep) {
+  if (creep.memory.wait) {
+    if (creep.memory.wait >= Game.time) {
+      return
+    } else {
+      creep.memory.waited = true
+      delete creep.memory.wait
+    }
+  }
   let trgId = creep.memory.targets[0]
   if (!trgId) {
     return DONE
@@ -603,7 +615,12 @@ function doTransfer (creep) {
     case ERR_INVALID_TARGET:
       break
     case ERR_FULL: // dest is full. what should transfer people do?
-      return DONE
+      if (target?.structureType === STRUCTURE_SPAWN && !creep.memory.waited) {
+        creep.memory.wait = Game.time + 2
+        return
+      } else {
+        return DONE
+      }
     case OK:
       break
     default:
@@ -696,6 +713,9 @@ function finishHarvest (creep) {
 }
 
 function doHarvest (creep, manifest) {
+  if (creep.ticksToLive < CREEP_MIN_LIFE_TICKS) {
+    return DONE
+  }
   if (creep.memory.wait) {
     if (creep.memory.wait >= Game.time) {
       return

@@ -81,7 +81,7 @@ function useEnergyReq (manifest, creep, req, amount = null) {
 }
 module.exports.useEnergyReq = useEnergyReq
 
-function deregisterEnergy(manifest, reqId, type = 'dest') {
+function deregisterEnergy(manifest, reqId, type = 'dests') {
     if (!manifest.energy || !manifest.energy[type]) { return }
     manifest.energy[type] = manifest.energy[type].filter(oldReq => oldReq.id !== reqId)
 }
@@ -163,16 +163,20 @@ function getReqCost (req) {
 }
 module.exports.getReqCost = getReqCost
 
-function deleteNodeReqs (manifest, nodeId, type = 'spawn') {
+function deleteNodeReqs (manifest, node, type = 'spawn') {
   if (manifest[type]) {
-    manifest[type] = manifest[type].filter(nId => nId !== nodeId)
-    delete Memory.nodes[nodeId].spawnReqCount
+    manifest[type] = manifest[type].filter(nId => nId !== node.id)
+  }
+  switch (type) {
+    case 'spawn':
+      delete node.spawnReqCount
+      break
   }
 }
 module.exports.deleteNodeReqs = deleteNodeReqs
 
-function completeSpawnReq (baseManifest, nodeId) {
-  let node = Memory.nodes[nodeId]
+function completeSpawnReq (baseManifest, reqId) {
+  let node = Memory.nodes[reqId]
   if (node) {
     if (node.spawnReqCount > 1) {
       node.spawnReqCount = node.spawnReqCount - 1

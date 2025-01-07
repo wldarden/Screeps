@@ -1,25 +1,6 @@
-const {runChildren, createNodePosition, getChildren, applyToChildren, getNewStorageNodeSiteByDest, addNodeToParent} = require('./utils.nodes')
-const {log} = require('./utils.debug')
-const {createStorageNode, deserializePos, serializePos} = require('./utils.memory')
-const {getReqById} = require('./utils.manifest')
+const {runChildren, getChildren, addNodeToParent} = require('./utils.nodes')
+const {createStorageNode} = require('./utils.memory')
 
-/**
- * FINANCE
- */
-function createIncome (baseManifest) {
-  if (baseManifest?.finance?.total?.reserved) { return } // escape early if already init
-  if (!baseManifest.finance) {baseManifest.finance = {} }
-  if (!baseManifest.finance.income) { baseManifest.finance.income = {} }
-  if (!baseManifest.finance.cost) { baseManifest.finance.cost = {} }
-  if (!baseManifest.finance.total) { baseManifest.finance.total = {} }
-  if (!baseManifest.finance.total.income) { baseManifest.finance.total.income = 0 }
-  if (!baseManifest.finance.total.cost) { baseManifest.finance.total.cost = 0 }
-  if (!baseManifest.finance.total.balance) { baseManifest.finance.total.balance = 0 }
-  if (!baseManifest.finance.total.reserved) { baseManifest.finance.total.reserved = 0 }
-}
-/**
- * FINANCE
- */
 function calcIncome (baseManifest, node) {
   let total = {income: 0, cost: 0, balance: 0, reserved: 0}
   Object.values(baseManifest.finance.income).forEach(amount => { total.income = total.income + amount })
@@ -28,11 +9,18 @@ function calcIncome (baseManifest, node) {
   baseManifest.finance.total.cost = total.cost
   baseManifest.finance.total.balance = total.income - total.cost
   baseManifest.baseSrcEnergy = 0
-  if (node.srcs) {
-    Object.keys(node.srcs).forEach(sId => {
-      baseManifest.baseSrcEnergy = baseManifest.baseSrcEnergy + node.srcs[sId]
-    })
-  }
+  baseManifest.totalEpt = 0
+  //let allChildren = getChildren(node, [], undefined, false, 1)
+  //allChildren.forEach(child => {
+  //  if (child.totalEpt) {
+  //    baseManifest.totalEpt = baseManifest.totalEpt + child.totalEpt
+  //  }
+  //})
+  //if (node.srcs) {
+  //  Object.keys(node.srcs).forEach(sId => {
+  //    baseManifest.baseSrcEnergy = baseManifest.baseSrcEnergy + node.srcs[sId]
+  //  })
+  //}
 }
 /**
  * FINANCE
@@ -44,14 +32,33 @@ function calcIncome (baseManifest, node) {
 module.exports.runBase = function (node, lineage = []) {
   try {
     let baseManifest = Memory.manifests[node.id]
+    Memory.workers = {}
     switch (node.stage) {
       default:
+        console.log('Error: unhandled Base stage: ', node.stage)
+        break
+      case undefined:
       case 0:
         node.stage = 0
-        Memory.workers = {}
+
         /**
          * CREATE LOGISTIC NODE WHEN NEEDED
          */
+
+        if (baseManifest.baseSrcEnergy && baseManifest.baseSrcEnergy > 350 && node.children?.container?.length === 2) {
+          if (!node.children.log) { node.children.log = [] }
+          if (!node.children.log.length) { // and we have not initialized a storage node
+            let servicedSrcs = getChildren(node, [STRUCTURE_CONTAINER], (child) => child.subType === 'src', true)
+            let i = 0
+            while (Memory.nodes[`log-${i}`]) {
+              i++
+            }
+            let newStorageNode = createStorageNode(`log-${i}`, servicedSrcs) // make the node
+            node.stage = 1
+            addNodeToParent(newStorageNode, node.id) // add it to this base
+
+          }
+        }
         //if (baseManifest?.finance?.total?.income && baseManifest.finance.total.income > 5) { // if good income
         //  if (!node.children.log) { node.children.log = [] }
         //  if (!node.children.log.length) { // and we have not initialized a storage node
@@ -76,15 +83,41 @@ module.exports.runBase = function (node, lineage = []) {
         }
         node.stage = 2
         break
+      case 2:
+        break
     }
 
     baseManifest.roomEnergyFrac = Game.rooms[node.id].energyAvailable / Game.rooms[node.id].energyCapacityAvailable
     runChildren(node, lineage, baseManifest)
 
-    calcIncome(baseManifest, node)
+    ////calcIncome(baseManifest, node)
+    //const allChildren= getChildren(node, [], undefined, false, 1)
+    //let eptSrc = 0
+    //allChildren.forEach(c => {
+    //  if (c.totalEpt) {
+    //    eptSrc = eptSrc + c.totalEpt
+    //  }
+    //})
+    //node.totalEpt = eptSrc
+    if (!baseManifest.totalEpt || node.recalcEpt) {
+      const prevEpt = baseManifest.totalEpt
+      baseManifest.totalEpt = 0
+      let allChildren = getChildren(node, [], undefined, false, 1)
+      allChildren.forEach(child => {
+        if (child.totalEpt) {
+          baseManifest.totalEpt = baseManifest.totalEpt + child.totalEpt
+        }
+      })
+      console.log('recalced base node ept', node.id, prevEpt, '=>', baseManifest.totalEpt)
 
-
-
+      delete node.recalcEpt
+    }
+    baseManifest.baseSrcEnergy = 0
+    if (node.srcs) {
+      Object.keys(node.srcs).forEach(sId => {
+        baseManifest.baseSrcEnergy = baseManifest.baseSrcEnergy + node.srcs[sId]
+      })
+    }
   } catch(e) {
     console.log('Error: failed to run Base Node', e.stack, node.id, e)
   }

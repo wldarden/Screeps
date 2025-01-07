@@ -196,7 +196,7 @@ function createExtensionNode (id, pos) {
 module.exports.createExtensionNode = createExtensionNode
 
 
-function createStorageNode (id) {
+function createStorageNode (id, serviced) {
     return {
         // ...createNode(parentId, id, 'src')
         parent: null,
@@ -209,7 +209,7 @@ function createStorageNode (id) {
         creeps: {
             // upgrade: []
         },
-        sites: []
+        serviced: serviced
     }
 }
 module.exports.createStorageNode = createStorageNode

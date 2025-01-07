@@ -44,9 +44,50 @@
 const {ACTIONS} = require('./actions')
 const {getDestNode, getSrcNode} = require('./utils.nodes')
 const distRunner = require('job.supplier.dist')
-
+const srcRunner = require('job.supplier.src')
 module.exports.run = function (creep, manifest) {
   try {
+    //if (creep.memory.wait) {
+    //  if (Game.time >= creep.memory.wait) {
+    //    delete creep.memory.wait
+    //    creep.memory.waitCount = creep.memory.waitCount < 5 ? creep.memory.waitCount + 1 : 1
+    //  } else {
+    //    return
+    //  }
+    //}
+    //
+    //const energy = creep.store.getUsedCapacity()
+    //
+    //let node = Memory.nodes[creep.memory.nodeId]
+    //
+    //let trgInfo
+    //if (energy > 0) {
+    //  // try to go to log
+    //  trgInfo = getDestNode(node, creep, {energy: energy, canWork: false, minCapacity: 1})
+    //  if (trgInfo?.trg) {
+    //    ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
+    //    return
+    //  } else {
+    //    if (energy > creep.store.getFreeCapacity()) {
+    //      creep.memory.wait = Game.time + 3
+    //    }
+    //    return
+    //  }
+    //}
+    //const energyNeeded = creep.store.getUsedCapacity()
+    //let gameNode = Game.getObjectById(creep.memory.nodeId)
+    //if (gameNode.store.getUsedCapacity()) {
+    //  ACTIONS.withdraw.start(creep, creep.memory.nodeId)
+    //} else {
+    //  trgInfo = getSrcNode(node, creep, {canWork: false, energyNeeded: energyNeeded})
+    //  if (trgInfo.trg) {
+    //    ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
+    //    return
+    //  }
+    //}
+
+
+
     if (creep.memory.wait) {
       if (Game.time >= creep.memory.wait) {
         delete creep.memory.wait
@@ -56,51 +97,13 @@ module.exports.run = function (creep, manifest) {
       }
     }
     let node = Memory.nodes[creep.memory.nodeId]
-    const energy = creep.store.getUsedCapacity()
-    switch (node.type) {
-      case 'ec':
+    //const energy = creep.store.getUsedCapacity()
+    switch (node.subType) {
+      case 'dist':
         distRunner.run(creep, manifest, node)
         break
-      case STRUCTURE_CONTAINER:
-        switch (node.subType) {
-          case 'dist':
-            break
-          case 'src':
-            break
-        }
-        let trgInfo
-        if (energy > 0) {
-          // try to go to log
-          trgInfo = getDestNode(node, creep, {canWork: false, energy: energy, minCapacity: 1})
-          if (trgInfo?.trg) {
-            //console.log(creep.name, 'supplier getDestNode:', trgInfo?.trg, trgInfo?.action, Game.getObjectById(trgInfo?.trg)?.store?.getFreeCapacity())
-            ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
-            delete creep.memory.waitCount
-            return
-          } else {
-            if (energy > creep.store.getFreeCapacity()) {
-              //console.log(creep.name, 'have energy than free capacity. waiting to find trg again in 3 ticks', creep.memory.waitCount)
-              creep.memory.wait = Game.time + creep.memory.waitCount ? creep.memory.waitCount : 1
-              creep.moveTo(creep.memory.nodeId)
-              return
-            } else {
-              //console.log(creep.name, 'NEED ENERGY than free capacity')
-            }
-
-          }
-        }
-        const energyNeeded = creep.store.getFreeCapacity()
-        trgInfo = getSrcNode(node, creep, {canWork: false, energyNeeded: energyNeeded, minEnergyNeeded: energyNeeded})
-        //console.log(creep.name, 'supplier getSrcNode:', creep.name, trgInfo?.trg, trgInfo?.action, Game.getObjectById(trgInfo?.trg)?.store?.getFreeCapacity())
-
-        if (trgInfo.trg) {
-          ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
-          delete creep.memory.waitCount
-          return
-        }
-        //console.log(creep.name, 'supplier unable to find trg', creep.name, energy, trg, trgInfo)
-        break
-      case 'log':
+      case 'src':
+        srcRunner.run(creep, manifest, node)
         break
     }
   } catch (e) {

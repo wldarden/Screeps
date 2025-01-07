@@ -23,28 +23,39 @@ const {deserializePos} = require('./utils.memory')
 const {ACTIONS, DONE} = require('./actions')
 const {energy} = require('./utils.manifest')
 const {addCreepToNode, getSrcNode} = require('./utils.nodes')
+const {MIN_ENERGY_BUILD} = require('./config')
 
 module.exports.run = function (creep, manifest) {
   try {
     let node = Memory.nodes[creep.memory.nodeId]
-    if (!node) {
+    let gameNode = Game.getObjectById(node?.id)
+    if (!node || !gameNode.progressTotal) {
       // find new parent
-
+      let target = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {maxOps: 500});
+      if (target) {
+        ACTIONS.build.start(creep, target.id)
+        addCreepToNode(target.id, creep.memory.role, creep.name)
+        return
+      }
       return
     }
     const energy = creep.store.getUsedCapacity()
+    const energyNeeded = creep.store.getFreeCapacity()
     if (energy) {
         let buildSite = Game.getObjectById(creep.memory.nodeId)
         if (buildSite && buildSite.progressTotal) {
           ACTIONS.build.start(creep, creep.memory.nodeId)
+          return
         }
     }
-
-    let trgInfo = getSrcNode(node, creep, {minEnergyNeeded: 50, canWork: true})
-    if (trgInfo?.trg) {
-      ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
-      return
+    if (energyNeeded > 0 && manifest.baseSrcEnergy > MIN_ENERGY_BUILD) {
+      let trgInfo = getSrcNode(node, creep, {minEnergyNeeded: energyNeeded, canWork: true})
+      if (trgInfo?.trg) {
+        ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
+        return
+      }
     }
+
     //const energyNeeded = creep.store.getFreeCapacity()
     //if (manifest.spawn?.length > 0) {
     //  if (energyNeeded) {
