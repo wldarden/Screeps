@@ -107,7 +107,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     if (node.stage >= 1 && room.controller.level >= 2) {
       let maxExtensions = room ? maxExtForContLevel[room.controller.level] :  0 // here
       let extensions = getChildren(node, [STRUCTURE_EXTENSION], undefined, false, 1)
-      if (extensions.length < maxExtensions) { // if no container nodes...
+      if (extensions.length < maxExtensions && extensions.length < 10) { // if no container nodes...
         let buildNodes = getChildren(node,
           ['build'],
           (child) => child.onDoneType === STRUCTURE_EXTENSION,

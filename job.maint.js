@@ -1,4 +1,3 @@
-
 /**
  * A Harvest Job looks like this:
  *
@@ -43,52 +42,66 @@
 //
 
 const {ACTIONS} = require('./actions')
+const {getSrcNode} = require('./utils.nodes')
 module.exports.run = function (creep, manifest) {
-    try {
-        if (creep.memory.wait) {
-            if (creep.memory.wait >= Game.time) {
-                return
-            } else {
-                delete creep.memory.wait
-            }
-        }
-        if (creep.store.getFreeCapacity() === 0) {
-            ACTIONS.repair.start(creep)
-            //ACTIONS.repair.start(creep, creep.memory.nodeId)
-            //let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-            //    maxOps: 500, ignoreCreeps: true,
-            //    filter: function(gameNode) {
-            //        let node = Memory.nodes[gameNode?.id]
-            //        let res = gameNode.store && node?.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
-            //        if (res) {
-            //            console.log('maint going to ', node?.id, node?.type)
-            //        } else {
-            //            console.log('maint not going to ', node?.id, node?.type)
-            //
-            //        }
-            //        return gameNode.hits < gameNode.hitsTotal
-            //    }
-            //})
-            return
-        } else {
-            if (creep.memory.nodeId) {
-                let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-                    maxOps: 500, ignoreCreeps: true,
-                    filter: function(gameNode) {
-                        let node = Memory.nodes[gameNode?.id]
-                        let res = gameNode.store && node?.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
-                        return res
-                    }
-                })
-                if (target) {
-                    ACTIONS.withdraw.start(creep, target.id)
-                    return
-                } else {
-                    creep.memory.wait = Game.time = 20
-                }
-            }
-        }
-    } catch (e) {
-        console.log('Error: couldnt run maint job', creep.name, e.stack)
+  try {
+    if (creep.memory.wait) {
+      if (creep.memory.wait >= Game.time) {
+        return
+      } else {
+        delete creep.memory.wait
+      }
     }
+    if (creep.store.getFreeCapacity() === 0) {
+      let trgId = creep.pos.findClosestByPath(FIND_STRUCTURES,
+        {maxOps: 500, filter: (str) => (str.hits < str.hitsMax)})?.id
+      if (trgId) {
+        ACTIONS.repair.start(creep, trgId)
+      } else {
+        creep.memory.wait = Game.time + 10
+      }
+      //ACTIONS.repair.start(creep, creep.memory.nodeId)
+      //let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+      //    maxOps: 500, ignoreCreeps: true,
+      //    filter: function(gameNode) {
+      //        let node = Memory.nodes[gameNode?.id]
+      //        let res = gameNode.store && node?.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
+      //        if (res) {
+      //            console.log('maint going to ', node?.id, node?.type)
+      //        } else {
+      //            console.log('maint not going to ', node?.id, node?.type)
+      //
+      //        }
+      //        return gameNode.hits < gameNode.hitsTotal
+      //    }
+      //})
+      return
+    }
+    else {
+      let trgInfo = getSrcNode(creep.memory.nodeId, creep)
+      if (trgInfo?.trg) {
+        ACTIONS.withdraw.start(creep, trgInfo?.trg)
+      }else {
+        creep.memory.wait = Game.time = 20
+      }
+      //if (creep.memory.nodeId) {
+      //    let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+      //        maxOps: 500, ignoreCreeps: true,
+      //        filter: function(gameNode) {
+      //            let node = Memory.nodes[gameNode?.id]
+      //            let res = gameNode.store && node?.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
+      //            return res
+      //        }
+      //    })
+      //    if (target) {
+      //        ACTIONS.withdraw.start(creep, target.id)
+      //        return
+      //    } else {
+      //        creep.memory.wait = Game.time = 20
+      //    }
+      //}
+    }
+  } catch (e) {
+    console.log('Error: couldnt run maint job', creep.name, e.stack)
+  }
 }

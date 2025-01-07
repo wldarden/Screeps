@@ -84,6 +84,20 @@ module.exports.runBase = function (node, lineage = []) {
         node.stage = 2
         break
       case 2:
+        //if (baseManifest.totalEpt > 15) {
+        //  if (!node.children?.nav?.length) {
+        //    addNodeToParent({
+        //      parent: null,
+        //      id: 'nav-0',
+        //      type: 'nav',
+        //      stage: 0,
+        //      creeps: {},
+        //    }, node.id)
+        //    node.stage = 3
+        //  }
+        //}
+        break
+      case 3:
         break
     }
 
@@ -99,7 +113,7 @@ module.exports.runBase = function (node, lineage = []) {
     //  }
     //})
     //node.totalEpt = eptSrc
-    if (!baseManifest.totalEpt || node.recalcEpt) {
+    if (baseManifest.totalEpt === undefined || node.recalcEpt) {
       const prevEpt = baseManifest.totalEpt
       baseManifest.totalEpt = 0
       let allChildren = getChildren(node, [], undefined, false, 1)

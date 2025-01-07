@@ -49,13 +49,14 @@ module.exports.run = function (creep, manifest) {
   try {
     let node = Memory.nodes[creep.memory.nodeId]
     let energyNeeded = creep.store.getFreeCapacity()
-    if (energyNeeded === 0 || creep.ticksToLive < CREEP_MIN_LIFE_TICKS) {
+    const energy = creep.store.getUsedCapacity()
+    if (energy > 0 || creep.ticksToLive < CREEP_MIN_LIFE_TICKS) {
       let trgInfo = getDestNode(node, creep, {canWork: true, minCapacity: 1})
       if (trgInfo?.trg) {
         ACTIONS[trgInfo?.action].start(creep, trgInfo?.trg)
       }
     }
-    if (energyNeeded > 0) {
+    if (energyNeeded >= energy) {
       ACTIONS.harvest.start(creep, creep.memory.nodeId)
     }
 

@@ -20,20 +20,19 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         }
         //console.log('src container node', node.id, energy)
         registerSrcToParent(node, node.parent, energy)
-
-        maintainRoleCreepsForNode(baseManifest, node, 'supplier', node.supplierLoad)
+        maintainRoleCreepsForNode(baseManifest, node, 'supplier', Math.max(1, node.supplierLoad))
         //let possibleSrc = getDestNode(node.id, undefined, {energy: 100, canWork: false})
         //console.log('possible container src dest: ',possibleSrc,  possibleSrc?.trg, node.id)
         runChildren(node, lineage, baseManifest)
-
-        if ('dist' in node && (node.recalcEpt || !node.totalEpt)) {
+        //node.recalcEpt = true
+        if ('dist' in node && (node.recalcEpt || node.totalEpt === undefined)) {
             const loadTicks = (3 * node.dist) + 5
             const loadCap = Math.floor(baseManifest.spawnCapacity / 100) * 50
             const eptTrans = loadCap / Math.max(loadTicks, 1) // how much energy a single creep can move from this container to its parent
             let eptSrc = 0
             const allChildren= getChildren(node, [], undefined, false, 1)
             allChildren.forEach(c => { if (c.totalEpt) { eptSrc = eptSrc + c.totalEpt } })
-            node.totalEpt = eptTrans * (node.creeps?.supplier?.length || 0) // energy this containers srcs are bringing to this node.
+            node.totalEpt = Math.min(eptTrans * (node.creeps?.supplier?.length || 0), eptSrc) // energy this containers srcs are bringing to this node.
             node.supplierLoad = Math.round(eptSrc / eptTrans)
             lineage.forEach(id => {
                 Memory.nodes[id].recalcEpt = true

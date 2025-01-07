@@ -51,6 +51,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
       //case 3:
       //  return
     }
+    delete node.recalcEpt
 
     runChildren(node, lineage, baseManifest)
   } catch(e) {

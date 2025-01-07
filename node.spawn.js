@@ -43,11 +43,18 @@ function doSpawn (node, gameNode, spawnReq, baseManifest) {
       }
       break
     case ERR_NOT_ENOUGH_RESOURCES:
-      node.serializedReq = JSON.stringify(spawnReq)
-      node.waitUntilCost = spawnReq.cost
-      if (!node.lastTry) {
-        node.lastTry = Game.time
+      if (node.waited && gameNode.room.energyAvailable >= 300) {
+        const maxEnergy = gameNode.room.energyAvailable
+        const newReq = spawnForNode(spawnReq.memory.nodeId, maxEnergy)
+        return doSpawn(node, gameNode, newReq, baseManifest)
+      } else {
+        node.serializedReq = JSON.stringify(spawnReq)
+        node.waitUntilCost = spawnReq.cost
+        if (!node.lastTry) {
+          node.lastTry = Game.time
+        }
       }
+
       break
     default:
       console.log('Error: unhandled spawn res:', res)
@@ -65,7 +72,7 @@ function deleteSpawnReq (baseManifest, node, id) {
   delete node.lastTry
   delete node.currReqId
 }
-const MAX_SPAWN_WAIT_TICKS = 10
+const MAX_SPAWN_WAIT_TICKS = 2
 module.exports.run = function (node, lineage = [], baseManifest) {
   try {
     switch (node.stage) {
@@ -125,7 +132,8 @@ module.exports.run = function (node, lineage = [], baseManifest) {
       }
       //console.log('2222', node.currReqId && (!baseManifest.spawn?.length || !baseManifest.spawn.includes(!node.currReqId)))
 
-      if (node.currReqId && (!baseManifest.spawn?.length || !baseManifest.spawn.includes(!node.currReqId))) { // if saved req no longer exists in queue
+      if (node.currReqId && (!baseManifest.spawn?.length || !baseManifest.spawn.includes(node.currReqId))) { // if saved req no longer exists in queue
+        //console.log('node.waited might be deleted', node.waited, node.currReqId, baseManifest.spawn?.length, )
         deleteSpawnReq(baseManifest, node, node.currReqId)
       }
       //console.log('3333', baseManifest?.spawn?.length || node.serializedReq)
@@ -139,15 +147,20 @@ module.exports.run = function (node, lineage = [], baseManifest) {
 
           if (
             !node.waitUntilCost || gameNode.room.energyAvailable >= node.waitUntilCost ||  // if (the energy we want is available) ||
-            (node.lastTry && (node.lastTry + MAX_SPAWN_WAIT_TICKS >= Game.time)) // (we've been waiting for more than MAX_SPAWN_WAIT_TICKS)
+            (node.lastTry && (node.lastTry + MAX_SPAWN_WAIT_TICKS >= Game.time)) || // (we've been waiting for more than MAX_SPAWN_WAIT_TICKS)
+            node.waited
           ) {
-
+            //console.log('node.waited', node.waited, node.waited ? gameNode.room.energyAvailable : baseManifest.spawnCapacity)
             const maxEnergy = node.waited ? gameNode.room.energyAvailable : baseManifest.spawnCapacity
             const spawnReq = node.serializedReq ? JSON.parse(node.serializedReq) : spawnForNode(baseManifest.spawn[0], maxEnergy)
             //console.log('6666', spawnReq)
 
             if (spawnReq && doSpawn(node, gameNode, spawnReq, baseManifest)) {
+              //console.log('deleting spawnReq: ', node.waited, spawnReq.memory.nodeId)
               deleteSpawnReq(baseManifest, node, spawnReq.memory.nodeId)
+            } else {
+              //console.log('setting node.waited true: ', node.waited)
+              node.waited = true
             }
           }
         }

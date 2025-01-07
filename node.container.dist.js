@@ -1,5 +1,5 @@
 
-const {registerSrcToParent, registerDestToParent} = require('./utils.nodes')
+const {registerSrcToParent, registerDestToParent, proxyDestChildren, deregisterEnergyDest} = require('./utils.nodes')
 const {log} = require('./utils.debug')
 const {maintainRoleCreepsForNode} = require('./utils.creep')
 
@@ -28,9 +28,28 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     //}
     let gameNode = Game.getObjectById(node.id)
     const energy = gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
-    registerDestToParent(node)
+    const energyNeeded = gameNode.store.getFreeCapacity(RESOURCE_ENERGY)
+    let parent = Memory.nodes[node.parent]
+
+
+    //let distNode = Game.getObjectById(node.id)
+    if (gameNode) {
+      if (energyNeeded > 0) {
+        if (!parent.dests){ parent.dests = {} }
+        parent.dests[node.id] = energyNeeded
+      } else {
+        deregisterEnergyDest(node.id, parent)
+      }
+      //let energy = gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
+      if (energy <= 50 && node.children && node.children[STRUCTURE_EXTENSION]) {
+        proxyDestChildren(node, node.children[STRUCTURE_EXTENSION])
+      }
+    }
+    //registerDestToParent(node)
 
     registerSrcToParent(node, node.parent, energy)
+    //console.log('src.container creeps: ', node.id, node.supplierLoad, node.totalEpt, Math.max(1, node.supplierLoad))
+
     maintainRoleCreepsForNode(baseManifest, node, 'supplier', 1)
 
     //let energy = gameNode.store.getUsedCapacity(RESOURCE_ENERGY)

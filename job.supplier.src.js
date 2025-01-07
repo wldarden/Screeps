@@ -64,7 +64,7 @@ module.exports.run = function (creep, manifest, node) {
         if (energy > energyNeeded) {
           //console.log(creep.name, 'have energy than free capacity. waiting to find trg again in 3 ticks', creep.memory.waitCount)
           creep.memory.wait = Game.time + creep.memory.waitCount ? (creep.memory.waitCount * 2) : 1
-          creep.moveTo(Game.getObjectById(creep.memory.nodeId))
+          creep.moveTo(Game.getObjectById(creep.memory.nodeId), {range: 2})
           return
         } else {
           //console.log(creep.name, 'NEED ENERGY than free capacity')

@@ -8,8 +8,11 @@ const MAX_MOD = {
   1: 950
 }
 function maxUpgraderCreeps (node, lineage, baseManifest) {
-  if (baseManifest.spawnCapacity === 550) {
-    return baseManifest.totalEpt / (baseManifest.baseSrcEnergy > 1000 ? 6 : 18)
+  if (baseManifest.baseSrcEnergy < 1000 || baseManifest.totalEpt < 5 || Game.getObjectById(node.id).level >= 3) {
+    return 0
+  }
+  if (baseManifest.spawnCapacity >= 550) {
+    return baseManifest.totalEpt / (baseManifest.baseSrcEnergy > 1000 ? 7 : 18)
   }
   if (baseManifest.baseSrcEnergy && baseManifest.totalEpt > 5) {
     //let currentUpgraders = getTypeCreeps(node, 'upgrader')

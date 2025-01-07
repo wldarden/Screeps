@@ -86,9 +86,10 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     if (node.stage >= 2 && baseManifest.baseSrcEnergy && Game.time % 10 === 0) {
       if (!node.spawnReqCount) {
         let globalBuilders = Object.keys(Memory.creeps).filter(cId => cId.includes('builder'))?.length
-        const siteBuildersWanted = (Math.round(baseManifest.totalEpt / 4) - globalBuilders) + Math.round(baseManifest.baseSrcEnergy / 2000)
-        //console.log('siteBUildersWanted', node.id, siteBuildersWanted, 'globalBuilders',globalBuilders)
-        //console.log('builder creep rq logg', siteBuildersWanted, 'globalBuilders',globalBuilders)
+        const siteBuildersWanted = (Math.round((baseManifest.totalEpt || 0) / 4) - globalBuilders) + Math.round((baseManifest.baseSrcEnergy || 0) / 2000)
+        console.log('siteBUildersWanted', node.id, siteBuildersWanted, 'globalBuilders',globalBuilders)
+        console.log('builder creep rq logg', siteBuildersWanted, 'globalBuilders',globalBuilders)
+        console.log('builder loggg')
         maintainRoleCreepsForNode(baseManifest, node, 'builder', siteBuildersWanted)
       }
     }

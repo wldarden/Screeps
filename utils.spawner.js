@@ -61,6 +61,13 @@ function buildRoleCreep (node, role, maxCost = 300) {
         addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
       }
       break
+    case 'explorer':
+      body = [TOUGH, TOUGH, TOUGH, MOVE, MOVE, MOVE]
+      addOns = [MOVE, TOUGH]
+      baseCost = 300
+      addOnCost = 100
+      addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
+      break
     case 'maint':
       body = [CARRY, WORK, MOVE]
       addOns = [CARRY, MOVE, WORK]
@@ -135,13 +142,13 @@ function spawnForSrc (node, maxCost = 300) {
   //  addOnCount = Math.floor((maxCost - baseCost) / addOnCost)
   //}
   let body = [CARRY, WORK, MOVE, CARRY, MOVE]
-  let addOns = [CARRY, MOVE]
+  let addOns = [CARRY, MOVE, WORK]
   let maxAddOns = -1
   switch (node.stage) {
     case 3:
-      body = [WORK, WORK, CARRY, MOVE]
-      addOns = [WORK, MOVE]
-      maxAddOns = 2
+      body = [WORK, CARRY, MOVE, CARRY, MOVE]
+      addOns = [WORK]
+      maxAddOns = 5
       //maxAddOns = Math.ceil(5 / Object.keys(node.slots).length) + 1
       break
     case 0:
@@ -194,6 +201,9 @@ function spawnForNode (id, maxCost = 300) {
       break
     case STRUCTURE_CONTAINER:
       role = 'supplier'
+      break
+    case 'nav':
+      role = 'explorer'
       break
     case 'build':
       role = 'builder'

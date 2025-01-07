@@ -5,7 +5,10 @@ const {creepPlanInfo, maintainRoleCreepsForNode} = require('./utils.creep')
 const {PLANS} = require('./utils.plans')
 const {spawnForNode} = require('./utils.spawner')
 
-function maxSrcMiners (src) {
+function maxSrcMiners (src, baseManifest) {
+  //if (baseManifest.totalEpt > 10 && baseManifest.spawnCapacity > 300 && src.maxMiners) {
+  //  return src.maxMiners
+  //}
   return Object.keys(src.slots).length
   if (src.stage === 3) {
     return Object.keys(src.slots).length
@@ -69,7 +72,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
   try {
     if (node.threat) { return threatSrc(node, baseManifest) } // threat nodes are skipped
     const miners = getTypeCreeps(node, 'miner')
-    const maxMiners = maxSrcMiners(node)
+    const maxMiners = maxSrcMiners(node, baseManifest)
     const saturation = miners.length / maxMiners
     let mode = 'default'
     const parent = Memory.nodes[node.parent]
@@ -113,19 +116,31 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         mode = 'containerized'
         break
     }
-    if (!node.ept || !node.cps || !node.totalEpt || node.recalcEpt) {
+    //node.recalcEpt = true
+    if (!node.ept || !node.cps || node.totalEpt === undefined || node.recalcEpt) {
       const mySpawnReq = spawnForNode(node.id, baseManifest.spawnCapacity)
       const {energyPerTick, creepsPerSlot} = calcSrcROI(mySpawnReq.body, node.dist)
       node.ept = energyPerTick
       node.cps = node.stage === 3 ? 1 : creepsPerSlot
       const nCreeps = node.creeps?.miner?.length || 0
-      node.totalEpt = nCreeps * energyPerTick
+      console.log('recalced src ept',node.id, Math.min(10, (nCreeps * energyPerTick)), (nCreeps * energyPerTick),  nCreeps, nCreeps, energyPerTick, node.dist)
+      node.totalEpt = Math.min(10, (nCreeps * energyPerTick))
+      //let workParts = 0
+      //mySpawnReq.body.forEach(part => {
+      //  if (part === WORK) {
+      //    workParts++
+      //  }
+      //})
+      //node.maxMiners = Math.round(6 / workParts)
+      lineage.forEach(id => {
+        Memory.nodes[id].recalcEpt = true
+      })
       delete node.recalcEpt
     }
     /**
      * Everything below here depends on the configs set above.
      */
-    maintainRoleCreepsForNode(baseManifest, node, PLANS.spawn[mode].role, maxMiners)
+    maintainRoleCreepsForNode(baseManifest, node, 'miner', maxMiners)
     runChildren(node, lineage, baseManifest)
 
   } catch(e) {

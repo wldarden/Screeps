@@ -21,6 +21,8 @@ function getNodeRunner (nodeType) {
       return {runner: require('node.extension')}
     case 'maint':
       return {runner: require('node.maintenance')}
+    case 'nav':
+      return {runner: require('node.nav')}
     case 'ec':
       return {runner: require('node.extcluster')}
     default:
@@ -54,7 +56,6 @@ function deregisterEnergyDest (reqId, node, recursive = 0) {
   if (typeof node === 'string') {
     node = Memory.nodes[node]
   }
-
   if (node.dests) {
     delete node.dests[reqId]
     if (node.parent) {
@@ -92,6 +93,7 @@ function proxyDestChildren (node, additionalChildren = []) {
   let parent
   if (node.dests) {
     parent = Memory.nodes[node.parent]
+
     Object.keys(node.dests).forEach(id => {
       let child = Memory.nodes[id]
       if (child && node.dests[id]) {
@@ -101,7 +103,8 @@ function proxyDestChildren (node, additionalChildren = []) {
             parent.dests[id] = node.dests[id]
             break
           default:
-            if (additionalChildren.includes(id)) {
+            //console.log(id, 'additionalChildren', additionalChildren)
+            if (additionalChildren.includes(id) || additionalChildren.includes(child.type)) {
               parent.dests[id] = node.dests[id]
             }
             break
@@ -220,8 +223,8 @@ function registerDestToParent (node, baseManifest) {
       case 'ec':
         //console.log(node.children, node.children[STRUCTURE_EXTENSION]?.length, Memory.nodes[node.children.container[0]],
         //  Memory.nodes[node.children.container[0]].creeps?.supplier?.length === 0)
-
-        proxyDestChildren(node, node.children[STRUCTURE_EXTENSION])
+        let allChildren = getChildren(node, [STRUCTURE_EXTENSION], undefined, true)
+        proxyDestChildren(node, allChildren)
         //proxySrcChildren(node)
         //if (node.children && node.children[STRUCTURE_EXTENSION]?.length && Memory.nodes[node.children.container[0]] &&
         //  Memory.nodes[node.children.container[0]].creeps?.supplier?.length === 0) {
@@ -249,7 +252,7 @@ function registerDestToParent (node, baseManifest) {
         //}
         break
       case STRUCTURE_SPAWN:
-        proxyDestChildren(node)
+        proxyDestChildren(node, [STRUCTURE_EXTENSION])
         let gameSpawn = Game.getObjectById(node.id)
         if (gameSpawn) {
           let energyNeeded = gameSpawn.store.getFreeCapacity(RESOURCE_ENERGY)

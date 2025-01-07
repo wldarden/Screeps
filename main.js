@@ -39,6 +39,7 @@ const actionRunners = {
   supplier: {runner: require('job.supplier')},
   builder: {runner: require('job.builder')},
   maint: {runner: require('job.maint')},
+  explorer: {runner: require('job.explorer')}
   // withdraw: {runner: require('job.withdraw')},
   // idle: {runner: require('job.idle')},
   // pickup: {runner: require('job.pickup')},
@@ -52,14 +53,14 @@ function initMemory () {
 }
 module.exports.loop = function () {
   try {
-
+    console.log('here', Memory)
     if (!Memory.nodes) {
       initMemory()
     }
 
     gatherGlobal()
-
-    for (let baseIndex = 0; baseIndex < Memory.bases?.length; baseIndex++) {
+    console.log(Memory)
+    for (let baseIndex = 0; baseIndex < Memory.bases.length; baseIndex++) {
       let baseId = Memory.bases[baseIndex]
       let base = Memory.nodes[baseId]
       if (base) {
@@ -173,21 +174,21 @@ function runCreep (creep) {
       let base = Memory.nodes[creep.memory.base]//getNodeBase(creep.memory.nodeId)
       if (!base) {
         base = getNodeBase(creep.memory.nodeId)
-        creep.memory.base = base?.id
+        creep.memory.base = base.id
       }
       let manifest = Memory.manifests[creep.memory.base]
       if (creep.hits < creep.hitsMax) { // creep was attacked!
         let src = creep.memory.nodeId
         let currThreat = Memory.nodes[src].threat
-        if (src && creep.memory?.actions?.length && creep.memory?.actions[0] !== 'recycle') {
+        if (src && creep.memory.actions.length && creep.memory.actions[0] !== 'recycle') {
           Memory.nodes[src].threat = currThreat ? currThreat + 1 : 1
           ACTIONS.recycle.start(creep)
         }
       }
 
       let runRole = true
-      if (creep.memory?.actions?.length) { // if the creep has an action in their tmp action array, do it.
-        let action = creep.memory?.actions[0]
+      if (creep.memory.actions && creep.memory.actions.length) { // if the creep has an action in their tmp action array, do it.
+        let action = creep.memory.actions[0]
         if (ACTIONS[action]) {
           switch(ACTIONS[action].do(creep, manifest)) {
             case DONE:
@@ -220,7 +221,7 @@ function runCreep (creep) {
       creep.memory.role = 'builder'
 
     }
-    console.log('Error: Unknown error for creep named', creep.name, creep?.memory?.role, creep?.memory?.nodeId, creep?.pos?.x, creep?.pos?.y, e.stack)
+    console.log('Error: Unknown error for creep named', creep.name, creep.memory.role, creep.memory.nodeId, creep.pos.x, creep.pos.y, e.stack)
   }
 
 }

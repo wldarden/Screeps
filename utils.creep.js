@@ -5,7 +5,6 @@ const {deleteNodeReqs} = require('./utils.manifest')
 
 function maintainRoleCreepsForNode (baseManifest, node, role, desired) {
   const currCount = getTypeCreeps(node, role).length
-  //delete node.spawnReqCount
   let spawnCount = 0
   baseManifest.spawn.forEach(id => {
     if (id === node.id) {
@@ -13,41 +12,46 @@ function maintainRoleCreepsForNode (baseManifest, node, role, desired) {
     }
   })
   node.spawnReqCount = spawnCount
-  const totalCount = currCount + spawnCount
-  //if (role === 'supplier' && node.id === '2402caaf2c4b518a982dbf8a' && Game.time %3 === 0) {
-  //  console.log('dist node creeps calc: ', role, 'desired', desired, 'totalCount', totalCount, 'spawnCount',spawnCount, 'currCount',currCount, totalCount < desired)
-  //}
-  //console.log('totalCount < desirec', totalCount < desired, totalCount, desired, spawnCount, role, node.id)
+  //const totalCount = currCount + spawnCount
+
+  const totalCount = currCount + (node.spawnReqCount || 0)
 
   if (totalCount < desired) {
 
     //node.spawnReqCount = node.spawnReqCount + 1
-    console.log(node.type, node.subType)
+    //console.log('Maintaining role creeps: ', node.type, node.subType, 'total: ', totalCount, 'exist: ', currCount, 'queued: ', (node.spawnReqCount || 0))
     switch (node.type) {
       case 'src':
         node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount + 1 : 1
         //return baseManifest.spawn.unshift(node.id)
-        return  baseManifest.spawn.push(node.id)
+        //return  baseManifest.spawn.push(node.id)
+        return Object.keys(Game.creeps).length > 5 ? baseManifest.spawn.unshift(node.id) : baseManifest.spawn.push(node.id)
       case STRUCTURE_CONTAINER:
-        switch (node.subType) {
-          case 'src':
-            let possibleSrc = getDestNode(node.id, undefined, {energy: 100, canWork: false})
-            if (possibleSrc?.trg) {
-              console.log('went ahead with spawn for src container', node.id)
-              node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount + 1 : 1 // only spawn for src node if theres places to go
-              return baseManifest.spawn.push(node.id)
-            } else {
-              console.log('declined to spawn for src container', node.id)
-              return
-            }
-            break
+        if (node.subType === 'dist') {
+          console.log('Dist con: node.spawnReqCount', node.spawnReqCount, node.spawnReqCount && totalCount > desired)
         }
+        node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount + 1 : 1 // only spawn for src node if theres places to go
+        return Object.keys(Game.creeps).length > 5 ? baseManifest.spawn.unshift(node.id) : baseManifest.spawn.push(node.id)
+        //switch (node.subType) {
+        //  case 'src':
+        //    //let possibleSrc = getDestNode(node.id, undefined, {energy: 100, canWork: false})
+        //    //if (possibleSrc?.trg) {
+        //    //  //console.log('went ahead with spawn for src container', node.id)
+        //    //  node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount + 1 : 1 // only spawn for src node if theres places to go
+        //    //  return baseManifest.spawn.push(node.id)
+        //    //} else {
+        //    //  //console.log('declined to spawn for src container', node.id)
+        //    //  return
+        //    //}
+        //    //break
+        //
+        //}
       default:
         node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount + 1 : 1
         return baseManifest.spawn.push(node.id)
     }
 
-  } else if (spawnCount && totalCount > desired) {
+  } else if (node.spawnReqCount && totalCount > desired) {
     deleteNodeReqs(baseManifest, node,'spawn')
   }
 }

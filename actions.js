@@ -98,7 +98,12 @@ function globalActionStart (actionFunc, creep, trgId, action, ...args) {
     creep.memory.targets = []
   }
   //console.log(creep.name, 'added to', trgId, 'for', action)
-  addCreepToWorkerList(trgId, creep.name)
+  if (!trgId || !creep.name) {
+    console.log(creep.name, ' started action ', action, ' for trg ', trgId)
+  } else {
+    addCreepToWorkerList(trgId, creep.name)
+
+  }
   let res = actionFunc(creep, trgId, ...args)
   if (creep.memory.actions?.length) {
     return ACTIONS[creep.memory.actions[0]].do(creep)
@@ -108,6 +113,9 @@ function globalActionStart (actionFunc, creep, trgId, action, ...args) {
 }
 function addCreepToWorkerList (target, name) {
   //console.log('add ', name, 'to', target)
+  if (!target || !name) {
+    return
+  }
   if (!Memory.workers[target]) {
     Memory.workers[target] = [name]
   } else {
@@ -226,7 +234,7 @@ function doBuild (creep, manifest) {
       case ERR_NOT_OWNER:
         console.log('Tried to build someone elses site')
       case ERR_NOT_IN_RANGE:
-        creep.moveTo(target, {visualizePathStyle: {stroke: '#ffffff'}})
+        creep.moveTo(target)
         break
       case ERR_TIRED:
         console.log('creep says they are tired: ', creep.name)
@@ -250,13 +258,13 @@ function doBuild (creep, manifest) {
 
 
 function startRepair (creep, trgId) {
-  if (!trgId || !Game.getObjectById(trgId)) {
-    trgId = creep.pos.findClosestByPath(FIND_STRUCTURES, {
-      maxOps: 500, filter: (str) => {
-        return str.hits < str.hitsMax
-      }
-    })?.id
-  }
+  //if (!trgId || !Game.getObjectById(trgId)) {
+  //  trgId = creep.pos.findClosestByPath(FIND_STRUCTURES, {
+  //    maxOps: 500, filter: (str) => {
+  //      return str.hits < str.hitsMax
+  //    }
+  //  })?.id
+  //}
   if (trgId) {
     creep.memory.actions.unshift('repair')
     creep.memory.targets.unshift(trgId)
@@ -306,7 +314,7 @@ function doRepair (creep, manifest) {
         case ERR_NOT_ENOUGH_RESOURCES:
           return DONE
         case ERR_NOT_IN_RANGE:
-          creep.moveTo(target, {visualizePathStyle: {stroke: '#ffffff'}})
+          creep.moveTo(target)
           break
         case ERR_TIRED:
           console.log('creep says they are tired: ', creep.name)
@@ -405,7 +413,7 @@ function doUpgrade (creep, manifest) {
         //     console.log('Error: upgrade creep invalid target', creep.name)
         //     break
         case ERR_NOT_IN_RANGE:
-          creep.moveTo(controller, {visualizePathStyle: {stroke: '#00ff00'}})
+          creep.moveTo(controller)
           break
         //   ERR_NO_BODYPART	-12
         // There are no WORK body parts in this creep’s body.
@@ -520,7 +528,7 @@ function doWithdraw (creep, manifest) {
     let actionRes = creep.withdraw(target, creep.memory.Wres || RESOURCE_ENERGY)
     switch (actionRes) {
       case ERR_NOT_IN_RANGE:
-        creep.moveTo(target, {visualizePathStyle: {stroke: '#ffffff'}})
+        creep.moveTo(target)
         break
       case ERR_TIRED:
         console.log('creep says they are tired: ', creep.name)
@@ -606,7 +614,7 @@ function doTransfer (creep) {
   let actionRes = creep.transfer(target, resource)
   switch (actionRes) {
     case ERR_NOT_IN_RANGE:
-      creep.moveTo(target, {ignoreCreeps: false, visualizePathStyle: {stroke: '#008800'}})
+      creep.moveTo(target, {ignoreCreeps: false})
       break
     case ERR_TIRED:
       break
@@ -741,7 +749,7 @@ function doHarvest (creep, manifest) {
       }
       break
     case ERR_NOT_IN_RANGE:
-      creep.moveTo(src, {range: 0, visualizePathStyle: {stroke: '#004400'}})
+      creep.moveTo(src, {range: 0})
       break
     case ERR_INVALID_TARGET:
       console.log('invalid harvest target... really didnt think i would get here', creep.name, JSON.stringify(creep.memory))
@@ -807,11 +815,11 @@ function doRecylce (creep) {
       actionRes = target.recycleCreep(creep)
     } else {
       target = Game.getObjectById(creep.memory.nodeId)
-      creep.moveTo(target, {range: 1, visualizePathStyle: {stroke: '#BB0000'}})
+      creep.moveTo(target, {range: 1})
     }
     switch (actionRes) {
       case ERR_NOT_IN_RANGE:
-        let moveRes = creep.moveTo(target, {range: 1, visualizePathStyle: {stroke: '#BB0000'}})
+        let moveRes = creep.moveTo(target, {range: 1})
         break
       case OK:
         break
