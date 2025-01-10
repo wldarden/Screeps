@@ -233,7 +233,7 @@ function spawnForNode (id, maxCost = 300) {
       cost: bodyInfo.cost
     }
   } else {
-    console.log('Error: unhandled spawn for node type: ', node?.type, id, node?.id, maxCost)
+    console.log('Error: unhandled spawn for node type: ', node.type, id, node.id, maxCost)
   }
 
 }

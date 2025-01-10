@@ -64,7 +64,7 @@ module.exports.run = function (creep, manifest) {
     //if (energy > 0) {
     //  // try to go to log
     //  trgInfo = getDestNode(node, creep, {energy: energy, canWork: false, minCapacity: 1})
-    //  if (trgInfo?.trg) {
+    //  if (trgInfo.trg) {
     //    ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
     //    return
     //  } else {
@@ -108,6 +108,6 @@ module.exports.run = function (creep, manifest) {
     }
   } catch (e) {
     console.log('Error: couldnt run supply job (1/2)', e.stack)
-    console.log('Error: couldnt run supply job (2/2', Memory.nodes[creep.memory.nodeId]?.type, creep.name)
+    console.log('Error: couldnt run supply job (2/2', Memory.nodes[creep.memory.nodeId].type, creep.name)
   }
 }

@@ -55,7 +55,7 @@ module.exports.run = function (creep, manifest) {
       if (manifest.baseSrcEnergy > MIN_ENERGY_UPGRADE) {
         let node = Memory.nodes[creep.memory.nodeId]
         let trgInfo = getSrcNode(node, creep, {energyNeeded: energy, minEnergyNeeded: energy, canWork: true})
-        if (trgInfo?.trg) {
+        if (trgInfo.trg) {
           ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
         }
       }

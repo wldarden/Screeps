@@ -40,25 +40,27 @@
 //   ERR_NO_BODYPART	-12
 // There are no WORK body parts in this creep’s body.
 //
-
+require('overload.creep')
 const {ACTIONS, DONE} = require('./actions')
 const {getDestNode} = require('./utils.nodes')
 const {CREEP_MIN_LIFE_TICKS} = require('./config')
 
 module.exports.run = function (creep, manifest) {
   try {
-    let node = Memory.nodes[creep.memory.nodeId]
-    let energyNeeded = creep.store.getFreeCapacity()
-    const energy = creep.store.getUsedCapacity()
-    if (energy > 0 || creep.ticksToLive < CREEP_MIN_LIFE_TICKS) {
-      let trgInfo = getDestNode(node, creep, {canWork: true, minCapacity: 1})
-      if (trgInfo?.trg) {
-        ACTIONS[trgInfo?.action].start(creep, trgInfo?.trg)
-      }
-    }
-    if (energyNeeded >= energy) {
-      ACTIONS.harvest.start(creep, creep.memory.nodeId)
-    }
+    creep.runMiner()
+    //let node = Memory.nodes[creep.memory.nodeId]
+    ////creep.runTask()
+    //let energyNeeded = creep.store.getFreeCapacity()
+    //const energy = creep.store.getUsedCapacity()
+    //if (energy > 0 || creep.ticksToLive < CREEP_MIN_LIFE_TICKS) {
+    //  let trgInfo = getDestNode(node, creep, {canWork: true, minCapacity: 1})
+    //  if (trgInfo.trg) {
+    //    ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
+    //  }
+    //}
+    //if (energyNeeded >= energy) {
+    //  ACTIONS.harvest.start(creep, creep.memory.nodeId)
+    //}
 
 
     // {

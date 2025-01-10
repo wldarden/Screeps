@@ -42,7 +42,7 @@ function freeEnergy(type, manifest, creepName, reqId) {
     }
   })
   if (req) {
-    if (req?.creeps) {
+    if (req.creeps) {
       delete req.creeps[creepName]
     } else {
       log({reqThrowingError: req})
@@ -97,9 +97,9 @@ function registerEnergy (manifest, req, type = 'dest', perCreepPriCost = .2, pri
     req = {...manifest.energy[type][prevIndex], ...req}
     manifest.energy[type].splice(prevIndex, 1)
   }
-  req.creeps = req?.creeps || {}
-  req.cpc = req?.cpc || perCreepPriCost
-  req.origPri = priOverRide || req?.origPri  || req?.pri
+  req.creeps = req.creeps || {}
+  req.cpc = req.cpc || perCreepPriCost
+  req.origPri = priOverRide || req.origPri  || req.pri
 
 
   req.reserved = 0

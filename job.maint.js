@@ -54,7 +54,7 @@ module.exports.run = function (creep, manifest) {
     }
     if (creep.store.getFreeCapacity() === 0) {
       let trgId = creep.pos.findClosestByPath(FIND_STRUCTURES,
-        {maxOps: 500, filter: (str) => (str.hits < str.hitsMax)})?.id
+        {maxOps: 500, filter: (str) => (str.hits < str.hitsMax)}).id
       if (trgId) {
         ACTIONS.repair.start(creep, trgId)
       } else {
@@ -64,12 +64,12 @@ module.exports.run = function (creep, manifest) {
       //let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
       //    maxOps: 500, ignoreCreeps: true,
       //    filter: function(gameNode) {
-      //        let node = Memory.nodes[gameNode?.id]
-      //        let res = gameNode.store && node?.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
+      //        let node = Memory.nodes[gameNode.id]
+      //        let res = gameNode.store && node.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
       //        if (res) {
-      //            console.log('maint going to ', node?.id, node?.type)
+      //            console.log('maint going to ', node.id, node.type)
       //        } else {
-      //            console.log('maint not going to ', node?.id, node?.type)
+      //            console.log('maint not going to ', node.id, node.type)
       //
       //        }
       //        return gameNode.hits < gameNode.hitsTotal
@@ -79,8 +79,8 @@ module.exports.run = function (creep, manifest) {
     }
     else {
       let trgInfo = getSrcNode(creep.memory.nodeId, creep)
-      if (trgInfo?.trg) {
-        ACTIONS.withdraw.start(creep, trgInfo?.trg)
+      if (trgInfo.trg) {
+        ACTIONS.withdraw.start(creep, trgInfo.trg)
       }else {
         creep.memory.wait = Game.time = 20
       }
@@ -88,8 +88,8 @@ module.exports.run = function (creep, manifest) {
       //    let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
       //        maxOps: 500, ignoreCreeps: true,
       //        filter: function(gameNode) {
-      //            let node = Memory.nodes[gameNode?.id]
-      //            let res = gameNode.store && node?.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
+      //            let node = Memory.nodes[gameNode.id]
+      //            let res = gameNode.store && node.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
       //            return res
       //        }
       //    })

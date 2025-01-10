@@ -13,7 +13,7 @@ module.exports.run = function (base, manifest) {
         }
     })
     let buildCosts = 0
-    if (base.creeps?.build?.length) {
+    if (base.creeps.build.length) {
         buildCosts = base.creeps.build.length * 5
     }
     manifest.income.total = {

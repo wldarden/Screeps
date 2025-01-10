@@ -47,7 +47,7 @@ function findEnergySrc (creep, destPosition, targets = defEnergySrcPri, resource
   const allStructs = room.find(FIND_MY_STRUCTURES)
   for (let i = 0; i < allStructs.length; i++) {
     let str = allStructs[i]
-    if (str?.store) {
+    if (str.store) {
       const amount = str.store.getUsedCapacity(resource)
       if (!!bestAmount) {
         let newTypeIndex = targets.findIndex(t => t === str.structureType)
@@ -102,10 +102,9 @@ function globalActionStart (actionFunc, creep, trgId, action, ...args) {
     console.log(creep.name, ' started action ', action, ' for trg ', trgId)
   } else {
     addCreepToWorkerList(trgId, creep.name)
-
   }
   let res = actionFunc(creep, trgId, ...args)
-  if (creep.memory.actions?.length) {
+  if (creep.memory.actions.length) {
     return ACTIONS[creep.memory.actions[0]].do(creep)
   } else {
     return res
@@ -207,7 +206,7 @@ module.exports.ACTIONS = ACTIONS
 function startBuild (creep, trgId) {
   if (!trgId || !Game.getObjectById(trgId)) {
     console.log('builder problem right now logggg', trgId)
-    trgId = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {maxOps: 500})?.id
+    trgId = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {maxOps: 500}).id
   }
   if (trgId) {
     creep.memory.actions.unshift('build')
@@ -263,7 +262,7 @@ function startRepair (creep, trgId) {
   //    maxOps: 500, filter: (str) => {
   //      return str.hits < str.hitsMax
   //    }
-  //  })?.id
+  //  }).id
   //}
   if (trgId) {
     creep.memory.actions.unshift('repair')
@@ -323,7 +322,7 @@ function doRepair (creep, manifest) {
           return DONE
           break
         case ERR_INVALID_TARGET:
-          console.log('invalid repair target', creep.name, target?.id)
+          console.log('invalid repair target', creep.name, target.id)
           return DONE
         default:
           console.log('Error: Build Action Response not handled: ', creep.name, JSON.stringify(target), actionRes, JSON.stringify(creep) )
@@ -339,10 +338,10 @@ function doRepair (creep, manifest) {
 function startFill (creep, destPosition, targets = [STRUCTURE_CONTAINER, 'src', STRUCTURE_SPAWN, STRUCTURE_EXTENSION], resource = RESOURCE_ENERGY) {
   const target = findEnergySrc(creep, destPosition, targets, resource)
 
-  creep.memory.Fsrc = target?.id
-  if (target?.id) {
-    let trg = Game.getObjectById(target?.id)
-    if (Memory.nodes[target?.id] && Memory.nodes[target?.id].type === 'src') {
+  creep.memory.Fsrc = target.id
+  if (target.id) {
+    let trg = Game.getObjectById(target.id)
+    if (Memory.nodes[target.id] && Memory.nodes[target.id].type === 'src') {
       creep.memory.FsrcType = 'src'
     } else if (trg.structureType) {
       creep.memory.FsrcType = 'str'
@@ -385,7 +384,7 @@ function startUpgrade (creep, trgId) {
     creep.memory.targets.unshift(trgId)
   } else {
     let room = Game.rooms[creep.pos.roomName]
-    creep.memory.targets.unshift(room?.controller?.id)
+    creep.memory.targets.unshift(room.controller.id)
   }
   delete creep.memory.UOK
   creep.memory.actions.unshift('upgrade')
@@ -575,7 +574,7 @@ function startTransfer (creep, targetId, resource) {
   }
   creep.memory.actions.unshift('transfer')
   creep.memory.targets.unshift(targetId)
-  //creep.memory.Tdest = target?.id
+  //creep.memory.Tdest = target.id
   if (resource) {
     creep.memory.Tres = resource
   }
@@ -623,7 +622,7 @@ function doTransfer (creep) {
     case ERR_INVALID_TARGET:
       break
     case ERR_FULL: // dest is full. what should transfer people do?
-      if (target?.structureType === STRUCTURE_SPAWN && !creep.memory.waited) {
+      if (target.structureType === STRUCTURE_SPAWN && !creep.memory.waited) {
         creep.memory.wait = Game.time + 2
         return
       } else {
@@ -731,7 +730,7 @@ function doHarvest (creep, manifest) {
       delete creep.memory.wait
     }
   }
-  if (creep.store.getFreeCapacity() === 0) {
+  if (creep.energyNeeded === 0) {
     return DONE
   }
 

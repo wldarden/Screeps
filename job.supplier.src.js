@@ -54,8 +54,8 @@ module.exports.run = function (creep, manifest, node) {
     if (energy > 0) {
       // try to go to log
       trgInfo = getDestNode(node, creep, {canWork: false, energy: energy, minCapacity: 1})
-      if (trgInfo?.trg) {
-        //console.log(creep.name, 'supplier getDestNode:', trgInfo?.trg, trgInfo?.action, Game.getObjectById(trgInfo?.trg)?.store?.getFreeCapacity())
+      if (trgInfo.trg) {
+        //console.log(creep.name, 'supplier getDestNode:', trgInfo.trg, trgInfo.action, Game.getObjectById(trgInfo.trg).store.getFreeCapacity())
         ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
         delete creep.memory.waitCount
         delete creep.memory.lastWithdraw
@@ -74,7 +74,7 @@ module.exports.run = function (creep, manifest, node) {
     }
 
     //trgInfo = getSrcNode(node, creep, {canWork: false, energyNeeded: energyNeeded})
-    ////console.log(creep.name, 'supplier getSrcNode:', creep.name, trgInfo?.trg, trgInfo?.action, Game.getObjectById(trgInfo?.trg)?.store?.getFreeCapacity())
+    ////console.log(creep.name, 'supplier getSrcNode:', creep.name, trgInfo.trg, trgInfo.action, Game.getObjectById(trgInfo.trg).store.getFreeCapacity())
     //
     //if (trgInfo.trg) {
     //  ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
@@ -83,7 +83,7 @@ module.exports.run = function (creep, manifest, node) {
 
 
     //trgInfo = getSrcNode(node, creep, {canWork: false, energyNeeded: energyNeeded})
-    //console.log(creep.name, 'supplier getSrcNode:', creep.name, trgInfo?.trg, trgInfo?.action, Game.getObjectById(trgInfo?.trg)?.store?.getFreeCapacity())
+    //console.log(creep.name, 'supplier getSrcNode:', creep.name, trgInfo.trg, trgInfo.action, Game.getObjectById(trgInfo.trg).store.getFreeCapacity())
     //let mySrcContainer = Game.getObjectById(creep.memory.nodeId)
     //if (mySrcContainer.store.getUsedCapacity()) {
     //

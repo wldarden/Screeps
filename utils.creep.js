@@ -35,7 +35,7 @@ function maintainRoleCreepsForNode (baseManifest, node, role, desired) {
         //switch (node.subType) {
         //  case 'src':
         //    //let possibleSrc = getDestNode(node.id, undefined, {energy: 100, canWork: false})
-        //    //if (possibleSrc?.trg) {
+        //    //if (possibleSrc.trg) {
         //    //  //console.log('went ahead with spawn for src container', node.id)
         //    //  node.spawnReqCount = node.spawnReqCount ? node.spawnReqCount + 1 : 1 // only spawn for src node if theres places to go
         //    //  return baseManifest.spawn.push(node.id)
@@ -71,7 +71,7 @@ module.exports.destroyCreep = function(name) {
   if (creepMemory) {
 
     let manifest = Memory.manifests[creepMemory.base]
-    if (creepMemory.actions?.length) {
+    if (creepMemory.actions.length) {
       const actions = creepMemory.actions
       actions.forEach(action => {
         ACTIONS.global.finish({memory: creepMemory, name: name}, manifest, action)

@@ -6,26 +6,6 @@ const {DONE, ACTIONS} = require('./actions')
 const {addNodeToParent, getNodePos, getNodeBase} = require('./utils.nodes')
 const {runBase} = require('./node.base')
 const {destroyCreep} = require('./utils.creep')
-const {log} = require('./utils.debug')
-
-// const baseRunners = [
-//   {runner: require('base.creep'), name: 'Creeps', ticks: 1, offset: 0}, // do first so spawns have a chance
-//   {runner: require('base.source'), name: 'General of Resources', ticks: 1, offset: 0},
-//   // {runner: require('base.extension'), name: 'Extension Commander', ticks: 1, offset: 0},
-//   // {runner: require('base.container'), name: 'General of Storage Logistics', ticks: 1, offset: 0},
-//   {runner: require('base.controller'), name: 'HQ Manager', ticks: 1, offset: 0},
-//   {runner: require('base.spawn'), name: 'General Spawn', ticks: 1, offset: 0},
-//   {runner: require('base.builder'), name: 'Construction Foreman', ticks: 1, offset: 0}, // do first so spawns have a chance
-//   {runner: require('base.accountant'), name: 'Finance Captain', ticks: 1, offset: 0}, // do first so spawns have a chance
-//   // {runner: require('base.jobs'), name: 'Job Controller', ticks: 1, offset: 0}, // do first so spawns have a chance
-// ]
-
-// const nodeRunner = {
-//   src: {runner: require('base.source')},
-//   [STRUCTURE_CONTROLLER]: {runner: require('base.controller')},
-//   [STRUCTURE_SPAWN]: {runner: require('base.spawn')},
-//   fort: {runner: (...args) => {console.log('No nodeRunner for this type')}}
-// }
 
 
 const actionRunners = {
@@ -33,33 +13,28 @@ const actionRunners = {
   courier: {runner: require('job.courier')},
   harvest: {runner: require('job.harvest')},
   recycle: {runner: require('job.recycle')},
-  // transfer: {runner: require('job.transfer')},
   upgrader: {runner: require('job.upgrade')},
   upgrade: {runner: require('job.upgrade')},
   supplier: {runner: require('job.supplier')},
   builder: {runner: require('job.builder')},
   maint: {runner: require('job.maint')},
   explorer: {runner: require('job.explorer')}
-  // withdraw: {runner: require('job.withdraw')},
-  // idle: {runner: require('job.idle')},
-  // pickup: {runner: require('job.pickup')},
-  // drop: {runner: require('job.drop')}
 }
 function initMemory () {
   Memory.bases = []
   Memory.nodes = {}
   Memory.manifests = {}
   Memory.workers = {}
+
+
 }
 module.exports.loop = function () {
   try {
-    console.log('here', Memory)
     if (!Memory.nodes) {
       initMemory()
     }
 
     gatherGlobal()
-    console.log(Memory)
     for (let baseIndex = 0; baseIndex < Memory.bases.length; baseIndex++) {
       let baseId = Memory.bases[baseIndex]
       let base = Memory.nodes[baseId]
@@ -71,6 +46,7 @@ module.exports.loop = function () {
     }
     for (let name in Memory.creeps) {
       let creep = Game.creeps[name]
+      //creep.runTask()
       if (creep) {
         runCreep(creep)
       } else {
@@ -137,35 +113,6 @@ function gatherGlobal () {
   }
 }
 
-// function runBase(base, manifest) {
-//   try {
-//     // baseRunners.forEach(general => {
-//     //   try {
-//     //     general.runner.run(base, manifest)
-//     //   } catch (e) {
-//     //     console.log('Error: Running General', general.name, e.stack)
-//     //   }
-//     // })
-//
-//     // do base things
-//
-//
-//     // run children
-//     const parents = [base.name]
-//     for (let nodeType in base.children) {
-//       let nodeRunnerDef = getNodeRunner(nodeType)
-//       base.children[nodeType].forEach(nodeId => {
-//         nodeRunnerDef.runner.run(nodeId, parents)
-//       })
-//     }
-//
-//     // Memory.nodes[base.name].targets[RESOURCE_ENERGY] = sortEnergyRequests(Memory.nodes[base.name].targets[RESOURCE_ENERGY])
-//   } catch (e) {
-//     console.log('Error: runBase( ' + (base?.name ?? 'Undefined Base Name!') + ' ): ', e.stack)
-//   }
-//
-// }
-
 function runCreep (creep) {
   try {
     if (creep.spawning) {
@@ -225,45 +172,3 @@ function runCreep (creep) {
   }
 
 }
-
-// Atlas:
-//   STRUCTURE_SPAWN: "spawn",
-//   STRUCTURE_EXTENSION: "extension",
-//   STRUCTURE_ROAD: "road",
-//   STRUCTURE_WALL: "constructedWall",
-//   STRUCTURE_RAMPART: "rampart",
-//   STRUCTURE_KEEPER_LAIR: "keeperLair",
-//   STRUCTURE_PORTAL: "portal",
-//   STRUCTURE_CONTROLLER: "controller",
-//   STRUCTURE_LINK: "link",
-//   STRUCTURE_STORAGE: "storage",
-//   STRUCTURE_TOWER: "tower",
-//   STRUCTURE_OBSERVER: "observer",
-//   STRUCTURE_POWER_BANK: "powerBank",
-//   STRUCTURE_POWER_SPAWN: "powerSpawn",
-//   STRUCTURE_EXTRACTOR: "extractor",
-//   STRUCTURE_LAB: "lab",
-//   STRUCTURE_TERMINAL: "terminal",
-//   STRUCTURE_CONTAINER: "container",
-//   STRUCTURE_NUKER: "nuker",
-//   STRUCTURE_FACTORY: "factory",
-//   STRUCTURE_INVADER_CORE: "invaderCore",
-//
-//   CONSTRUCTION_COST: {
-//   "spawn": 15000,
-//     "extension": 3000,
-//     "road": 300,
-//     "constructedWall": 1,
-//     "rampart": 1,
-//     "link": 5000,
-//     "storage": 30000,
-//     "tower": 5000,
-//     "observer": 8000,
-//     "powerSpawn": 100000,
-//     "extractor": 5000,
-//     "lab": 50000,
-//     "terminal": 100000,
-//     "container": 5000,
-//     "nuker": 100000,
-//     "factory": 100000
-// },

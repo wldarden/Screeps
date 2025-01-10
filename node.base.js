@@ -45,7 +45,7 @@ module.exports.runBase = function (node, lineage = []) {
          * CREATE LOGISTIC NODE WHEN NEEDED
          */
 
-        if (baseManifest.baseSrcEnergy && baseManifest.baseSrcEnergy > 350 && node.children?.container?.length === 2) {
+        if (baseManifest.baseSrcEnergy && baseManifest.baseSrcEnergy > 350 && node.children.container.length === 2) {
           if (!node.children.log) { node.children.log = [] }
           if (!node.children.log.length) { // and we have not initialized a storage node
             let servicedSrcs = getChildren(node, [STRUCTURE_CONTAINER], (child) => child.subType === 'src', true)
@@ -59,7 +59,7 @@ module.exports.runBase = function (node, lineage = []) {
 
           }
         }
-        //if (baseManifest?.finance?.total?.income && baseManifest.finance.total.income > 5) { // if good income
+        //if (baseManifest.finance.total.income && baseManifest.finance.total.income > 5) { // if good income
         //  if (!node.children.log) { node.children.log = [] }
         //  if (!node.children.log.length) { // and we have not initialized a storage node
         //    let newStorageNode = createStorageNode(`log-${node.children.log.length}`) // make the node
@@ -72,7 +72,7 @@ module.exports.runBase = function (node, lineage = []) {
          */
         break
       case 1: // has logistics node
-        if (!node.children?.maint?.length) {
+        if (!node.children.maint.length) {
           addNodeToParent({
             parent: null,
             id: 'maint-0',
@@ -85,7 +85,7 @@ module.exports.runBase = function (node, lineage = []) {
         break
       case 2:
         //if (baseManifest.totalEpt > 15) {
-        //  if (!node.children?.nav?.length) {
+        //  if (!node.children.nav.length) {
         //    addNodeToParent({
         //      parent: null,
         //      id: 'nav-0',

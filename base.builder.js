@@ -4,7 +4,7 @@ const {deserializePos} = require('./utils.memory')
 
 function getMaxBuilders (base, manifest) {
   let maxBuilders = 0
-  let total = manifest.income?.total
+  let total = manifest.income.total
   if (total) {
     if (total.rev > 15) {
       if (total.bal > 1) {
@@ -21,9 +21,9 @@ function getMaxBuilders (base, manifest) {
 module.exports.run = function (base, manifest) {
   const weWantToBuild = true
 
-  if (manifest.req?.build?.length && weWantToBuild) { // and have queued build requests
+  if (manifest.req.build.length && weWantToBuild) { // and have queued build requests
 
-    if (base.creeps?.build?.length > 0) { // if we have builders
+    if (base.creeps.build.length > 0) { // if we have builders
       const priorityReq = manifest.req.build[0]
       if (!priorityReq.placed) { // if construction not even started:
         let room = Game.rooms[base.name]
@@ -47,7 +47,7 @@ module.exports.run = function (base, manifest) {
         if (!priorityReq.siteId && Game.time - priorityReq.placed > 2) {
           const pos = deserializePos(priorityReq.pos)
           const lookRes = pos.lookFor(LOOK_CONSTRUCTION_SITES)
-          if (lookRes?.length) {
+          if (lookRes.length) {
             lookRes.some(item => {
               if (item.structureType === priorityReq.structureType) {
                 priorityReq.siteId = item.id
@@ -67,7 +67,7 @@ module.exports.run = function (base, manifest) {
       if (!Game.getObjectById(priorityReq.siteId)) {
         const lookRes = deserializePos(priorityReq.pos).lookFor(LOOK_STRUCTURES)
 
-        if (lookRes?.length) {
+        if (lookRes.length) {
           let found = lookRes.find(item => item.structureType === priorityReq.structureType)
           if (found) {
             base.structures[priorityReq.structureType].push(found.id)
@@ -94,15 +94,15 @@ module.exports.run = function (base, manifest) {
       }
     }
   }
-    // if (base?.newSites?.length) {
+    // if (base.newSites.length) {
     //   let newBaseSites = []
     //   base.newSites.forEach(pos => {
     //     const lookRes = deserializePos(pos).lookFor(LOOK_CONSTRUCTION_SITES)
-    //     if (lookRes?.length) {
+    //     if (lookRes.length) {
     //       // lookRes.find(r => {
     //       //   r.type === ''
     //       // })
-    //       base.jobs[pos].siteId = lookRes[0]?.id
+    //       base.jobs[pos].siteId = lookRes[0].id
     //     } else {
     //       console.log('ERROR: New site not found!', pos)
     //       newBaseSites.push(pos)

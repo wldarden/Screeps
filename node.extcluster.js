@@ -50,7 +50,7 @@ const DIR = 'west'
 
 module.exports.run = function (node, lineage = [], baseManifest) {
   try {
-    let room = lineage?.length ? Game.rooms[lineage[0]] : false
+    let room = lineage.length ? Game.rooms[lineage[0]] : false
 
 
     switch (node.stage) {
@@ -64,8 +64,8 @@ module.exports.run = function (node, lineage = [], baseManifest) {
               let offset = EXT_POS[DIR].container
               let nodePos = deserializePos(node.pos)
               let newPos = {x: nodePos.x + offset.x, y: nodePos.y + offset.y, roomName: nodePos.roomName}
-              //console.log('offset', offset, offset?.x, offset?.y)
-              //console.log('nodePos', nodePos, nodePos?.x, nodePos?.y, nodePos.roomName)
+              //console.log('offset', offset, offset.x, offset.y)
+              //console.log('nodePos', nodePos, nodePos.x, nodePos.y, nodePos.roomName)
               //newPos.x = nodePos.x + offset.x
               //newPos.y = nodePos.y + offset.y
               //newPos.roomName = nodePos.roomName
@@ -128,7 +128,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
       //  node.stage++
       //}
     }
-    //if (node.children?.extensions?.length && node.children?.container?.length) {
+    //if (node.children.extensions.length && node.children.container.length) {
     //  maintainRoleCreepsForNode(baseManifest, node, 'supplier', 1)
     //}
     registerDestToParent(node, baseManifest)

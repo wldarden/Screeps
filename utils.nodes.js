@@ -221,19 +221,19 @@ function registerDestToParent (node, baseManifest) {
 
         break
       case 'ec':
-        //console.log(node.children, node.children[STRUCTURE_EXTENSION]?.length, Memory.nodes[node.children.container[0]],
-        //  Memory.nodes[node.children.container[0]].creeps?.supplier?.length === 0)
+        //console.log(node.children, node.children[STRUCTURE_EXTENSION].length, Memory.nodes[node.children.container[0]],
+        //  Memory.nodes[node.children.container[0]].creeps.supplier.length === 0)
         let allChildren = getChildren(node, [STRUCTURE_EXTENSION], undefined, true)
         proxyDestChildren(node, allChildren)
         //proxySrcChildren(node)
-        //if (node.children && node.children[STRUCTURE_EXTENSION]?.length && Memory.nodes[node.children.container[0]] &&
-        //  Memory.nodes[node.children.container[0]].creeps?.supplier?.length === 0) {
+        //if (node.children && node.children[STRUCTURE_EXTENSION].length && Memory.nodes[node.children.container[0]] &&
+        //  Memory.nodes[node.children.container[0]].creeps.supplier.length === 0) {
         //  proxyDestChildren(node, node.children[STRUCTURE_EXTENSION])
         //} else {
         //  proxyDestChildren(node)
         //}
         // extension clusters will make their container available if all extensions are full (no personal dests) && theres no spawn req in queue
-        if (node.dests && Object.keys(node.dests)?.length === 0) {
+        if (node.dests && Object.keys(node.dests).length === 0) {
           proxySrcChildren(node)
         }
 
@@ -269,7 +269,7 @@ function registerDestToParent (node, baseManifest) {
         break
     }
   } catch (e) {
-    console.log('Error: registerDestToParent', node?.id, e.stack)
+    console.log('Error: registerDestToParent', node.id, e.stack)
   }
 }
 module.exports.registerDestToParent = registerDestToParent
@@ -288,8 +288,8 @@ function getDist (n1, n2) {
   let pPos = getNodePos(n1)
   let nPos = getNodePos(n2)
   if (pPos && nPos) {
-    //console.log('got parent pos',  nPos,  n1, n1?.type, pPos, n2, n2?.type)
-    return pPos.findPathTo(nPos, {ignoreCreeps: true})?.length
+    //console.log('got parent pos',  nPos,  n1, n1.type, pPos, n2, n2.type)
+    return pPos.findPathTo(nPos, {ignoreCreeps: true}).length
   } else {
     console.log('no parent pos or node pos here: ',  nPos,  n1, pPos, n2)
   }
@@ -321,33 +321,6 @@ function addNodeToParent (node, parentId, newId, newType) {
   }
   let parent = Memory.nodes[parentId]
   node.dist = getDist(parent, node)
-  //switch (parent.type) {
-  //  case 'log':
-  //    switch (node.type) {
-  //      case STRUCTURE_CONTAINER:
-  //        switch (node.subType) {
-  //          case 'src':
-  //            if (!parent.srcContainers) {parent.srcContainers = [node.id]
-  //            } else if (!parent.srcContainers.some(c => c === node.id)) {
-  //              parent.srcContainers.push(node.id)
-  //            }
-  //
-  //            if (nPos && pPos) {
-  //              node.dist = pPos.findPathTo(nPos, {ignoreCreeps: true})?.length
-  //            }
-  //            break
-  //          default:
-  //          case 'log':
-  //            if (!parent.logContainers) {parent.logContainers = [node.id]
-  //            } else if (!parent.logContainers.some(c => c === node.id)) {
-  //              parent.logContainers.push(node.id)
-  //            }
-  //            break
-  //        }
-  //        break
-  //    }
-  //    break
-  //}
   if (!Memory.nodes[parentId].children) {
     Memory.nodes[parentId].children = {}
   }
@@ -369,20 +342,6 @@ function addNodeToParent (node, parentId, newId, newType) {
 }
 module.exports.addNodeToParent = addNodeToParent
 
-// const nodeTypeMap = {
-//     log: 'log',
-//
-//     source: 'src',
-//     src: 'src',
-//
-//     [STRUCTURE_SPAWN]: 'spawn', // STRUCTURE_SPAWN is the same thing as 'spawn'
-//
-//     [STRUCTURE_CONTROLLER]: 'controller', // STRUCTURE_CONTROLLER is the same thing as 'controller'
-//     con: 'controller',
-//
-//     frt: 'fort',
-//     fort: 'fort'
-// }
 
 const VALID_NODE_TYPES = [
   'base', 'src', 'fort', 'log',            // non STRUCTURE_* types
@@ -446,7 +405,7 @@ function getNodePos (nodeOrId) {
     case STRUCTURE_SPAWN:
     case STRUCTURE_CONTROLLER:
     case 'src':
-      return Game.getObjectById(node.id)?.pos
+      return Game.getObjectById(node.id).pos
     case 'base':
     case 'def':
       return deserializePos(node.pos)
@@ -458,7 +417,7 @@ function getNodePos (nodeOrId) {
       }
       break
     default:
-      console.log('Error: could not get position of node: ', node?.id, node?.type, JSON.stringify(node))
+      console.log('Error: could not get position of node: ', node.id, node.type, JSON.stringify(node))
       break
   }
 }
@@ -493,7 +452,7 @@ function getNewStorageNodeSiteByBestSrc (node) {
   })
   let path = best.pos.findPathTo(nextBest.pos, {ignoreCreeps: true})
   let location = path[Math.ceil(path.length / 2)]
-  if (!!location?.x && !!location?.y && !!best.pos.roomName) {
+  if (!!location.x && !!location.y && !!best.pos.roomName) {
     return {x: location.x, y: location.y, roomName: best.pos.roomName}
 
   }
@@ -506,7 +465,7 @@ function getNewStorageNodeSiteByBestSrc (node) {
 // 	for (let i = 0; i < nodesToService.length - 1; i++) {
 // 		let n1 = Memory.nodes[nodesToService[i]]
 // 		let n1Pos = getNodePos(n1)
-// 		roomName = n1Pos?.roomName ? n1Pos?.roomName : roomName
+// 		roomName = n1Pos.roomName ? n1Pos.roomName : roomName
 // 		console.log('n1Pos', n1Pos.x, n1Pos.y)
 // 		if (!n1.threat && n1Pos) {
 // 			for (let j = i + 1; j < nodesToService.length; j++) {
@@ -689,7 +648,7 @@ function evalDest (id) {
     case STRUCTURE_CONTAINER:
       return {trg: id, action: 'transfer'}
     case 'base':
-      if (node.children?.spawn && node.children.spawn[0]) {
+      if (node.children.spawn && node.children.spawn[0]) {
         return {trg: node.children.spawn[0], action: 'transfer'}
       }
       break
@@ -711,8 +670,8 @@ function evalDest (id) {
 function getDestNode (node, creep, params = {}) {
   try {
     const {
-      energy = creep?.store?.getUsedCapacity(), // how much energy the creep has to give to dest
-      canWork = creep?.getActiveBodyparts(WORK), // does creep have work body parts
+      energy = creep.store.getUsedCapacity(), // how much energy the creep has to give to dest
+      canWork = creep.getActiveBodyparts(WORK), // does creep have work body parts
       minCapacity // minimum capacity that the dest should have to allow targeting
     } = params
     let minDestCapacity = minCapacity || (energy * .5) // (creep.memory.minLoad || .5)
@@ -720,13 +679,13 @@ function getDestNode (node, creep, params = {}) {
     if (node.dests && Object.keys(node.dests).length) { // check srcs obj of node to see if registered energy is here
       let alternate
       for (let id in node.dests) {
-        if (id !== creep?.memory?.nodeId) {
+        if (id !== creep.memory.nodeId) {
           if (!Memory.nodes[id]) {
             console.log('1234 we just tried to get a node Dest that no longer exists. theres logic to delete it, but it may not be needed', id, node.id, node.type)
             deregisterEnergyDest(id, node) // delete srcs that dont exist anymore
           } else {
             const destCap = node.dests[id]
-            if (destCap && (canWork || !NEEDS_WORK[Memory.nodes[id]?.type])) { // if registered src has more than 0 energy:
+            if (destCap && (canWork || !NEEDS_WORK[Memory.nodes[id].type])) { // if registered src has more than 0 energy:
               if (destCap > energy) {                                          //   if registered src has more energy than creep needs:
                 const trgInfo = evalDest(id)   // PRIMARY              //     => build trgInfo for src and
                 if (trgInfo) { return trgInfo }                                  //     => return trgInfo
@@ -748,7 +707,7 @@ function getDestNode (node, creep, params = {}) {
       return getDestNode(node.parent, creep, params) // this line        // PARENT
     } else {
       //console.log('NO DEST FOUND AT ALL. checking piles:', creep.name, creep.pos.x, creep.pos.y, node.type, node.id)
-      //let trg = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {maxOps: 500, ignoreCreeps: true})?.id
+      //let trg = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {maxOps: 500, ignoreCreeps: true}).id
       //if (trg) {
       //  return {trg: trg, action: 'drop'}                       // PILE
       //}
@@ -768,7 +727,7 @@ function evalSrc (id) {
     case STRUCTURE_CONTAINER:
       return {trg: id, action: 'withdraw'}
     case 'base':
-      if (node.children?.spawn && node.children.spawn[0]) {
+      if (node.children.spawn && node.children.spawn[0]) {
         return {trg: node.children.spawn[0], action: 'withdraw'}
       }
       break
@@ -795,8 +754,8 @@ const NEEDS_WORK = {
 function getSrcNode (node, creep, params = {}) {
   try {
     const {
-      energyNeeded = creep?.store?.getFreeCapacity(),
-      canWork = creep?.getActiveBodyparts(WORK),
+      energyNeeded = creep.store.getFreeCapacity(),
+      canWork = creep.getActiveBodyparts(WORK),
       minEnergyNeeded
     } = params
     let minSrcEnergy = minEnergyNeeded || (energyNeeded * .5) // (creep.memory.minLoad || .5)
@@ -809,7 +768,7 @@ function getSrcNode (node, creep, params = {}) {
             deregisterEnergySrc(id, node) // delete srcs that dont exist anymore
         } else {
           const srcEnergy = node.srcs[id]
-          if (srcEnergy && (canWork || !NEEDS_WORK[Memory.nodes[id]?.type])) { // if registered src has more than 0 energy:
+          if (srcEnergy && (canWork || !NEEDS_WORK[Memory.nodes[id].type])) { // if registered src has more than 0 energy:
             if (srcEnergy > energyNeeded) {                                          //   if registered src has more energyNeeded than creep needs:
               const trgInfo = evalSrc(id)                 //     => build trgInfo for src and
               if (trgInfo) { return trgInfo }                                  //     => return trgInfo
@@ -829,7 +788,7 @@ function getSrcNode (node, creep, params = {}) {
       return getSrcNode(node.parent, creep, params) // this line
     } else {
       //console.log('NO SOURCE FOUND AT ALL. checking dropped sources:', creep.name, creep.pos.x, creep.pos.y, node.type, node.id)
-      //let trg = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {maxOps: 500, ignoreCreeps: true})?.id
+      //let trg = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {maxOps: 500, ignoreCreeps: true}).id
       //if (trg) {
       //  return {trg: trg, action: 'pickup'}
       //}
@@ -943,7 +902,7 @@ module.exports.runChildren = runChildren
 function getNodeBase (nodeId) {
   let node = Memory.nodes[nodeId]
   let count = 0
-  while (node && node?.type !== 'base' && node.parent && count < 50) {
+  while (node && node.type !== 'base' && node.parent && count < 50) {
     node = Memory.nodes[node.parent]
     count++
   }
@@ -958,8 +917,8 @@ module.exports.getNodeBase = getNodeBase
 
 function removeCreepFromNode (nodeId, role, creepName) {
   let creepMem = Memory.creeps[creepName]
-  if (nodeId !== creepMem?.nodeId) {
-    console.log('Error: removing creep from node it wasnt a part of', nodeId, creepMem?.nodeId)
+  if (nodeId !== creepMem.nodeId) {
+    console.log('Error: removing creep from node it wasnt a part of', nodeId, creepMem.nodeId)
   }
   if (creepMem) {
     delete creepMem.nodeId
@@ -974,7 +933,7 @@ function removeCreepFromNode (nodeId, role, creepName) {
       Object.keys(Memory.nodes[nodeId].creeps).forEach(r => {
         Memory.nodes[nodeId].creeps[r] = Memory.nodes[nodeId].creeps[r].filter(cId => cId !== creepName) // remove creep from old node and role
         if (isSrcNode && r === 'miner') {
-          Memory.nodes[nodeId].totalEpt = Math.min(((Memory.nodes[nodeId].ept || 0) * (Memory.nodes[nodeId]?.creeps?.miner?.length || 0)), 10)
+          Memory.nodes[nodeId].totalEpt = Math.min(((Memory.nodes[nodeId].ept || 0) * (Memory.nodes[nodeId].creeps.miner.length || 0)), 10)
         }
       })
     } else if (Memory.nodes[nodeId].creeps[role]) {
@@ -984,7 +943,7 @@ function removeCreepFromNode (nodeId, role, creepName) {
         Memory.nodes[nodeId].creeps[role] = Memory.nodes[nodeId].creeps[role].filter(cId => cId !== creepName && !!Game.creeps[cId]) // remove creep from old node and role
       }
       if (isSrcNode && role === 'miner') {
-        Memory.nodes[nodeId].totalEpt = Math.min(((Memory.nodes[nodeId].ept || 0) * (Memory.nodes[nodeId]?.creeps?.miner?.length || 0)), 10)
+        Memory.nodes[nodeId].totalEpt = Math.min(((Memory.nodes[nodeId].ept || 0) * (_.get(Memory, ['nodes', nodeId,'creeps', 'miner'], []).length || 0)), 10)
       }
     }
   }
@@ -1002,7 +961,7 @@ module.exports.removeCreepFromNode = removeCreepFromNode
 //      eptSrc = eptSrc + c.totalEpt
 //    }
 //  })
-//  node.totalEpt = eptTrans * (node.creeps?.supplier?.length || 0) // energy this containers srcs are bringing to this node.
+//  node.totalEpt = eptTrans * (node.creeps.supplier.length || 0) // energy this containers srcs are bringing to this node.
 //  node.supplierLoad = Math.round(eptSrc / eptTrans)
 //}
 function addCreepToNode (nodeId, role, creepName) {

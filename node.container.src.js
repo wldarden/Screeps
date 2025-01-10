@@ -22,7 +22,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         registerSrcToParent(node, node.parent, energy)
         maintainRoleCreepsForNode(baseManifest, node, 'supplier', Math.max(1, node.supplierLoad))
         //let possibleSrc = getDestNode(node.id, undefined, {energy: 100, canWork: false})
-        //console.log('possible container src dest: ',possibleSrc,  possibleSrc?.trg, node.id)
+        //console.log('possible container src dest: ',possibleSrc,  possibleSrc.trg, node.id)
         runChildren(node, lineage, baseManifest)
         //node.recalcEpt = true
         if ('dist' in node && (node.recalcEpt || node.totalEpt === undefined)) {
@@ -32,7 +32,8 @@ module.exports.run = function (node, lineage = [], baseManifest) {
             let eptSrc = 0
             const allChildren= getChildren(node, [], undefined, false, 1)
             allChildren.forEach(c => { if (c.totalEpt) { eptSrc = eptSrc + c.totalEpt } })
-            node.totalEpt = Math.min(eptTrans * (node.creeps?.supplier?.length || 0), eptSrc) // energy this containers srcs are bringing to this node.
+            let
+            node.totalEpt = Math.min(eptTrans * _.get(node, ['creeps', 'supplier', 'length'], 0), eptSrc) // energy this containers srcs are bringing to this node.
             node.supplierLoad = Math.round(eptSrc / eptTrans)
             lineage.forEach(id => {
                 Memory.nodes[id].recalcEpt = true

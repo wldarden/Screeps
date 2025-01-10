@@ -85,7 +85,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         break
       case 1: // Build extensions until max reached
         let clusters = getChildren(node, ['ec'], undefined, false, 1)
-        if (!clusters?.length) {
+        if (!clusters.length) {
           let gameSpawn = Game.getObjectById(node.id)
           let extCluster = {
             id: `spawn-ec`,
@@ -109,7 +109,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
      */
     let gameNode = Game.getObjectById(node.id)
     registerDestToParent(node, baseManifest)
-    if (baseManifest?.spawn?.length === 0) {
+    if (baseManifest.spawn.length === 0) {
       registerSrcToParent(node, node.parent, gameNode.store.getUsedCapacity())
     } else {
       deregisterEnergySrc(node.id, node.parent)
@@ -123,22 +123,22 @@ module.exports.run = function (node, lineage = [], baseManifest) {
      */
 
 
-    baseManifest.spawnCapacity = Object.keys(Memory.creeps)?.length < 5 ? 300 : gameNode.room.energyCapacityAvailable
+    baseManifest.spawnCapacity = Object.keys(Memory.creeps).length < 5 ? 300 : gameNode.room.energyCapacityAvailable
     if (gameNode.room.energyAvailable >= 300) {
       //console.log('1111', gameNode.room.energyAvailable >= node.waitUntilCost || node.waitUntilCost > baseManifest.spawnCapacity)
       if (gameNode.room.energyAvailable >= node.waitUntilCost || node.waitUntilCost > baseManifest.spawnCapacity) {
         delete node.waitUntilCost
         delete node.waitUntilTime
       }
-      //console.log('2222', node.currReqId && (!baseManifest.spawn?.length || !baseManifest.spawn.includes(!node.currReqId)))
+      //console.log('2222', node.currReqId && (!baseManifest.spawn.length || !baseManifest.spawn.includes(!node.currReqId)))
 
-      if (node.currReqId && (!baseManifest.spawn?.length || !baseManifest.spawn.includes(node.currReqId))) { // if saved req no longer exists in queue
-        //console.log('node.waited might be deleted', node.waited, node.currReqId, baseManifest.spawn?.length, )
+      if (node.currReqId && (!baseManifest.spawn.length || !baseManifest.spawn.includes(node.currReqId))) { // if saved req no longer exists in queue
+        //console.log('node.waited might be deleted', node.waited, node.currReqId, baseManifest.spawn.length, )
         deleteSpawnReq(baseManifest, node, node.currReqId)
       }
-      //console.log('3333', baseManifest?.spawn?.length || node.serializedReq)
+      //console.log('3333', baseManifest.spawn.length || node.serializedReq)
 
-      if (baseManifest?.spawn?.length || node.serializedReq) { // if there is a saved req or waiting spawn req
+      if (baseManifest.spawn.length || node.serializedReq) { // if there is a saved req or waiting spawn req
         //console.log('4444', !node.waitUntilTime || node.waitUntilTime <= Game.time)
 
         if (!node.waitUntilTime || node.waitUntilTime <= Game.time) { // if we arent waiting or we waited the desired time

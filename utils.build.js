@@ -5,12 +5,12 @@ function moveNodeSites (baseManifest, reqIds) {
     let res
     reqIds.forEach(reqId => {
         let req = getReqById(baseManifest.build.new, reqId)
-        console.log('new req logggg', req?.id)
+        console.log('new req logggg', req.id)
         if (req.status === 'new') {
             createSiteFromRequest(baseManifest, req)
         } else {
             let pendingReq = getReqById(baseManifest.build.pending, reqId)
-            if (pendingReq?.opts?.siteId) {
+            if (pendingReq.opts.siteId) {
                 let site = Game.getObjectById(pendingReq.opts.siteId)
                 if (!site) {
                     const lookRes = deserializePos(pendingReq.opts.pos).lookFor(LOOK_STRUCTURES)
@@ -71,19 +71,19 @@ function findSiteAtPos (pos, structureType) {
     }
 
     const lookRes = deserializePos(pos).lookFor(LOOK_CONSTRUCTION_SITES)
-    if (lookRes?.length) {
+    if (lookRes.length) {
         return lookRes.find(item => {
             return item.structureType === structureType
-        })?.id
+        }).id
     }
 }
 module.exports.findSiteAtPos = findSiteAtPos
 function findStrAtPos (pos, structureType) {
     const lookRes = deserializePos(pos).lookFor(LOOK_STRUCTURES)
-    if (lookRes?.length) {
+    if (lookRes.length) {
         return lookRes.find(item => {
             return item.structureType === structureType
-        })?.id
+        }).id
     }
 }
 module.exports.findStrAtPos = findStrAtPos
@@ -132,7 +132,7 @@ module.exports.findStrAtPos = findStrAtPos
 //     const room = Game.rooms[base.name]
 //     let baseSrcIndex = base.sources.findIndex(srcId => {
 //         let src = Memory.sources[srcId].container
-//         return !src?.container
+//         return !src.container
 //     })
 //     let src = base.sources[baseSrcIndex]
 //     if (!src) {

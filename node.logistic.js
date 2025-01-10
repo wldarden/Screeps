@@ -99,22 +99,22 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         break
       case 2:
         //if (!node.repairs) { node.repairs = [] }
-        //if (node.repairs?.length) {
+        //if (node.repairs.length) {
         //} else {
-        //  if (node.creeps?.maint?.length) {
+        //  if (node.creeps.maint.length) {
         //    //console.log('todo - redistribute maint now that everything is repaired')
         //  }
         //}
         //node.logContainers = getChildren(node, [STRUCTURE_CONTAINER], (node) => node.subType !== 'src', true, 1)
         //node.srcContainers = getChildren(node, [STRUCTURE_CONTAINER], (node) => node.subType === 'src', true, 1)
         //let allContainers = [...node.logContainers, ...node.srcContainers]
-        //if (node.srcContainers?.length) {
+        //if (node.srcContainers.length) {
         //  //(node.srcContainers.length + node.logContainers.length)
         //  maintainRoleCreepsForNode(baseManifest, node, 'supplier', 2)
         //  if (!node.supReqs) {node.supReqs = []}
-        //  if (node.supReqs?.length) {
+        //  if (node.supReqs.length) {
         //    let mySuppliers = getTypeCreeps(node, 'supplier')
-        //    while (mySuppliers.length > 0 && node?.supReqs?.length) {
+        //    while (mySuppliers.length > 0 && node.supReqs.length) {
         //      addCreepToNode(node.supReqs[0], 'supplier', mySuppliers[0])
         //      node.supReqs.shift()
         //      mySuppliers = getTypeCreeps(node, 'supplier')
@@ -126,8 +126,8 @@ module.exports.run = function (node, lineage = [], baseManifest) {
         //  //  const maxDistributed = mySuppliers.length - 1
         //  //  for (let i = 0; (i < srcContainers.length) && (distributed < maxDistributed); i++) {
         //  //    let src = srcContainers[i]
-        //  //    console.log(src?.id, 'src container loggg', i, distributed, 'maxDistributed', maxDistributed)
-        //  //    if (!src.creeps?.supplier?.length) {
+        //  //    console.log(src.id, 'src container loggg', i, distributed, 'maxDistributed', maxDistributed)
+        //  //    if (!src.creeps.supplier.length) {
         //  //      let creepMem = Memory.creeps[mySuppliers[i]]
         //  //      addCreepToNode(src.id, 'supplier', mySuppliers[i])
         //  //      distributed++
@@ -144,7 +144,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
     }
 
     // if we are full and theres no dests lets expand storage
-    if (node.dests && Object.keys(node.dests)?.length === 0) {
+    if (node.dests && Object.keys(node.dests).length === 0) {
       proxySrcChildren(node)
 
 

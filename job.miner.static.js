@@ -54,14 +54,14 @@ module.exports.run = function (creep, manifest) {
             if (creep.memory.nodeId) {
                 let node = Memory.nodes[creep.memory.nodeId]
                 if (node && node.type === 'src' && node.stage === 3) { // containerized src. only fill local node.
-                    let nodeParent = Memory.nodes[node?.parent]
+                    let nodeParent = Memory.nodes[node.parent]
                     if (nodeParent) {
                         if (nodeParent.type === STRUCTURE_CONTAINER) {
                             ACTIONS.transfer.start(creep, node.parent)
                             return
                         }
                     }
-                    if (Math.random() < .4 && node?.children?.build?.length) {
+                    if (Math.random() < .4 && node.children.build.length) {
                         ACTIONS.build.start(creep, node.children.build[0])
                         return
                     }

@@ -156,7 +156,7 @@ module.exports.run = function (creep, manifest) {
         if (energy > 0) {
             // try to go to log
             trgInfo = getDestNode(node, creep, {canWork: false})
-            if (trgInfo?.trg) {
+            if (trgInfo.trg) {
                 ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
                 return
             } else {

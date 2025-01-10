@@ -28,7 +28,7 @@ const {MIN_ENERGY_BUILD} = require('./config')
 module.exports.run = function (creep, manifest) {
   try {
     let node = Memory.nodes[creep.memory.nodeId]
-    let gameNode = Game.getObjectById(node?.id)
+    let gameNode = Game.getObjectById(node.id)
     if (!node || !gameNode.progressTotal) {
       // find new parent
       let target = creep.pos.findClosestByPath(FIND_MY_CONSTRUCTION_SITES, {maxOps: 500});
@@ -50,14 +50,14 @@ module.exports.run = function (creep, manifest) {
     }
     if (energyNeeded > 0 && manifest.baseSrcEnergy > MIN_ENERGY_BUILD) {
       let trgInfo = getSrcNode(node, creep, {minEnergyNeeded: energyNeeded, canWork: true})
-      if (trgInfo?.trg) {
+      if (trgInfo.trg) {
         ACTIONS[trgInfo.action].start(creep, trgInfo.trg)
         return
       }
     }
 
     //const energyNeeded = creep.store.getFreeCapacity()
-    //if (manifest.spawn?.length > 0) {
+    //if (manifest.spawn.length > 0) {
     //  if (energyNeeded) {
     //    let trg = creep.pos.findClosestByPath(FIND_DROPPED_RESOURCES, {
     //      maxOps: 500, ignoreCreeps: true})
@@ -88,8 +88,8 @@ module.exports.run = function (creep, manifest) {
     //  let target = creep.pos.findClosestByPath(FIND_STRUCTURES, {
     //    maxOps: 500, ignoreCreeps: true,
     //    filter: function(gameNode) {
-    //      let node = Memory.nodes[gameNode?.id]
-    //      let res = gameNode.store && node?.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
+    //      let node = Memory.nodes[gameNode.id]
+    //      let res = gameNode.store && node.type === STRUCTURE_CONTAINER && gameNode.store.getUsedCapacity(RESOURCE_ENERGY)
     //      return res
     //    }
     //  })

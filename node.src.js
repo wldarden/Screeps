@@ -31,7 +31,7 @@ function myContainerPos (node) {
   let gameNode = Game.getObjectById(node.id)
   const parent = Memory.nodes[node.parent]
   let stoPath = gameNode.pos.findPathTo(getNodePos(parent), {ignoreCreeps: true})
-  if (stoPath?.length) {
+  if (stoPath.length) {
     let pos
     if (stoPath[0].dx !== 0) {
       pos = {x: stoPath[0].x + stoPath[0].dx, y: stoPath[0].y, roomName: gameNode.pos.roomName }
@@ -122,7 +122,7 @@ module.exports.run = function (node, lineage = [], baseManifest) {
       const {energyPerTick, creepsPerSlot} = calcSrcROI(mySpawnReq.body, node.dist)
       node.ept = energyPerTick
       node.cps = node.stage === 3 ? 1 : creepsPerSlot
-      const nCreeps = node.creeps?.miner?.length || 0
+      const nCreeps = node.creeps.miner.length || 0
       console.log('recalced src ept',node.id, Math.min(10, (nCreeps * energyPerTick)), (nCreeps * energyPerTick),  nCreeps, nCreeps, energyPerTick, node.dist)
       node.totalEpt = Math.min(10, (nCreeps * energyPerTick))
       //let workParts = 0
