@@ -288,7 +288,6 @@ function getDist (n1, n2) {
   let pPos = getNodePos(n1)
   let nPos = getNodePos(n2)
   if (pPos && nPos) {
-    //console.log('got parent pos',  nPos,  n1, n1.type, pPos, n2, n2.type)
     return pPos.findPathTo(nPos, {ignoreCreeps: true}).length
   } else {
     console.log('no parent pos or node pos here: ',  nPos,  n1, pPos, n2)
